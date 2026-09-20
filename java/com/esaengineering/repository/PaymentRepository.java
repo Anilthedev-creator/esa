@@ -10,4 +10,9 @@ import java.util.Optional;
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
     Optional<Payment> findByTransactionId(String transactionId);
+
+    Optional<Payment> findByReference(String reference);
+
+    // every booking gets one payment row for the consultation fee
+    Optional<Payment> findByBookingId(Long bookingId);
 }

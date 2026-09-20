@@ -1,21 +1,13 @@
-
 package com.esaengineering.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
-import java.util.List;
+import java.util.Optional;
 import com.esaengineering.model.ContentAbout;
 
 @Repository
-public interface ContentAboutRepository  extends JpaRepository<ContentAbout, Long> {
+public interface ContentAboutRepository extends JpaRepository<ContentAbout, Long> {
 
-    List <ContentAbout> findByContentId(Long contentId);
-
-
-
-
-
-
-
-    
+    // contentId is unique so there can only be one row with this id
+    Optional<ContentAbout> findByContentId(Long contentId);
 }

@@ -82,16 +82,51 @@ The application will start on **http://localhost:8080**.
 
 ## API Endpoints
 
+Website pages use the `/api` endpoints, the older endpoints still work too.
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/auth/register` | Customer registration |
-| POST | `/auth/signin` | User sign in |
-| GET | `/auth/me` | Get current user |
-| POST | `/contact` | Submit contact form |
-| POST | `/bookings` | Create a booking |
-| GET | `/api/admin/stats` | Admin dashboard stats |
-| GET | `/api/admin/customers` | List customers |
-| GET | `/api/admin/enquiries` | List enquiries |
+| POST | `/api/auth/signup` | Customer sign up (returns token + user) |
+| POST | `/api/auth/signin` | User sign in (returns token + user) |
+| GET | `/api/auth/me` | Get current user (needs `Authorization: Bearer <token>`) |
+| POST | `/api/auth/forgot-password` | Request a password reset link |
+| POST | `/api/auth/reset-password` | Set a new password with a reset token |
+| POST | `/api/bookings` | Create a booking from the booking page |
+| GET | `/api/bookings/{id}` | Booking + payment details for the payment page |
+| POST | `/api/enquiries` | Submit the contact page form |
+| POST | `/api/payments/{id}/confirm` | Pay the consultation fee (demo checkout) |
+| GET | `/api/content?slug=<page>` | Saved text changes for a public page |
+| POST | `/api/analytics/track` | Page view tracking |
+| GET | `/api/admin/stats` | Admin dashboard stats (admin only) |
+| GET | `/api/admin/customers` | List customers (admin only) |
+| GET | `/api/admin/enquiries` | List enquiries (admin only) |
+| GET | `/api/admin/payments` | List payments (admin only) |
+| GET/POST | `/api/admin/pages` | List / create CMS pages (admin only) |
+| GET/PUT | `/api/admin/settings` | Read / save site settings (admin only) |
+| GET | `/api/admin/analytics/activity` | Visits per day for the chart (admin only) |
+| POST | `/auth/register` | Customer registration (plain text answer) |
+| POST | `/auth/login` | User login (plain text answer) |
+| POST | `/auth/create/admin` | Create an admin account |
+| PUT | `/auth/change-password` | Change password (needs current password) |
+| POST | `/bookings/create` | Create a booking |
+| GET | `/bookings/get` | List all bookings |
+| GET | `/bookings/id/{id}` | Get one booking |
+| POST | `/contact/create` | Create an enquiry |
+| GET | `/contact/get` | List all enquiries |
+| GET/PUT | `/about` | Read / save all about page content |
+| GET/PUT | `/about/story`, `/about/heading1`, ... | Read / save one about page field |
+| GET/POST/DELETE | `/payments` | Basic payment CRUD |
+
+## Default Admin Account
+
+When the app starts for the first time it creates an admin account
+so you can open the admin pages:
+
+- **Email:** `admin@esa.com.au`
+- **Password:** `Admin1234`
+
+Sign in at http://localhost:8080/signin.html and you will be
+sent to the admin dashboard. Please change the password afterwards.
 
 ## Features
 

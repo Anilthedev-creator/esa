@@ -132,7 +132,12 @@ document.addEventListener('DOMContentLoaded', function() {
       const result = await signin(email, password);
 
       if (result.success !== false) {
-        window.location.href = redirectTarget;
+        // admins go to the admin pages, customers go back to the site
+        if (result.user && result.user.role === 'admin') {
+          window.location.href = redirectTarget;
+        } else {
+          window.location.href = 'index.html';
+        }
       }
     } catch (error) {
       errorDiv.textContent = error.message || 'An error occurred during sign in';

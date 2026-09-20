@@ -259,8 +259,17 @@ function updateHeaderButtons() {
     firstName = user.firstName;
   }
 
+  // admins get a link to the admin dashboard,
+  // customers get a link to the booking page
+  var dashboardLink = "booking.html";
+  var dashboardLabel = "Book a service";
+  if (user && user.role === "admin") {
+    dashboardLink = "dashboard.html";
+    dashboardLabel = firstName + "'s Dashboard";
+  }
+
   actions.innerHTML =
-    '<a href="dashboard.html" class="btn-pill btn-pill-red">' + firstName + "'s Dashboard</a>" +
+    '<a href="' + dashboardLink + '" class="btn-pill btn-pill-red">' + dashboardLabel + '</a>' +
     '<a href="#" id="headerSignOut" class="btn-pill btn-pill-cyan">Sign out</a>';
 
   var signOutLink = document.getElementById("headerSignOut");

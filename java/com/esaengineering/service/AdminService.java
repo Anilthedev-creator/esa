@@ -9,8 +9,11 @@ import java.util.Map;
 import com.esaengineering.dto.CustomerDTO;
 import com.esaengineering.model.Booking;
 import com.esaengineering.model.Contact;
+import com.esaengineering.model.Payment;
+import com.esaengineering.model.PaymentStatus;
 import com.esaengineering.repository.BookingRepository;
 import com.esaengineering.repository.ContactRepository;
+import com.esaengineering.repository.PaymentRepository;
 import com.esaengineering.repository.UserRepository;
 
 import org.springframework.stereotype.Service;
@@ -21,15 +24,18 @@ public class AdminService {
     private final BookingRepository bookingRepository;
     private final ContactRepository contactRepository;
     private final UserRepository userRepository;
+    private final PaymentRepository paymentRepository;
 
     public AdminService(
             BookingRepository bookingRepository,
             ContactRepository contactRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            PaymentRepository paymentRepository) {
 
         this.bookingRepository = bookingRepository;
         this.contactRepository = contactRepository;
         this.userRepository = userRepository;
+        this.paymentRepository = paymentRepository;
     }
 
     /*
@@ -60,22 +66,27 @@ public class AdminService {
         // Total registered users
         long totalUsers = userRepository.count();
 
-        // Active/upcoming bookings
+        // Active/upcoming bookings (not cancelled and not in the past)
         long activeBookings = bookings.stream()
                 .filter(booking ->
-                        booking.getBookingDate() != null &&
-                        !booking.getBookingDate().isBefore(LocalDate.now()))
+                        booking.getBookingDate() != null
+                        && !booking.getBookingDate().isBefore(LocalDate.now())
+                        && !"cancelled".equalsIgnoreCase(booking.getStatus()))
                 .count();
 
-        // Currently there is no enquiry status field in Contact.
-        // Therefore, we use the total number of enquiries.
-        long pendingEnquiries = enquiries.size();
+        // Enquiries that have not been resolved yet
+        long pendingEnquiries = enquiries.stream()
+                .filter(enquiry -> !"resolved".equalsIgnoreCase(enquiry.getStatus()))
+                .count();
 
-        /*
-         * Payment/revenue functionality is not implemented in the
-         * current backend, so we do not invent a revenue figure.
-         */
+        // Real revenue = sum of all successful payments
         double revenue = 0.0;
+        List<Payment> payments = paymentRepository.findAll();
+        for (Payment payment : payments) {
+            if (payment.getStatus() == PaymentStatus.SUCCESS && payment.getAmount() != null) {
+                revenue += payment.getAmount().doubleValue();
+            }
+        }
 
         // Recent service requests
         List<Map<String, Object>> recentRequests = new ArrayList<>();
@@ -93,13 +104,7 @@ public class AdminService {
             request.put("customer", booking.getFullName());
             request.put("service", booking.getServiceName());
             request.put("date", booking.getBookingDate());
-
-            /*
-             * Booking currently has no status field.
-             * We therefore use "confirmed" as a temporary display
-             * value for existing bookings.
-             */
-            request.put("status", "confirmed");
+            request.put("status", booking.getStatus() == null ? "pending" : booking.getStatus());
 
             recentRequests.add(request);
         }

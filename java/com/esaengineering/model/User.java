@@ -1,18 +1,15 @@
-
 /*Writter : Sobus das */
 /* This User.java class is model class for database. User's data will be stored in the database */
 
-    
 package com.esaengineering.model;
 
-
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 
 /**
  * User entity representing application users.
  * Both customers and administrators are stored in the users table.
  */
-
 @Entity
 @Table(name = "users")
 public class User {
@@ -21,10 +18,8 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long userId;
 
-    
     private String fullName;
 
-   
     private String companyName;
 
     @Column(nullable = false, unique = true)
@@ -39,17 +34,27 @@ public class User {
     private boolean passwordResetRequired;
 
     private boolean active;
-    
-    @Column(nullable = false)
+
+    // phone is optional because the signup page does not ask for it
+    @Column(nullable = true)
     private String phoneNumber;
+
+    // when the account was created (used by the admin customers page)
+    @Column(nullable = true)
+    private LocalDateTime createdAt;
+
+    // forgot password token, empty most of the time
+    @Column(nullable = true)
+    private String resetToken;
+
+    @Column(nullable = true)
+    private LocalDateTime resetTokenExpiry;
 
     /**
      * Required by JPA.
      */
     public User() {
     }
-    
-
 
     public User(Long userId,
                 String fullName,
@@ -59,8 +64,7 @@ public class User {
                 Role role,
                 boolean passwordResetRequired,
                 boolean active,
-                String phoneNumber
-            ) {
+                String phoneNumber) {
 
         this.userId = userId;
         this.fullName = fullName;
@@ -137,11 +141,35 @@ public class User {
         this.active = active;
     }
 
-    public void setPhoneNumber( String phoneNumber){
+    public void setPhoneNumber(String phoneNumber) {
         this.phoneNumber = phoneNumber;
     }
-    public String getPhoneNumber(){
-        return phoneNumber;
 
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public String getResetToken() {
+        return resetToken;
+    }
+
+    public void setResetToken(String resetToken) {
+        this.resetToken = resetToken;
+    }
+
+    public LocalDateTime getResetTokenExpiry() {
+        return resetTokenExpiry;
+    }
+
+    public void setResetTokenExpiry(LocalDateTime resetTokenExpiry) {
+        this.resetTokenExpiry = resetTokenExpiry;
     }
 }

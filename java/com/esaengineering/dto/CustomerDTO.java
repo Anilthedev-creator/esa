@@ -1,122 +1,101 @@
-
-/* 
 package com.esaengineering.dto;
 
 import java.time.LocalDate;
 
 import com.esaengineering.model.Booking;
 
-/**
+/*
  * CustomerDTO
- *this class is made for sending booking data to admin users. because booking class does not fields like phone number, there is a class needed to take data from user.java and booking.java and 
+ * This class is made for sending booking data to admin users.
+ * The Booking class does not have every field the admin page
+ * wants to show, so this DTO collects them in one place.
  */
-
- /* 
 public class CustomerDTO {
 
-    String fullName;
+    private Long bookingId;
+    private String fullName;
+    private String phoneNumber;
+    private String email;
+    private String serviceName;
+    private String description;
+    private LocalDate bookingDate;
+    private String status;
 
-    @Column(nullable = true)
-    String phoneNumber;
-    String email;
-    String description;
-    LocalDate bookingDate;
-
-    @Column(nullable = false)
-    String companyName;
-
-
-
-    
-    public CustomerDTO( Booking booking){
-        this.fullName = booking.getFullName();
-       
-        this.email = booking.getEmail();
-        this.description = booking.getDescription();
-       
-        this.bookingDate = booking.getBookingDate();
-
+    public CustomerDTO() {
     }
 
+    public CustomerDTO(Booking booking) {
+        this.bookingId = booking.getBookingId();
+        this.fullName = booking.getFullName();
+        this.phoneNumber = booking.getPhone();
+        this.email = booking.getEmail();
+        this.serviceName = booking.getServiceName();
+        this.description = booking.getDescription();
+        this.bookingDate = booking.getBookingDate();
+        this.status = booking.getStatus();
+    }
 
+    public Long getBookingId() {
+        return bookingId;
+    }
+
+    public void setBookingId(Long bookingId) {
+        this.bookingId = bookingId;
+    }
 
     public String getFullName() {
         return fullName;
     }
 
-
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
+    }
 
     public String getPhoneNumber() {
         return phoneNumber;
     }
 
-
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
+    }
 
     public String getEmail() {
         return email;
     }
 
+    public void setEmail(String email) {
+        this.email = email;
+    }
 
+    public String getServiceName() {
+        return serviceName;
+    }
+
+    public void setServiceName(String serviceName) {
+        this.serviceName = serviceName;
+    }
 
     public String getDescription() {
         return description;
     }
 
-
+    public void setDescription(String description) {
+        this.description = description;
+    }
 
     public LocalDate getBookingDate() {
         return bookingDate;
     }
 
-
-
-    public String getCompanyName() {
-        return companyName;
-    }
-
-
-
-    public void setFullName(String fullName) {
-        this.fullName = fullName;
-    }
-
-
-
-    public void setPhoneNumber(String phoneNumber) {
-        this.phoneNumber = phoneNumber;
-    }
-
-
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-
-
     public void setBookingDate(LocalDate bookingDate) {
         this.bookingDate = bookingDate;
     }
 
-
-
-    public void setCompanyName(String companyName) {
-        this.companyName = companyName;
+    public String getStatus() {
+        return status;
     }
 
-    
-
-
-
-
-
-    
+    public void setStatus(String status) {
+        this.status = status;
+    }
 }
-
-*/

@@ -10,7 +10,7 @@ public class ContentAbout {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long contentId;
 
-    @Column(length = 200)
+    @Column(length = 3000)
     private String story;
 
     private String heading1;
@@ -45,13 +45,14 @@ public class ContentAbout {
     public ContentAbout() {
     }
 
-    public ContentAbout(Long contentId, String story, String heading1, String paragraph1, String heading2,
+    public ContentAbout(Long contentId, String story, String heading1, String paragraph1, String paragraph3, String heading2,
             String paragraph2, String specialist1Name, String specialist1Position, String specialist1Biography,
             String specialist2Name, String specialist2Position, String specialist2Biography) {
         this.contentId = contentId;
         this.story = story;
         this.heading1 = heading1;
         this.paragraph1 = paragraph1;
+        this.paragraph3 = paragraph3;
         this.heading2 = heading2;
         this.paragraph2 = paragraph2;
         this.specialist1Name = specialist1Name;

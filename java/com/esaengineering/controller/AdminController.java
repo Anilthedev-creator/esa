@@ -21,7 +21,7 @@ public class AdminController {
      * Get customer information for the Admin Portal
      */
     @GetMapping("/customers")
-    public List<CustomerDTO> getAllBookings() {
+    public List<CustomerDTO> getAllCustomers() {
 
         return adminService.getAllBookings();
     }

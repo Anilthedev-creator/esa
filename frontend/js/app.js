@@ -36,7 +36,7 @@ async function register(event) {
     document.getElementById("message").innerText = result;
 
     if (result === "Registration successful") {
-    window.location.href = "successMessage.html";
+    window.location.href = "signin.html";
 
 }
 }
