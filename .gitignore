@@ -1,0 +1,39 @@
+# Build output
+target/
+*.class
+*.jar
+*.war
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+.settings/
+.project
+.classpath
+*.launch
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Maven wrapper
+.mvn/
+mvnw
+mvnw.cmd
+
+# Gradle wrapper
+.gradle/
+gradlew
+gradlew.cmd
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
