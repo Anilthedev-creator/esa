@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="description" content="ESA Engineering - Technical excellence and regional expertise since 2004. Plant commissioning, utility appraisals, production optimisation across Australia.">
+<meta name="theme-color" content="#0b172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>ESA Engineering | Technical Excellence Since 2004</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="main-header">
+  <div class="top-split-bar"></div>
+  <div class="container header-wrapper">
+
+    <a href="index.html" class="logo">
+      <span class="red">ESA</span> <span class="navy">ENGINEERING</span>
+    </a>
+
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle navigation menu">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+
+    <nav class="main-nav-box" id="mobileMenu">
+      <a href="index.html" class="nav-link">Home</a>
+
+      <div class="dropdown">
+        <a href="projects.html" class="nav-link dropdown-trigger">Projects <span class="arrow">‣</span></a>
+        <div class="dropdown-content">
+          <a href="projects.html">All Projects</a>
+        </div>
+      </div>
+
+      <div class="dropdown">
+        <a href="#" class="nav-link dropdown-trigger">Services <span class="arrow">‣</span></a>
+        <div class="dropdown-content">
+          <a href="commissioning.html">Plant Commissioning</a>
+          <a href="appraisals.html">Utility Appraisals</a>
+          <a href="optimisation.html">Production Optimisation</a>
+          <a href="waste-management.html">Waste Management</a>
+          <a href="dangerous-goods.html">Dangerous Goods</a>
+        </div>
+      </div>
+
+      <a href="contact.html" class="nav-link">Contact</a>
+      <a href="about.html" class="nav-link">About us</a>
+    </nav>
+
+    <div class="header-actions">
+      <a href="signin.html" class="btn-pill btn-pill-red">Sign in</a>
+      <a href="signup.html" class="btn-pill btn-pill-cyan">Sign up</a>
+          </div>
+
+  </div>
+</header>
+
+<div class="booking-container">
+<form id = "bookingForm" >
+
+  <h2>Booking Information</h2>
+  
+  <div class="form-group">
+    <label for="fullName">
+      Full name *
+      
+    </label> 
+    <input type="text" id = "fullName" required>  
+  </div>
+
+
+  <div class="form-group">
+    <label for="email">
+      Email *
+      
+    </label>
+
+
+    <input type="text" id = "email" required>
+ 
+  </div>
+
+  <div class="form-group">
+    <label for = "phoneNumber">
+      Phone 
+      
+    </label>
+    <input type="text" id = "phoneNumber">
+    
+  </div>
+
+
+
+  <div class="form-group">
+    <label for="bookingDate">
+      Select a date *
+      
+    </label>
+
+
+    <input type="date" id = "bookingDate" required>
+ 
+  </div>
+
+
+  <div class="form-group">
+    <label for="abnNumber">
+      ABN number *
+      
+    </label>
+
+
+    <input type="text" id = "abnNumber" maxlength="11" required>
+ 
+  </div>
+
+
+  <div class="form-group"  >
+         <label for="serviceType">
+
+               Select a service *
+      
+         </label>
+         
+
+     <select id="serviceType"  required>
+          <option value="Plant Commissioning">
+                Plant Commissioning
+        
+          </option>
+
+          <option value="Utility Appraisals">
+                Utility Appraisals
+        
+          </option>
+
+          <option value="Production Optimisation">
+                 Production Optimisation
+        
+          </option>
+
+
+          <option value="Dangerous Goods">
+    
+                 Dangerous Goods
+          </option>
+
+         <option value="Waste Management">
+                 Waste Management
+        
+          </option>
+
+      
+      </select>
+     
+
+
+    </div>
+
+      <div class="form-group" style="margin-top: 12px;">
+          <label for="Description" >
+                 Description (optional)
+      
+          </label>
+          <textarea id = "description" rows="5" placeholder="Describe your project requirements"></textarea>
+
+       </div>
+
+       <button
+         type = "submit" class = "submitButton" >
+         Submit Booking
+       </button>
+
+
+   
+ 
+  </div>
+  
+  <script src="js/booking.js"></script>
+
+</form>
+</div>
+
+
+</body>
+

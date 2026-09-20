@@ -1,0 +1,162 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+
+  <title>Customer Management | ESA Admin</title>
+
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/admin.css">
+
+  <link
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    rel="stylesheet"
+  />
+</head>
+
+<body>
+
+<div class="admin-layout">
+
+  <!-- SIDEBAR -->
+  <aside id="sidebar" class="sidebar">
+
+    <div class="sidebar-logo">
+      <span class="logo-red">ESA</span>
+      <span class="logo-white">ENGINEERING</span>
+    </div>
+
+    <nav class="sidebar-nav">
+
+      <a href="dashboard.html">
+        Dashboard
+      </a>
+
+      <a href="content.html">
+        Content Management
+      </a>
+
+      <a class="active" href="customers.html">
+        Customer Management
+      </a>
+
+      <a href="payments.html">
+        Payments
+      </a>
+
+      <a href="enquiries.html">
+        Enquiries
+      </a>
+
+      <a href="analytics.html">
+        Analytics
+      </a>
+
+      <a href="settings.html">
+        Settings
+      </a>
+
+    </nav>
+
+    <div class="sidebar-user">
+
+      <div class="user-circle">
+        AD
+      </div>
+
+      <div>
+        <p>Admin User</p>
+        <span>Administrator</span>
+      </div>
+
+    </div>
+
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main-content">
+
+    <!-- TOPBAR -->
+    <header class="admin-topbar">
+
+      <div class="topbar-links">
+        <a href="index.html">Home</a>
+        <a href="projects.html">Projects</a>
+        <a href="services.html">Services</a>
+        <a href="contact.html">Contact</a>
+        <a href="about.html">About us</a>
+      </div>
+
+      <button id="adminToggle" class="admin-btn" aria-controls="sidebar" aria-expanded="false">
+        Menu
+      </button>
+
+    </header>
+
+    <!-- PAGE -->
+    <section class="dashboard-wrapper">
+
+      <!-- TITLE -->
+      <div class="dashboard-title">
+        <i class="fa-solid fa-bars"></i>
+        <h2>Customer Management</h2>
+      </div>
+
+      <!-- HEADER -->
+      <div class="content-header">
+
+        <div>
+          <h3 class="section-heading">
+            All Customers
+          </h3>
+
+          <div class="heading-line"></div>
+        </div>
+
+        <button class="filter-btn">
+          Filter
+        </button>
+
+      </div>
+
+      <!-- TABLE -->
+      <div class="dashboard-card">
+
+        <table>
+
+          <thead>
+            <tr>
+              <th>Customer name</th>
+              <th>Email</th>
+              <th>Phone</th>
+              <th>Booking date</th>
+              <th>Company Name</th>
+              <th>Description</th>
+            </tr>
+
+          </thead>
+
+          <tbody id = "customerTable">
+
+        
+          </tbody>
+
+        </table>
+
+      </div>
+
+    </section>
+
+  </main>
+
+</div>
+<script src="js/customersAdmin.js"></script>
+
+</body>
+</html>
+
+
+

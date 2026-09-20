@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+
+  <title>ESA Admin Dashboard</title>
+
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="admin.css">
+
+  <link
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    rel="stylesheet"
+  />
+</head>
+
+<body data-admin-page="dashboard">
+
+<div class="admin-layout">
+
+  <!-- SIDEBAR -->
+    <aside id="sidebar" class="sidebar">
+
+    <div class="sidebar-logo">
+      <img src="images/logo-white.png" alt="Engineering Services Australia">
+    </div>
+
+    <nav class="sidebar-nav">
+
+      <a class="active" href="dashboard.html">
+        <i class="fa-solid fa-gauge-high"></i> Dashboard
+      </a>
+
+      <a href="content.html">
+        <i class="fa-solid fa-file-lines"></i> Content Management
+      </a>
+
+      <a href="customers.html">
+        <i class="fa-solid fa-users"></i> Customer Management
+      </a>
+
+      <a href="payments.html">
+        <i class="fa-solid fa-credit-card"></i> Payments
+      </a>
+
+      <a href="enquiries.html">
+        <i class="fa-solid fa-envelope"></i> Enquiries
+      </a>
+
+      <a href="analytics.html">
+        <i class="fa-solid fa-chart-line"></i> Analytics
+      </a>
+
+      <a href="settings.html">
+        <i class="fa-solid fa-gear"></i> Settings
+      </a>
+
+    </nav>
+
+    <div class="sidebar-user">
+      <div class="user-circle">AD</div>
+
+      <div>
+        <p>Admin User</p>
+        <span>Administrator</span>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main-content">
+
+    <!-- TOPBAR -->
+    <header class="admin-topbar">
+
+<div class="topbar-links">
+
+    <a href="index.html">Home</a>
+
+    <a href="projects.html">Projects</a>
+
+    <a href="services.html">Services</a>
+
+    <a href="contact.html">Contact</a>
+
+    <a href="about.html">About us</a>
+
+</div>
+
+      <button id="adminToggle" class="admin-btn" aria-controls="sidebar" aria-expanded="false">
+        Menu
+      </button>
+
+    </header>
+
+    <!-- PAGE -->
+    <section class="dashboard-wrapper">
+
+      <div class="dashboard-title">
+        <i class="fa-solid fa-bars"></i>
+        <h2>Admin Dashboard</h2>
+      </div>
+
+      <!-- STATS -->
+      <div class="stats-grid">
+
+        <div class="stat-card">
+          <div class="stat-icon cyan">
+            <i class="fa-solid fa-users"></i>
+          </div>
+
+          <div>
+            <p>Total Users</p>
+            <h3 id="statTotalUsers">—</h3>
+            <span id="statTotalUsersTrend"></span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon green">
+            <i class="fa-solid fa-calendar"></i>
+          </div>
+
+          <div>
+            <p>Active Bookings</p>
+            <h3 id="statActiveBookings">—</h3>
+            <span id="statActiveBookingsTrend"></span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon yellow">
+            <i class="fa-regular fa-envelope"></i>
+          </div>
+
+          <div>
+            <p>Pending Enquiries</p>
+            <h3 id="statPendingEnquiries">—</h3>
+            <span id="statPendingEnquiriesTrend"></span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon blue">
+            <i class="fa-solid fa-dollar-sign"></i>
+          </div>
+
+          <div>
+            <p>Revenue</p>
+            <h3 id="statRevenue">—</h3>
+            <span id="statRevenueTrend"></span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- TABLES -->
+      <div class="dashboard-grid">
+
+        <!-- SERVICE REQUESTS -->
+        <div class="dashboard-card">
+
+          <div class="card-header">
+            <h3>Recent Service Requests</h3>
+            <a href="#">View All</a>
+          </div>
+
+          <table>
+
+            <thead>
+              <tr>
+                <th>Customer</th>
+                <th>Service</th>
+                <th>Date</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+
+            <tbody id="recentRequestsBody">
+
+              <tr>
+                <td>John Smith</td>
+                <td>Structural Design</td>
+                <td>27 Apr 2026</td>
+                <td><span class="status pending">Pending</span></td>
+              </tr>
+
+              <tr>
+                <td>Sarah Johnson</td>
+                <td>Site Inspection</td>
+                <td>26 Apr 2026</td>
+                <td><span class="status completed">Completed</span></td>
+              </tr>
+
+              <tr>
+                <td>Michael Brown</td>
+                <td>Project Management</td>
+                <td>25 Apr 2026</td>
+                <td><span class="status pending">Pending</span></td>
+              </tr>
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+        <!-- ENQUIRIES -->
+        <div class="dashboard-card">
+
+          <div class="card-header">
+            <h3>Recent Enquiries</h3>
+            <a href="#">View All</a>
+          </div>
+
+          <div id="recentEnquiriesList">
+            <div class="enquiry-item">
+              <h4>James Anderson</h4>
+              <p>I would like more information...</p>
+              <button>Reply</button>
+            </div>
+
+            <div class="enquiry-item">
+              <h4>Olivia Taylor</h4>
+              <p>Can you provide a quote...</p>
+              <button>Reply</button>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- CHART -->
+      <div class="chart-card">
+
+        <div class="card-header">
+          <h3>Website Activity</h3>
+        </div>
+
+        <div class="fake-chart" id="dashboardChart"></div>
+      </div>
+
+    </section>
+
+  </main>
+
+</div>
+
+<script src="auth.js"></script>
+<script src="admin.js"></script>
+<script src="admin-data.js" defer></script>
+</body>
+</html>
+
+

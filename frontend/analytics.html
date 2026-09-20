@@ -1,0 +1,248 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+
+  <title>Analytics | ESA Admin</title>
+
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="admin.css">
+
+  <link
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    rel="stylesheet"
+  />
+</head>
+
+<body data-admin-page="analytics">
+
+<div class="admin-layout">
+
+  <!-- SIDEBAR -->
+  <aside id="sidebar" class="sidebar">
+
+    <div class="sidebar-logo">
+      <img src="images/logo-white.png" alt="Engineering Services Australia">
+    </div>
+
+    <nav class="sidebar-nav">
+
+      <a href="dashboard.html">
+        <i class="fa-solid fa-gauge-high"></i> Dashboard
+      </a>
+
+      <a href="content.html">
+        <i class="fa-solid fa-file-lines"></i> Content Management
+      </a>
+
+      <a href="customers.html">
+        <i class="fa-solid fa-users"></i> Customer Management
+      </a>
+
+      <a href="payments.html">
+        <i class="fa-solid fa-credit-card"></i> Payments
+      </a>
+
+      <a href="enquiries.html">
+        <i class="fa-solid fa-envelope"></i> Enquiries
+      </a>
+
+      <a class="active" href="analytics.html">
+        <i class="fa-solid fa-chart-line"></i> Analytics
+      </a>
+
+      <a href="settings.html">
+        <i class="fa-solid fa-gear"></i> Settings
+      </a>
+
+    </nav>
+
+    <div class="sidebar-user">
+
+      <div class="user-circle">
+        AD
+      </div>
+
+      <div>
+        <p>Admin User</p>
+        <span>Administrator</span>
+      </div>
+
+    </div>
+
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main-content">
+
+    <!-- TOPBAR -->
+    <header class="admin-topbar">
+
+      <div class="topbar-links">
+        <a href="index.html">Home</a>
+        <a href="projects.html">Projects</a>
+        <a href="services.html">Services</a>
+        <a href="contact.html">Contact</a>
+        <a href="about.html">About us</a>
+      </div>
+
+      <button id="adminToggle" class="admin-btn" aria-controls="sidebar" aria-expanded="false">
+        Menu
+      </button>
+
+    </header>
+
+    <!-- PAGE -->
+    <section class="dashboard-wrapper">
+
+      <!-- TITLE -->
+      <div class="dashboard-title">
+        <i class="fa-solid fa-bars"></i>
+        <h2>Analytics</h2>
+      </div>
+
+      <!-- STATS -->
+      <div class="stats-grid">
+
+        <div class="stat-card">
+
+          <div class="stat-icon cyan">
+            <i class="fa-solid fa-users"></i>
+          </div>
+
+          <div>
+            <p>Total Users</p>
+            <h3 id="statTotalUsers">—</h3>
+            <span id="statTotalUsersTrend"></span>
+          </div>
+
+        </div>
+
+        <div class="stat-card">
+
+          <div class="stat-icon green">
+            <i class="fa-solid fa-calendar"></i>
+          </div>
+
+          <div>
+            <p>Active Bookings</p>
+            <h3 id="statActiveBookings">—</h3>
+            <span id="statActiveBookingsTrend"></span>
+          </div>
+
+        </div>
+
+        <div class="stat-card">
+
+          <div class="stat-icon yellow">
+            <i class="fa-regular fa-envelope"></i>
+          </div>
+
+          <div>
+            <p>Pending Enquiries</p>
+            <h3 id="statPendingEnquiries">—</h3>
+            <span id="statPendingEnquiriesTrend"></span>
+          </div>
+
+        </div>
+
+        <div class="stat-card">
+
+          <div class="stat-icon blue">
+            <i class="fa-solid fa-dollar-sign"></i>
+          </div>
+
+          <div>
+            <p>Revenue</p>
+            <h3 id="statRevenue">—</h3>
+            <span id="statRevenueTrend"></span>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- ANALYTICS CARD -->
+      <div class="analytics-card">
+
+        <div class="analytics-header">
+
+          <h3>Website Activity</h3>
+
+          <div class="analytics-actions">
+
+            <select id="activityRange">
+              <option value="7">Last 7 Days</option>
+              <option value="30">Last 30 Days</option>
+            </select>
+
+            <button class="export-btn" id="exportActivity" type="button">
+              <i class="fa-solid fa-download"></i>
+              Export
+            </button>
+
+          </div>
+
+        </div>
+
+        <!-- FAKE GRAPH -->
+        <div class="chart-container">
+
+          <div class="chart-grid"></div>
+
+          <!-- BLUE LINE -->
+          <svg class="chart-svg" id="activityChart" viewBox="0 0 1000 300" preserveAspectRatio="none">
+
+            <polyline
+              fill="none"
+              stroke="#06b6d4"
+              stroke-width="4"
+              points="
+                50,220
+                180,180
+                320,120
+                500,150
+                650,90
+                800,140
+                950,110
+              "
+            />
+
+            <!-- GREEN LINE -->
+            <polyline
+              fill="none"
+              stroke="#84cc16"
+              stroke-width="4"
+              points="
+                50,250
+                180,230
+                320,210
+                500,225
+                650,215
+                800,225
+                950,210
+              "
+            />
+
+          </svg>
+
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+</div>
+<script src="auth.js"></script>
+<script src="admin.js"></script>
+<script src="admin-data.js" defer></script>
+</body>
+</html>
+
+
+
