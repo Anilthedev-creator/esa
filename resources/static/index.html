@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="description" content="ESA Engineering - Technical excellence and regional expertise since 2004. Plant commissioning, utility appraisals, production optimisation across Australia.">
+<meta name="theme-color" content="#0b172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>ESA Engineering | Technical Excellence Since 2004</title>
+<link rel="stylesheet" href="style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="main-header">
+  <div class="top-split-bar"></div>
+  <div class="container header-wrapper">
+
+    <a href="index.html" class="logo">
+      <img class="logo-img" src="images/logo.png" alt="Engineering Services Australia"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
+      <span class="logo-fallback"><span class="red">ESA</span> <span class="navy">ENGINEERING</span></span>
+    </a>
+
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle navigation menu">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+
+    <nav class="main-nav-box" id="mobileMenu">
+      <a href="index.html" class="nav-link">Home</a>
+
+      <div class="dropdown">
+        <a href="projects.html" class="nav-link dropdown-trigger">Projects <span class="arrow">‣</span></a>
+        <div class="dropdown-content">
+          <a href="projects.html">All Projects</a>
+        </div>
+      </div>
+
+      <div class="dropdown">
+        <button type="button" class="nav-link dropdown-trigger" aria-haspopup="true" aria-expanded="false">Services <span class="arrow">‣</span></button>
+        <div class="dropdown-content">
+          <a href="commissioning.html">Plant Commissioning</a>
+          <a href="appraisals.html">Utility Appraisals</a>
+          <a href="optimisation.html">Production Optimisation</a>
+          <a href="waste-management.html">Waste Management</a>
+          <a href="dangerous-goods.html">Dangerous Goods</a>
+        </div>
+      </div>
+
+      <a href="contact.html" class="nav-link">Contact</a>
+      <a href="about.html" class="nav-link">About us</a>
+    </nav>
+
+    <div class="header-actions">
+      <a href="signin.html" class="btn-pill btn-pill-red">Sign in</a>
+      <a href="signup.html" class="btn-pill btn-pill-cyan">Sign up</a>
+          </div>
+
+  </div>
+</header>
+
+<!-- HERO -->
+<section style="padding:clamp(4rem,8vw,7rem) 0;background:var(--bg)">
+  <div class="container">
+    <div class="hero">
+      <div class="hero-content">
+        <span class="accent-label" data-cms="hero-tagline">Established 2004 — Australian Owned</span>
+        <h1 class="hero-title" data-cms="hero-title" data-cms-html>Technical<br>Excellence.<br><span style="color:var(--cyan)">Regional<br>Expertise.</span></h1>
+        <p style="font-size:1.1rem;color:var(--muted);max-width:520px;margin-bottom:var(--s8);line-height:1.8" data-cms="hero-intro">
+          Providing high-end engineering consultancy across Australia. From plant commissioning to production optimisation — we solve complex industrial problems with transparency and precision.
+        </p>
+        <div style="display:flex;gap:var(--s4);flex-wrap:wrap">
+          <a href="services.html" class="btn btn-red" data-cms="cta-primary">Our Capabilities</a>
+          <a href="projects.html" class="btn btn-outline" data-cms="cta-secondary">View Recent Work</a>
+        </div>
+      </div>
+      <div class="hero-image">
+        <div style="height:460px;border-radius:var(--r);position:relative;overflow:hidden;box-shadow:10px 10px 0 var(--cyan)">
+          <img class="hero-photo" src="images/project-remote-site.jpg" alt="Night operations at a remote site — ESA commissioning support across Australia and internationally">
+          <div class="hero-photo-overlay"></div>
+          <!-- Stat badge -->
+          <div style="position:absolute;bottom:var(--s8);left:var(--s8);background:var(--surface);padding:var(--s5) var(--s6);border-radius:var(--r);box-shadow:var(--sh-lg);border-left:4px solid var(--red);z-index:1">
+            <p style="font-weight:800;font-size:1.4rem;color:var(--navy)">22+ Years</p>
+            <p style="font-size:.8rem;color:var(--muted)">Of Operational Excellence</p>
+          </div>
+          <!-- Project value badge -->
+          <div style="position:absolute;top:var(--s8);right:var(--s8);background:var(--navy);padding:var(--s4) var(--s5);border-radius:var(--r);box-shadow:var(--sh-lg);z-index:1">
+            <p style="font-weight:800;font-size:1.1rem;color:var(--cyan)">$50k – $80M+</p>
+            <p style="font-size:.75rem;color:#9ca3af">Project Range</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS BAR -->
+<div class="stats-bar">
+  <div class="stat-item">
+    <h2>22+</h2>
+    <p>Years of Excellence</p>
+  </div>
+  <div class="stat-item">
+    <h2>$80M+</h2>
+    <p>Largest Project Delivered</p>
+  </div>
+  <div class="stat-item">
+    <h2>100%</h2>
+    <p>Australian Owned &amp; Operated</p>
+  </div>
+</div>
+
+<!-- SERVICES SECTION -->
+<section class="section-padding" style="background:var(--bg)">
+  <div class="container">
+    <h2 class="section-title">Our Engineering Services</h2>
+    <div class="grid">
+
+      <div class="card">
+        <div style="font-size:2rem;margin-bottom:var(--s4)">⚙️</div>
+        <div class="step-number">01</div>
+        <h3 style="color:var(--navy);margin-bottom:var(--s3);margin-top:var(--s3)">Plant Commissioning</h3>
+        <p style="color:var(--muted);font-size:var(--sm)">End-to-end commissioning management from pre-commissioning planning through to handover — across all plant types and scales.</p>
+        <a href="commissioning.html" class="details-link" style="display:inline-block;margin-top:var(--s5)">Learn more →</a>
+      </div>
+
+      <div class="card card-red">
+        <div style="font-size:2rem;margin-bottom:var(--s4)">📊</div>
+        <div class="step-number">02</div>
+        <h3 style="color:var(--navy);margin-bottom:var(--s3);margin-top:var(--s3)">Utility Appraisals</h3>
+        <p style="color:var(--muted);font-size:var(--sm)">Independent technical appraisals of utilities and plant assets — delivering honest assessments for buyers, sellers and lenders.</p>
+        <a href="appraisals.html" class="details-link" style="display:inline-block;margin-top:var(--s5)">Learn more →</a>
+      </div>
+
+      <div class="card">
+        <div style="font-size:2rem;margin-bottom:var(--s4)">🔧</div>
+        <div class="step-number">03</div>
+        <h3 style="color:var(--navy);margin-bottom:var(--s3);margin-top:var(--s3)">Production Optimisation</h3>
+        <p style="color:var(--muted);font-size:var(--sm)">Identifying bottlenecks, improving throughput and reducing downtime across manufacturing, food processing and mining operations.</p>
+        <a href="optimisation.html" class="details-link" style="display:inline-block;margin-top:var(--s5)">Learn more →</a>
+      </div>
+
+      <div class="card card-red">
+        <div style="font-size:2rem;margin-bottom:var(--s4)">♻️</div>
+        <div class="step-number">04</div>
+        <h3 style="color:var(--navy);margin-bottom:var(--s3);margin-top:var(--s3)">Waste Management</h3>
+        <p style="color:var(--muted);font-size:var(--sm)">Regulatory-compliant waste system design, installation and monitoring — liquid trade waste, dust control and environmental compliance.</p>
+        <a href="waste-management.html" class="details-link" style="display:inline-block;margin-top:var(--s5)">Learn more →</a>
+      </div>
+
+      <div class="card">
+        <div style="font-size:2rem;margin-bottom:var(--s4)">⚠️</div>
+        <div class="step-number">05</div>
+        <h3 style="color:var(--navy);margin-bottom:var(--s3);margin-top:var(--s3)">Dangerous Goods</h3>
+        <p style="color:var(--muted);font-size:var(--sm)">Design and compliance consulting for hazardous materials storage, handling systems and dangerous goods facilities.</p>
+        <a href="dangerous-goods.html" class="details-link" style="display:inline-block;margin-top:var(--s5)">Learn more →</a>
+      </div>
+
+      <div class="card card-red" style="display:flex;flex-direction:column;justify-content:center;align-items:flex-start;background:var(--navy);border-bottom-color:var(--red)">
+        <span class="accent-label" style="color:var(--cyan)">Work With Us</span>
+        <h3 style="color:#fff;margin-bottom:var(--s3);margin-top:var(--s3)">Have a complex engineering challenge?</h3>
+        <p style="color:#9ca3af;font-size:var(--sm);margin-bottom:var(--s6)">We've delivered projects from $50k to $80M+. Let's talk.</p>
+        <a href="contact.html" class="btn btn-cyan">Get in Touch →</a>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- NATIONAL REACH SECTION -->
+<section style="background:var(--navy);color:#fff;padding:clamp(var(--s12),6vw,var(--s20)) 0">
+  <div class="container">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--s16);align-items:center">
+      <div>
+        <span class="accent-label">Where We Work</span>
+        <h2 style="font-size:var(--xl);color:var(--cyan);margin-bottom:var(--s5);margin-top:var(--s3)">National Reach,<br>Local Expertise.</h2>
+        <p style="opacity:.8;margin-bottom:var(--s6);line-height:1.8" data-cms="reach-intro">
+          Based in North East Victoria and the NSW Mid North Coast, we service regional and metropolitan hubs right across Australia and internationally.
+        </p>
+        <ul style="display:grid;grid-template-columns:1fr 1fr;gap:var(--s4);list-style:none">
+          <li><span style="color:var(--red)">●</span> Melbourne &amp; Sydney</li>
+          <li><span style="color:var(--red)">●</span> Brisbane &amp; Perth</li>
+          <li><span style="color:var(--red)">●</span> Northern Territory</li>
+          <li><span style="color:var(--red)">●</span> Regional WA &amp; QLD</li>
+          <li><span style="color:var(--cyan)">●</span> Mongolia &amp; Laos</li>
+          <li><span style="color:var(--cyan)">●</span> Hong Kong</li>
+        </ul>
+        <a href="projects.html" class="btn btn-outline" style="margin-top:var(--s8);display:inline-block">See Our Projects →</a>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--s5)">
+        <div style="background:rgba(255,255,255,.05);border-radius:var(--r);padding:var(--s8);text-align:center;border-bottom:4px solid var(--cyan)">
+          <h2 style="font-size:var(--2xl);color:var(--cyan);margin-bottom:var(--s2)">12+</h2>
+          <p style="font-size:var(--xs);color:#9ca3af;text-transform:uppercase;letter-spacing:.08em">Industries</p>
+        </div>
+        <div style="background:rgba(255,255,255,.05);border-radius:var(--r);padding:var(--s8);text-align:center;border-bottom:4px solid var(--red)">
+          <h2 style="font-size:var(--2xl);color:var(--red);margin-bottom:var(--s2)">$80M+</h2>
+          <p style="font-size:var(--xs);color:#9ca3af;text-transform:uppercase;letter-spacing:.08em">Largest Project</p>
+        </div>
+        <div style="background:rgba(255,255,255,.05);border-radius:var(--r);padding:var(--s8);text-align:center;border-bottom:4px solid var(--red)">
+          <h2 style="font-size:var(--2xl);color:var(--red);margin-bottom:var(--s2)">6+</h2>
+          <p style="font-size:var(--xs);color:#9ca3af;text-transform:uppercase;letter-spacing:.08em">Countries</p>
+        </div>
+        <div style="background:rgba(255,255,255,.05);border-radius:var(--r);padding:var(--s8);text-align:center;border-bottom:4px solid var(--cyan)">
+          <h2 style="font-size:var(--2xl);color:var(--cyan);margin-bottom:var(--s2)">22+</h2>
+          <p style="font-size:var(--xs);color:#9ca3af;text-transform:uppercase;letter-spacing:.08em">Years Active</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURED PROJECTS -->
+<section class="section-padding" style="background:var(--bg)">
+  <div class="container">
+    <h2 class="section-title">Featured Projects</h2>
+
+    <div class="featured-strip">
+      <div class="featured-img" style="background:linear-gradient(135deg,#c5d8e8,#e0eef5);min-height:220px;border-radius:.25rem;display:flex;align-items:center;justify-content:center">
+        <span style="font-size:3rem">🌾</span>
+      </div>
+      <div class="featured-info">
+        <span class="accent-label">Grain Storage · Port Kembla NSW</span>
+        <h2>80,000T Grain Storage Facility</h2>
+        <p>Project engineering and site management for the construction and commissioning of an $80 million, 110,000 tonne grain storage facility — including client liaison, sub-contractor management and full commissioning oversight.</p>
+        <div style="display:flex;gap:var(--s4);align-items:center;flex-wrap:wrap">
+          <a href="projects.html" class="btn btn-navy">View All Projects</a>
+          <span style="font-size:var(--xs);color:var(--muted)">$80M facility · NSW</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="featured-strip" style="border-left-color:var(--red)">
+      <div class="featured-img" style="background:linear-gradient(135deg,#b8d4e8,#d0e8f0);min-height:220px;border-radius:.25rem;display:flex;align-items:center;justify-content:center">
+        <span style="font-size:3rem">💧</span>
+      </div>
+      <div class="featured-info">
+        <span class="accent-label">Water Infrastructure · NSW</span>
+        <h2>50km Re-use Water Pipeline</h2>
+        <p>Co-ordination of commissioning of a 50km re-use water pipeline including 2 booster stations and 5 raw water pump stations delivering to various reservoirs and reverse osmosis plants across the region.</p>
+        <div style="display:flex;gap:var(--s4);align-items:center;flex-wrap:wrap">
+          <a href="projects.html" class="btn btn-red">View All Projects</a>
+          <span style="font-size:var(--xs);color:var(--muted)">50km pipeline · NSW Water Authority</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- WHY ESA -->
+<section class="section-padding" style="background:var(--featured)">
+  <div class="container">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--s16);align-items:center">
+      <div>
+        <span class="accent-label">Why Choose ESA</span>
+        <h2 style="font-size:var(--xl);color:var(--navy);margin-bottom:var(--s5);margin-top:var(--s3)">Engineering you can<br>trust at every stage.</h2>
+        <p style="color:var(--muted);line-height:1.8;margin-bottom:var(--s6)">
+          ESA brings senior-level engineering expertise directly to your project — no junior handoffs, no inflated teams. Just experienced engineers who understand what it takes to deliver on time, on budget and to specification.
+        </p>
+        <a href="about.html" class="btn btn-navy">About ESA →</a>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:var(--s4)">
+        <div class="info-card">
+          <h4 style="color:var(--navy);margin-bottom:var(--s2)">🎯 Senior engineers on every project</h4>
+          <p style="color:var(--muted);font-size:var(--sm)">No junior handoffs — the experts you brief are the experts who deliver.</p>
+        </div>
+        <div class="info-card card-border-cyan">
+          <h4 style="color:var(--navy);margin-bottom:var(--s2)">📍 Regional &amp; remote specialists</h4>
+          <p style="color:var(--muted);font-size:var(--sm)">We understand the unique challenges of regional and remote project delivery across Australia.</p>
+        </div>
+        <div class="info-card">
+          <h4 style="color:var(--navy);margin-bottom:var(--s2)">🌏 International experience</h4>
+          <p style="color:var(--muted);font-size:var(--sm)">Delivered complex projects in Mongolia, Laos, Hong Kong and across Australia.</p>
+        </div>
+        <div class="info-card card-border-cyan">
+          <h4 style="color:var(--navy);margin-bottom:var(--s2)">✅ Transparent &amp; accountable</h4>
+          <p style="color:var(--muted);font-size:var(--sm)">Clear reporting, honest assessments and fixed-scope engagements — no surprises.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA BANNER -->
+<section style="background:var(--navy);padding:clamp(var(--s12),6vw,var(--s20)) 0;text-align:center;color:#fff">
+  <div class="container">
+    <span class="accent-label" style="display:block;text-align:center;margin-bottom:var(--s4)">Obligation-Free Discussion</span>
+    <h2 style="font-size:var(--xl);color:#fff;margin-bottom:var(--s5)">Ready to solve your next<br>engineering challenge?</h2>
+    <p style="color:#94a3b8;max-width:500px;margin-inline:auto;margin-bottom:var(--s8);line-height:1.8">
+      We've delivered projects from $50k to $80M+. Tell us about your project and we'll get back to you promptly.
+    </p>
+    <div style="display:flex;gap:var(--s4);justify-content:center;flex-wrap:wrap">
+      <a href="contact.html" class="btn btn-cyan">Contact ESA →</a>
+      <a href="projects.html" class="btn btn-ghost" style="color:#fff;border-color:rgba(255,255,255,.3)">View Our Work</a>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="main-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <h3><span style="color:var(--red)">ESA</span> Engineering</h3>
+        <p>Engineering Services Australia — technical excellence and attention to detail since 2004.</p>
+        <p style="margin-top:var(--s3);font-size:var(--sm);color:#9ca3af">📞 0402-464-823 &nbsp;·&nbsp; ✉️ engsa@live.com.au</p>
+      </div>
+      <div class="footer-links">
+        <h4>Services</h4>
+        <ul>
+          <li><a href="commissioning.html">Plant Commissioning</a></li>
+          <li><a href="appraisals.html">Utility Appraisals</a></li>
+          <li><a href="optimisation.html">Production Optimisation</a></li>
+          <li><a href="waste-management.html">Waste Management</a></li>
+          <li><a href="dangerous-goods.html">Dangerous Goods</a></li>
+        </ul>
+      </div>
+      <div class="footer-links">
+        <h4>Company</h4>
+        <ul>
+          <li><a href="about.html">About ESA</a></li>
+          <li><a href="projects.html">Projects</a></li>
+          <li><a href="contact.html">Contact</a></li>
+          <li><a href="privacy-policy.html">Privacy Policy</a></li>
+          <li><a href="safety-standards.html">Safety Standards</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 Engineering Services Australia Pty Ltd · ABN 92 108 345 384</p>
+    </div>
+  </div>
+</footer>
+
+<script src="main.js" defer></script>
+<script src="content.js" defer></script>
+
+</body>
+</html>

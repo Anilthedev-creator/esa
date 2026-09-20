@@ -1,0 +1,241 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+
+  <title>Content Management | ESA Admin</title>
+
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="admin.css">
+
+  <link
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    rel="stylesheet"
+  />
+</head>
+
+<body data-admin-page="content">
+
+<div class="admin-layout">
+
+  <!-- SIDEBAR -->
+  <aside id="sidebar" class="sidebar">
+
+    <div class="sidebar-logo">
+      <img src="images/logo-white.png" alt="Engineering Services Australia">
+    </div>
+
+    <nav class="sidebar-nav">
+
+      <a href="dashboard.html">
+        <i class="fa-solid fa-gauge-high"></i> Dashboard
+      </a>
+
+      <a class="active" href="content.html">
+        <i class="fa-solid fa-file-lines"></i> Content Management
+      </a>
+
+      <a href="customers.html">
+        <i class="fa-solid fa-users"></i> Customer Management
+      </a>
+
+      <a href="payments.html">
+        <i class="fa-solid fa-credit-card"></i> Payments
+      </a>
+
+      <a href="enquiries.html">
+        <i class="fa-solid fa-envelope"></i> Enquiries
+      </a>
+
+      <a href="analytics.html">
+        <i class="fa-solid fa-chart-line"></i> Analytics
+      </a>
+
+      <a href="settings.html">
+        <i class="fa-solid fa-gear"></i> Settings
+      </a>
+
+    </nav>
+
+    <div class="sidebar-user">
+
+      <div class="user-circle">
+        AD
+      </div>
+
+      <div>
+        <p>Admin User</p>
+        <span>Administrator</span>
+      </div>
+
+    </div>
+
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+
+    <!-- TOPBAR -->
+    <header class="admin-topbar">
+
+      <div class="topbar-links">
+        <a href="index.html">Home</a>
+        <a href="projects.html">Projects</a>
+        <a href="services.html">Services</a>
+        <a href="contact.html">Contact</a>
+        <a href="about.html">About us</a>
+      </div>
+
+      <button id="adminToggle" class="admin-btn" aria-controls="sidebar" aria-expanded="false">
+        Menu
+      </button>
+
+    </header>
+
+    <!-- PAGE -->
+    <section class="dashboard-wrapper">
+
+      <!-- TITLE -->
+      <div class="dashboard-title">
+        <i class="fa-solid fa-bars"></i>
+        <h2>Content Management</h2>
+      </div>
+
+      <!-- PAGE SECTION -->
+      <div class="content-header">
+
+        <div>
+          <h3 class="section-heading">
+            Pages
+          </h3>
+
+          <div class="heading-line"></div>
+        </div>
+
+        <button class="add-page-btn">
+          + Add New Page
+        </button>
+
+      </div>
+
+      <!-- TABLE -->
+      <div class="dashboard-card">
+
+        <table>
+
+          <thead>
+            <tr>
+              <th>Page Title</th>
+              <th>Status</th>
+              <th>Last Updated</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+
+          <tbody id="pagesBody">
+
+            <tr>
+              <td>Home</td>
+              <td>
+                <span class="status published">
+                  Published
+                </span>
+              </td>
+              <td>27 Apr 2026</td>
+
+              <td class="action-icons">
+                <i class="fa-solid fa-pen"></i>
+                <i class="fa-regular fa-eye"></i>
+              </td>
+            </tr>
+
+            <tr>
+              <td>About Us</td>
+
+              <td>
+                <span class="status published">
+                  Published
+                </span>
+              </td>
+
+              <td>27 Apr 2026</td>
+
+              <td class="action-icons">
+                <i class="fa-solid fa-pen"></i>
+                <i class="fa-regular fa-eye"></i>
+              </td>
+            </tr>
+
+            <tr>
+              <td>Services</td>
+
+              <td>
+                <span class="status published">
+                  Published
+                </span>
+              </td>
+
+              <td>27 Apr 2026</td>
+
+              <td class="action-icons">
+                <i class="fa-solid fa-pen"></i>
+                <i class="fa-regular fa-eye"></i>
+              </td>
+            </tr>
+
+            <tr>
+              <td>Projects</td>
+
+              <td>
+                <span class="status published">
+                  Published
+                </span>
+              </td>
+
+              <td>27 Apr 2026</td>
+
+              <td class="action-icons">
+                <i class="fa-solid fa-pen"></i>
+                <i class="fa-regular fa-eye"></i>
+              </td>
+            </tr>
+
+            <tr>
+              <td>Contact Us</td>
+
+              <td>
+                <span class="status published">
+                  Published
+                </span>
+              </td>
+
+              <td>27 Apr 2026</td>
+
+              <td class="action-icons">
+                <i class="fa-solid fa-pen"></i>
+                <i class="fa-regular fa-eye"></i>
+              </td>
+            </tr>
+
+          </tbody>
+
+        </table>
+
+      </div>
+
+    </section>
+
+  </main>
+
+</div>
+<script src="auth.js"></script>
+<script src="admin.js"></script>
+<script src="admin-data.js" defer></script>
+</body>
+</html>
+
+
+
