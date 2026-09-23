@@ -11,28 +11,31 @@ A full-stack web application for ESA Engineering, built with **Spring Boot 3** (
 | Frontend | Vanilla HTML5, CSS3, JavaScript (ES6) |
 | Build | Maven |
 
-## Project Structure
+## Project Structure (clean main)
 
 ```
-├── java/                       # Spring Boot source code
-│   └── com/esaengineering/
-│       ├── config/             # CORS, database configuration
-│       ├── controller/         # REST API controllers
-│       ├── dto/                # Data transfer objects
-│       ├── exception/          # Global error handling
-│       ├── model/              # JPA entities
-│       ├── repository/         # Data access layer
-│       └── service/            # Business logic
-├── resources/
-│   ├── application.properties  # Spring Boot configuration
-│   └── static/                 # Frontend assets (served by Spring Boot)
-│       ├── css/                # Stylesheets
-│       ├── images/             # Image assets
-│       └── js/                 # Shared JavaScript modules
-├── frontend/                   # Standalone frontend (same files, for local dev)
-├── pom.xml                     # Maven build configuration
+├── src/
+│   └── main/
+│       ├── java/com/esaengineering/   # Spring Boot source code
+│       │   ├── config/                # CORS, database configuration
+│       │   ├── controller/            # REST API controllers
+│       │   ├── dto/                   # Data transfer objects
+│       │   ├── exception/             # Global error handling
+│       │   ├── model/                 # JPA entities
+│       │   ├── repository/            # Data access layer
+│       │   └── service/               # Business logic
+│       └── resources/
+│           ├── application.properties # Spring Boot configuration
+│           └── static/                # Frontend assets (served by Spring Boot)
+│               ├── css/               # Stylesheets
+│               ├── images/            # Image assets
+│               └── js/                # Shared JavaScript modules
+├── pom.xml                            # Maven build configuration
 └── README.md
 ```
+
+> This is the **real main** — single source of truth.  
+> Old duplicate folders (`frontend/`, `java/`, `resources/` at root, root `tracking.js`) have been removed and merged into the standard Maven layout `src/main/...`.
 
 ## Prerequisites
 
@@ -50,7 +53,7 @@ Create a PostgreSQL database:
 CREATE DATABASE esa_database;
 ```
 
-Update the credentials in `resources/application.properties`:
+Update the credentials in `src/main/resources/application.properties`:
 
 ```properties
 spring.datasource.url=jdbc:postgresql://localhost:5432/esa_database
@@ -101,6 +104,14 @@ The application will start on **http://localhost:8080**.
 - **Admin panel**: Dashboard, Customers, Enquiries, Payments, Content Management, Analytics, Settings
 - **Booking system**: Service booking with payment flow
 - **CMS**: Editable page content through the admin panel
+
+## Cleanup Notes
+
+- Removed duplicate `frontend/` folder — now served from `src/main/resources/static/`
+- Removed root `tracking.js` (now only `static/tracking.js`)
+- Removed junk files: `src/main/java/.../service/Main.java` (empty), `static/createAdmin.java` (Java file in static)
+- Converted custom `pom.xml` layout (`<sourceDirectory>java</sourceDirectory>`) to standard Maven layout
+- Single branch `main` is now the production-ready structure
 
 ## License
 
