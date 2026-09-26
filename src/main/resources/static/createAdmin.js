@@ -1,99 +1,45 @@
 document.addEventListener("DOMContentLoaded", () => {
-
-    const form = document.getElementById("createAdminForm");
-
-    form.addEventListener("submit", createAdmin);
-
+  const form = document.getElementById("createAdminForm");
+  if (form) form.addEventListener("submit", createAdmin);
 });
 
-
-
 async function createAdmin(event) {
+  event.preventDefault();
 
-    event.preventDefault();
+  const fullNameEl = document.getElementById("fullName");
+  const emailEl = document.getElementById("email");
+  const phoneEl = document.getElementById("phoneNumber");
+  const passwordEl = document.getElementById("password") || document.getElementById("adminPassword");
 
-    const fullName = document.getElementById("fullName").value.trim();
-    const email = document.getElementById("email").value.trim();
-    const phone = document.getElementById("phoneNumber").value.trim();
+  const fullName = fullNameEl ? fullNameEl.value.trim() : "";
+  const email = emailEl ? emailEl.value.trim() : "";
+  const phoneNumber = phoneEl ? phoneEl.value.trim() : "";
+  const password = passwordEl ? passwordEl.value.trim() : "";
 
+  if (fullName === "") { alert("Please enter the administrator's full name."); if (fullNameEl) fullNameEl.focus(); return; }
+  if (email === "") { alert("Please enter the administrator's email."); if (emailEl) emailEl.focus(); return; }
+  if (phoneNumber === "") { alert("Please enter the administrator's phone number."); if (phoneEl) phoneEl.focus(); return; }
 
-    if (fullName === "") {
+  try {
+    const response = await fetch("/api/auth/create/admin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fullName, email, password, phoneNumber })
+    });
 
-        alert("Please enter the administrator's full name.");
-        document.getElementById("fullName").focus();
-        return;
+    let data = null;
+    const text = await response.text();
+    if (text) { try { data = JSON.parse(text); } catch (e) { data = { message: text }; } }
 
+    if (response.ok) {
+      alert((data && data.message) || "Administrator account created.");
+      const form = document.getElementById("createAdminForm");
+      if (form) form.reset();
+    } else {
+      alert((data && data.message) || "Could not create the administrator.");
     }
-
-    if (email === "") {
-
-        alert("Please enter the administrator's email.");
-        document.getElementById("email").focus();
-        return;
-
-    }
-    if (phoneNumber === "") {
-
-        alert("Please enter the administrator's email.");
-        document.getElementById("phoneNumber").focus();
-        return;
-
-    }
-
-
-
-
-
-    const admin = {
-
-        fullName: fullName,
-        email: email,
-        phoneNumber : phoneNumber
-
-
-
-
-    };
-
-
-    
-    try {
-
-        const response = await fetch("auth/admin/create", {
-
-            method: "POST",
-
-            headers: {
-                "Content-Type": "application/json"
-            },
-
-            body: JSON.stringify(admin)
-
-        });
-
-        if (response.ok) {
-
-            alert("Administrator account created successfully. An email has been sent.");
-
-            document.getElementById("createAdminForm").reset();
-
-        }
-        else {
-
-            const error = await response.text();
-
-            alert(error);
-
-        }
-
-    }
-    catch (error) {
-
-        console.error(error);
-
-        alert("Unable to connect to the server.");
-
-    }
-
+  } catch (error) {
+    console.error(error);
+    alert("Unable to connect to the server. Is it running on port 8080?");
+  }
 }
-

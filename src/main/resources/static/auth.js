@@ -1,160 +1,124 @@
 /*
- * auth.js
- * handles sign in, sign up, forgot password and the session.
- * the api runs on the same server as the site so we can use
- * relative paths like /api/auth/signin.
+ * auth.js - the session layer for the public site and the admin portal.
+ * Same-origin Spring Boot API:
+ *   POST /api/auth/signup     POST /api/auth/signin      POST /api/auth/logout
+ *   GET  /api/auth/me         POST /api/auth/create/admin
+ * The server answers { message, token, user }; admin-data.js replays the
+ * token as "Authorization: Bearer <token>".
  */
 
 var API_URL = "/api/auth";
-// optional override, eg if the site and api are on different servers
 if (typeof window !== "undefined" && window.ESA_API_URL) {
-  API_URL = window.ESA_API_URL.replace(/\/$/, "");
+  API_URL = window.ESA_API_URL.replace(/\/$/, "") + "/api/auth";
 }
 
+async function api(path, options) {
+  options = options || {};
+  options.headers = Object.assign({ "Content-Type": "application/json" }, options.headers || {});
 
-/* ================= SIGN UP ================= */
+  var response;
+  try {
+    response = await fetch(API_URL + path, options);
+  } catch (error) {
+    throw new Error("Could not reach the server, is it running?");
+  }
+
+  var text = await response.text();
+  var data = null;
+  if (text) {
+    try { data = JSON.parse(text); } catch (error) { data = { message: text }; }
+  }
+
+  if (!response.ok) {
+    var message = "Request failed (" + response.status + ")";
+    if (data && data.message) message = data.message;
+    var error = new Error(message);
+    error.status = response.status;
+    throw error;
+  }
+  return data || {};
+}
+
+/* --------------------------------- sign up -------------------------------- */
 
 async function signup(formData) {
   if (!formData.firstName || !formData.lastName || !formData.email || !formData.password || !formData.companyName) {
     throw new Error("All fields are required");
   }
-
-  try {
-    var response = await fetch(API_URL + "/signup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formData)
-    });
-    var data = await response.json();
-
-    if (!response.ok) {
-      // the backend sends back { message } or { errors: [{message}] }
-      var msg = "Signup failed";
-      if (data && data.message) msg = data.message;
-      if (data && data.errors && data.errors.length > 0) msg = data.errors[0].message;
-      throw new Error(msg);
-    }
-
-    // store the session so we know who is logged in
-    localStorage.setItem("token", data.token);
-    localStorage.setItem("user", JSON.stringify(data.user));
-    return data;
-  } catch (error) {
-    if (error.name === "TypeError") {
-      // fetch itself failed, most likely the server is not running
-      throw new Error("Could not reach the server, is it running?");
-    }
-    throw error;
-  }
+  var data = await api("/signup", {
+    method: "POST",
+    body: JSON.stringify({
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      companyName: formData.companyName,
+      email: formData.email,
+      password: formData.password,
+      phone: formData.phone || ""
+    })
+  });
+  storeSession(data);
+  return data;
 }
 
-
-/* ================= SIGN IN ================= */
+/* --------------------------------- sign in -------------------------------- */
 
 async function signin(email, password) {
-  if (!email || !password) {
-    throw new Error("Email and password are required");
-  }
-
-  try {
-    var response = await fetch(API_URL + "/signin", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: email, password: password })
-    });
-    var data = await response.json();
-
-    if (!response.ok) {
-      var msg = "Sign in failed";
-      if (data && data.message) msg = data.message;
-      if (data && data.errors && data.errors.length > 0) msg = data.errors[0].message;
-      throw new Error(msg);
-    }
-
-    localStorage.setItem("token", data.token);
-    localStorage.setItem("user", JSON.stringify(data.user));
-    console.log("signed in as " + data.user.name);
-    return data;
-  } catch (error) {
-    if (error.name === "TypeError") {
-      throw new Error("Could not reach the server, is it running?");
-    }
-    throw error;
-  }
+  if (!email || !password) throw new Error("Email and password are required");
+  var data = await api("/signin", {
+    method: "POST",
+    body: JSON.stringify({ email: email, password: password })
+  });
+  storeSession(data);
+  return data;
 }
 
-
-/* ================= FORGOT PASSWORD ================= */
+/* ----------------------------- passwords / misc ---------------------------- */
 
 async function requestPasswordReset(email) {
-  try {
-    var response = await fetch(API_URL + "/forgot-password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: email })
-    });
-    var data = await response.json();
-
-    if (!response.ok) {
-      throw new Error((data && data.message) || "Failed to send reset link");
-    }
-    return data;
-  } catch (error) {
-    if (error.name === "TypeError") {
-      throw new Error("Could not reach the server, is it running?");
-    }
-    throw error;
-  }
+  throw new Error("Password reset is not wired up yet - contact engsa@live.com.au");
 }
-
-
-/* ================= RESET PASSWORD ================= */
 
 async function resetPassword(token, password) {
-  if (!token || !password) {
-    throw new Error("A reset token and new password are required");
-  }
-
-  try {
-    var response = await fetch(API_URL + "/reset-password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token: token, password: password })
-    });
-    var data = await response.json();
-
-    if (!response.ok) {
-      throw new Error((data && data.message) || "Password reset failed");
-    }
-    return data;
-  } catch (error) {
-    if (error.name === "TypeError") {
-      throw new Error("Could not reach the server, is it running?");
-    }
-    throw error;
-  }
+  throw new Error("Password reset is not wired up yet - contact engsa@live.com.au");
 }
 
+async function createAdminAccount(data) {
+  return api("/create/admin", {
+    method: "POST",
+    body: JSON.stringify({
+      fullName: data.fullName,
+      email: data.email,
+      password: data.password,
+      phoneNumber: data.phoneNumber || ""
+    })
+  });
+}
 
-/* ================= LOGOUT ================= */
+/* --------------------------------- session -------------------------------- */
+
+function storeSession(data) {
+  if (!data) return;
+  if (data.token) localStorage.setItem("token", data.token);
+  if (data.user) localStorage.setItem("user", JSON.stringify(data.user));
+}
+
+function authHeaders() {
+  var token = getToken();
+  return token ? { Authorization: "Bearer " + token } : {};
+}
 
 async function logout() {
+  try { await api("/logout", { method: "POST", headers: authHeaders() }); } catch (e) { /* local clear is what matters */ }
   localStorage.removeItem("token");
   localStorage.removeItem("user");
 }
 
-// logs out and takes the user back to the home page
 async function signOut() {
   await logout();
   window.location.href = "index.html";
 }
 
-
-/* ================= SESSION HELPERS ================= */
-
-function getToken() {
-  return localStorage.getItem("token");
-}
+function getToken() { return localStorage.getItem("token"); }
 
 function getUser() {
   try {
@@ -166,38 +130,33 @@ function getUser() {
   }
 }
 
-function isLoggedIn() {
-  return !!getToken();
+function isLoggedIn() { return !!getToken(); }
+
+function isAdmin() {
+  var user = getUser();
+  return !!user && String(user.role).toLowerCase() === "admin";
 }
 
-// asks the server for the current user (checks the token is still valid)
+/** Revalidates the stored token; clears an expired session. */
 async function getCurrentUser() {
-  var token = getToken();
-  if (!token) return null;
-
+  if (!getToken()) return null;
   try {
-    var response = await fetch(API_URL + "/me", {
-      headers: { "Authorization": "Bearer " + token }
-    });
-    if (!response.ok) {
-      if (response.status === 401) {
-        // the token is no longer valid, log out
-        await logout();
-      }
-      return null;
+    var data = await api("/me", { headers: authHeaders() });
+    if (data && data.user) {
+      localStorage.setItem("user", JSON.stringify(data.user));
+      return data.user;
     }
-    var data = await response.json();
-    return data.user || data;
+    return null;
   } catch (error) {
-    console.error("Error getting current user:", error);
+    if (error.status === 401) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+    }
     return null;
   }
 }
 
-// use at the top of a page that needs the user to be signed in
 function redirectIfNotLoggedIn(redirectTo) {
   if (!redirectTo) redirectTo = "signin.html";
-  if (!isLoggedIn()) {
-    window.location.href = redirectTo;
-  }
+  if (!isLoggedIn()) window.location.href = redirectTo;
 }

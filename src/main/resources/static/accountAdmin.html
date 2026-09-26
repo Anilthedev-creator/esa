@@ -1,73 +1,44 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Create Administrator</title>
-
-<link rel="stylesheet" href="css/admin.css">
-
+<title>Create Administrator - ESA</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="admin.css">
 </head>
-
 <body>
-
-<div class="create-admin-card">
-
+<div class="container section-padding" style="max-width:500px; margin: 80px auto;">
+  <div class="card" style="padding:40px; border-bottom:5px solid #00adef;">
     <h1>Create Administrator</h1>
-
-    <p class="subtitle">
-        Create a new administrator account. An invitation email will be sent automatically.
-    </p>
-
+    <p style="color:#666; margin-bottom:25px;">Create a new administrator account.</p>
     <form id="createAdminForm">
-
-        <div class="form-group">
-
-            <label for="fullName">
-                Full Name
-            </label>
-
-            <input
-                type="text"
-                id="fullName"
-                placeholder="John Smith">
-
+        <div class="form-group" style="margin-bottom:15px;">
+            <label for="fullName">Full Name *</label>
+            <input type="text" id="fullName" class="form-control" placeholder="John Smith" required>
         </div>
-
-
-        <div class="form-group">
-
-            <label for="email">
-                Email Address
-            </label>
-
-            <input
-                type="email"
-                id="email"
-                placeholder="john@esaengineering.com.au">
-
+        <div class="form-group" style="margin-bottom:15px;">
+            <label for="email">Email Address *</label>
+            <input type="email" id="email" class="form-control" placeholder="john@esaengineering.com.au" required>
         </div>
-        
-
-
-      
-
-
-
-        <button id="createButton" type="submit">
-
-            Send invitation
-
+        <div class="form-group" style="margin-bottom:15px;">
+            <label for="phoneNumber">Phone Number *</label>
+            <input type="text" id="phoneNumber" class="form-control" placeholder="0400000000" required>
+        </div>
+        <div class="form-group" style="margin-bottom:20px;">
+            <label for="password">Password *</label>
+            <input type="password" id="password" class="form-control" placeholder="Min 8 chars: upper, lower, number" value="Admin123" required>
+        </div>
+        <button id="createButton" type="submit" class="btn btn-cyan" style="width:100%; padding:12px; font-weight:700;">
+            Create Admin Account
         </button>
-
+        <div style="margin-top:20px; text-align:center;">
+            <a href="dashboard.html" style="color:#00adef; text-decoration:none;">Back to Dashboard</a> |
+            <a href="signin.html" style="color:#e63946; text-decoration:none;">Sign In</a>
+        </div>
     </form>
-
+  </div>
 </div>
-
-
-<script src="/js/createAdmin.js"></script>
-
+<script src="createAdmin.js"></script>
 </body>
 </html>
