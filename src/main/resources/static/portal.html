@@ -8,108 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="admin.css">
-    <style>
-        /* Portal-specific: the customer-facing pages use style.css, but the
-           admin card/table classes come from admin.css. Only the bits the
-           portal actually needs are declared here so neither sheet is
-           duplicated wholesale. */
-        .portal-hero {
-            background: linear-gradient(135deg, var(--navy) 0%, #0f2a4a 100%);
-            color: #fff;
-            padding: 2.6rem 0 2.2rem;
-        }
-        .portal-hero h1 { font-size: clamp(1.7rem, 3.4vw, 2.4rem); font-weight: 800; margin: 0 0 .35rem; }
-        .portal-hero p { margin: 0; color: #c7d6e6; font-size: .98rem; }
-        .portal-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: -1.2rem 0 1.6rem; position: relative; z-index: 2; }
-        .portal-tab {
-            background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
-            padding: .6rem 1.05rem; font-weight: 700; font-size: .9rem; color: var(--navy);
-            cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: .5rem;
-        }
-        .portal-tab:hover { border-color: var(--cyan); color: var(--cyan); }
-        .portal-tab.active { background: var(--navy); border-color: var(--navy); color: #fff; }
-        .portal-tab .count {
-            background: #eef2f7; color: var(--navy); border-radius: 999px;
-            padding: .1rem .5rem; font-size: .75rem; font-weight: 800;
-        }
-        .portal-tab.active .count { background: rgba(255,255,255,.22); color: #fff; }
-        .portal-panel { display: none; }
-        .portal-panel.active { display: block; }
-        .portal-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-bottom: 1.6rem; }
-        .portal-card {
-            background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
-            padding: 1.1rem 1.2rem; box-shadow: 0 1px 3px rgba(15,23,42,.05);
-        }
-        .portal-card .label { font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 .3rem; }
-        .portal-card .value { font-size: 1.6rem; font-weight: 800; color: var(--navy); margin: 0; }
-        .portal-card .sub { font-size: .82rem; color: var(--muted); margin: .2rem 0 0; }
-        .portal-table-wrap { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 3px rgba(15,23,42,.05); }
-        .portal-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
-        .portal-table th {
-            text-align: left; background: #f8fafc; padding: .8rem 1rem; font-size: .76rem;
-            text-transform: uppercase; letter-spacing: .04em; color: var(--muted); border-bottom: 1px solid #e2e8f0;
-        }
-        .portal-table td { padding: .85rem 1rem; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
-        .portal-table tr:last-child td { border-bottom: none; }
-        .portal-empty { padding: 2.4rem 1rem; text-align: center; color: var(--muted); font-size: .92rem; }
-        .portal-badge {
-            display: inline-block; padding: .22rem .6rem; border-radius: 999px;
-            font-size: .74rem; font-weight: 800; text-transform: capitalize; white-space: nowrap;
-        }
-        .portal-badge.pending, .portal-badge.unpaid, .portal-badge.new { background: #fef3c7; color: #92400e; }
-        .portal-badge.confirmed, .portal-badge.in-progress { background: #dbeafe; color: #1e40af; }
-        .portal-badge.completed, .portal-badge.paid, .portal-badge.resolved { background: #d1fae5; color: #065f46; }
-        .portal-badge.cancelled { background: #fee2e2; color: #991b1b; }
-        .portal-badge.incomplete { background: #f1f5f9; color: #475569; }
-        .portal-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-        .btn-mini {
-            border: 1px solid #e2e8f0; background: #fff; border-radius: 8px; padding: .38rem .7rem;
-            font-size: .8rem; font-weight: 700; color: var(--navy); cursor: pointer; font-family: inherit;
-        }
-        .btn-mini:hover { border-color: var(--cyan); color: var(--cyan); }
-        .btn-mini.primary { background: var(--navy); border-color: var(--navy); color: #fff; }
-        .btn-mini.primary:hover { background: #0a2540; color: #fff; }
-        .btn-mini.danger:hover { border-color: #e63946; color: #e63946; }
-        .portal-form { max-width: 520px; }
-        .portal-field { margin-bottom: 1rem; }
-        .portal-field label { display: block; font-size: .84rem; font-weight: 700; color: var(--navy); margin-bottom: .35rem; }
-        .portal-field input {
-            width: 100%; padding: .68rem .85rem; border: 1px solid #e2e8f0; border-radius: 10px;
-            font-family: inherit; font-size: .93rem; color: var(--navy); background: #fff;
-        }
-        .portal-field input:focus { outline: none; border-color: var(--cyan); }
-        .portal-field input[readonly] { background: #f8fafc; color: var(--muted); cursor: not-allowed; }
-        .portal-note { font-size: .85rem; padding: .7rem .95rem; border-radius: 10px; margin-bottom: 1rem; display: none; }
-        .portal-note.ok { background: #d1fae5; color: #065f46; display: block; }
-        .portal-note.err { background: #fee2e2; color: #991b1b; display: block; }
-        .portal-section { margin-bottom: 2.4rem; }
-        .portal-section h2 { font-size: 1.15rem; font-weight: 800; color: var(--navy); margin: 0 0 .9rem; }
-        .portal-hint { font-size: .85rem; color: var(--muted); margin: -.4rem 0 1rem; }
-        .portal-reply { font-size: .84rem; color: #334155; background: #f8fafc; border-left: 3px solid var(--cyan); padding: .55rem .8rem; margin-top: .5rem; border-radius: 0 8px 8px 0; }
-        .portal-modal-backdrop {
-            position: fixed; inset: 0; background: rgba(15,23,42,.55);
-            display: none; align-items: center; justify-content: center; z-index: 999; padding: 1.2rem;
-        }
-        .portal-modal-backdrop.open { display: flex; }
-        .portal-modal {
-            background: #fff; border-radius: 16px; max-width: 420px; width: 100%;
-            padding: 1.6rem; box-shadow: 0 24px 60px rgba(15,23,42,.28);
-        }
-        .portal-modal h3 { margin: 0 0 .6rem; font-size: 1.1rem; color: var(--navy); }
-        .portal-modal p { margin: 0 0 1.2rem; font-size: .92rem; color: #334155; line-height: 1.6; }
-        .portal-modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
-        .btn-pill-sm {
-            border-radius: 999px; padding: .55rem 1.1rem; font-size: .88rem; font-weight: 700;
-            cursor: pointer; font-family: inherit; border: 1px solid transparent;
-        }
-        .btn-ghost { background: #f1f5f9; color: var(--navy); }
-        .btn-danger { background: #e63946; color: #fff; }
-        .btn-solid { background: var(--navy); color: #fff; }
-        @media (max-width: 720px) {
-            .portal-table th:nth-child(3), .portal-table td:nth-child(3) { display: none; }
-        }
-    </style>
+    <link rel="stylesheet" href="portal.css">
 </head>
 <body>
 
@@ -156,8 +55,11 @@
 
 <section class="portal-hero">
   <div class="container">
+    <span class="accent-label">Customer Portal</span>
     <h1>My Portal</h1>
-    <p>Your bookings, enquiries and payments — all in one place.</p>
+    <p>Your bookings, enquiries and payments — all in one place. Pay an
+       outstanding fee, cancel an unpaid booking or reopen an enquiry
+       whenever it suits you.</p>
   </div>
 </section>
 
@@ -253,7 +155,7 @@
           <input id="profileEmail" type="email" readonly>
           <p class="portal-hint" style="margin:.4rem 0 0">Your bookings and payments are linked to this address — contact us if you need it changed.</p>
         </div>
-        <button type="submit" class="btn-pill btn-pill-red">Save details</button>
+        <button type="submit" class="btn btn-cyan">Save details</button>
       </form>
       <div id="profileNote" class="portal-note"></div>
     </div>
@@ -274,7 +176,7 @@
           <label for="confirmPassword">Confirm new password</label>
           <input id="confirmPassword" type="password" autocomplete="new-password" required>
         </div>
-        <button type="submit" class="btn-pill btn-pill-red">Update password</button>
+        <button type="submit" class="btn btn-cyan">Update password</button>
       </form>
       <div id="passwordNote" class="portal-note"></div>
     </div>
@@ -288,8 +190,8 @@
     <h3 id="confirmTitle">Are you sure?</h3>
     <p id="confirmBody"></p>
     <div class="portal-modal-actions">
-      <button type="button" class="btn-pill-sm btn-ghost" id="confirmCancel">Keep it</button>
-      <button type="button" class="btn-pill-sm btn-danger" id="confirmOk">Yes, continue</button>
+      <button type="button" class="btn btn-ghost" id="confirmCancel">Keep it</button>
+      <button type="button" class="btn btn-red" id="confirmOk">Yes, continue</button>
     </div>
   </div>
 </div>

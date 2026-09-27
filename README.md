@@ -285,6 +285,50 @@ form has no account, so the portal was unreachable; the card now checks for a
 session and otherwise offers to track the booking, naming the email to sign in
 with so the booking appears in their portal afterwards.
 
+## Portal brought into the design system (2026-09-27)
+
+The customer portal was the only page that did not use the site's stylesheet
+properly. It loaded `admin.css` - the admin console's sheet, which drags in
+sidebar, topbar and modal rules a customer page has no use for - plus a
+100-line inline `<style>` block full of hard-coded hex colours. That is why it
+looked like a different application.
+
+`portal.css` is new and is written **entirely from the existing design tokens**
+(`--navy`, `--cyan`, `--red`, `--surface`, `--border`, `--r`, `--sh-md`, `--s*`,
+`--sm`, `--xs`, `--ease`). No new colours, radii, shadows or spacing values were
+invented, so the portal now inherits the same look as the rest of the site:
+
+- the hero is the same navy band `.stats-bar` uses, with an `.accent-label`
+- tables, cards and badges reuse the shared surface/border/radius/shadow tokens
+- the status badges map onto `--warning`, `--info`, `--success`, `--danger`
+- buttons use the site's own `.btn` / `.btn-cyan` / `.btn-red` / `.btn-ghost`
+  system instead of the bespoke `btn-pill-sm` / `btn-danger` classes
+
+`admin.css` and the inline block are gone; `portal.html` loads `style.css` then
+`portal.css` and nothing else. `.btn-sm` was promoted from `portal.css` into
+`style.css` because it is a generic compact-button utility, not portal-specific.
+
+## Auth pages: colours and a page that lied
+
+`signin.html`, `signup.html` and `forgot-password.html` carried 27 hard-coded
+hex colours between them, several of which were **not brand colours at all** -
+`#00adef` for the cyan (the brand cyan is `--cyan: #007fa8`) and `#e63946` for
+the red (the brand red is `--red: #d12f3c`). All now use the tokens, so a brand
+change propagates instead of leaving stray off-palette blues.
+
+`forgot-password.html` was worse than inconsistent. Its form called
+`requestPasswordReset()`, which unconditionally throws *"not wired up yet"* -
+and the `catch` branch then told the user *"a password reset link has been
+sent"*. That is false, and a customer would sit waiting for an email that never
+arrives. The page now states plainly that resets are handled by the team, and
+gives the two routes that actually work: change your own password from the
+portal if you are signed in, or call/email if you are locked out. There is no
+reset-token backend and no mail transport in this project, so an automated
+self-service reset cannot be made to work honestly here.
+
+`signup.html` also had an empty `<small>` element and a placeholder surname of
+"Citizen"; both fixed.
+
 ## Project Structure
 
 ```

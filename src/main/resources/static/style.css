@@ -188,6 +188,8 @@ a, button, [role="button"], input, textarea, select {
 .btn-dark    { background: #1a1a1a; color: #fff; }
 .btn-outline { background: transparent; border: 2px solid var(--cyan); color: var(--cyan); }
 .btn-ghost   { background: transparent; border: 1px solid var(--border); color: var(--text); }
+/* Compact variant for buttons inside cards and info panels. */
+.btn-sm      { padding: .45rem .95rem; font-size: var(--xs); }
 
 /* Pill variants */
 .btn-pill {

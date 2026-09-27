@@ -1,0 +1,298 @@
+/*
+ * portal.css - customer portal
+ *
+ * Loaded after style.css and written entirely from the same design tokens
+ * (--navy, --cyan, --red, --surface, --border, --r, --sh-md, --s*, --sm ...).
+ * The portal previously carried a 100-line inline <style> block with hard-coded
+ * hex colours and also loaded admin.css, the admin console's stylesheet, which
+ * is why it looked unrelated to the rest of the site. Everything here now
+ * inherits the public design system instead.
+ */
+
+/* ------------------------------- page hero ------------------------------- */
+/* Same navy band the site uses for .stats-bar, so the portal reads as part of
+   the same site rather than a separate app. */
+.portal-hero {
+  background: var(--navy);
+  color: #fff;
+  padding: var(--s10) 0 var(--s12);
+}
+.portal-hero .accent-label { color: var(--cyan); }
+.portal-hero h1 {
+  font-size: var(--2xl);
+  font-weight: 800;
+  margin: 0 0 var(--s2);
+  letter-spacing: -.02em;
+}
+.portal-hero p {
+  margin: 0;
+  max-width: 60ch;
+  color: #9ca3af;
+  font-size: var(--sm);
+  line-height: 1.7;
+}
+
+/* --------------------------------- tabs ---------------------------------- */
+.portal-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: calc(-1 * var(--s6));
+  margin-bottom: var(--s8);
+  position: relative;
+  z-index: 2;
+}
+.portal-tab {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 50px;
+  padding: var(--s3) var(--s5);
+  font: 700 var(--xs) inherit;
+  color: var(--navy);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  box-shadow: var(--sh-md);
+  transition: background var(--ease), color var(--ease), border-color var(--ease);
+}
+.portal-tab:hover { border-color: var(--cyan); color: var(--cyan); }
+.portal-tab.active { background: var(--navy); border-color: var(--navy); color: #fff; }
+.portal-tab .count {
+  background: var(--surface-alt);
+  color: var(--navy);
+  border-radius: 50px;
+  padding: .1rem .5rem;
+  font-size: .72rem;
+  font-weight: 800;
+}
+.portal-tab.active .count { background: rgba(255, 255, 255, .22); color: #fff; }
+
+.portal-panel { display: none; }
+.portal-panel.active { display: block; }
+
+/* ------------------------------ stat cards ------------------------------- */
+.portal-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: var(--s4);
+  margin-bottom: var(--s10);
+}
+.portal-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: var(--s5);
+  box-shadow: var(--sh-md);
+}
+.portal-card .label {
+  font-size: var(--xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--muted);
+  margin: 0 0 var(--s2);
+}
+.portal-card .value {
+  font-size: var(--xl);
+  font-weight: 800;
+  color: var(--navy);
+  margin: 0;
+  letter-spacing: -.02em;
+}
+.portal-card .sub {
+  font-size: var(--xs);
+  color: var(--muted);
+  margin: var(--s1) 0 0;
+}
+
+/* ------------------------------- sections -------------------------------- */
+.portal-section { margin-bottom: var(--s12); }
+.portal-section h2 {
+  font-size: var(--lg);
+  font-weight: 800;
+  color: var(--navy);
+  margin: 0 0 var(--s3);
+}
+.portal-hint {
+  font-size: var(--sm);
+  color: var(--muted);
+  margin: 0 0 var(--s4);
+  max-width: 70ch;
+  line-height: 1.6;
+}
+
+/* -------------------------------- tables --------------------------------- */
+.portal-table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  box-shadow: var(--sh-md);
+  overflow: hidden;
+}
+.portal-table { width: 100%; border-collapse: collapse; font-size: var(--sm); }
+.portal-table th {
+  text-align: left;
+  background: var(--surface-alt);
+  padding: var(--s3) var(--s4);
+  font-size: var(--xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+.portal-table td {
+  padding: var(--s3) var(--s4);
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  color: var(--text);
+}
+.portal-table tbody tr:last-child td { border-bottom: none; }
+.portal-table tbody tr:hover { background: var(--bg); }
+.portal-table small { color: var(--muted); font-size: var(--xs); }
+
+.portal-empty {
+  padding: var(--s10) var(--s4);
+  text-align: center;
+  color: var(--muted);
+  font-size: var(--sm);
+}
+.portal-empty a { color: var(--cyan); font-weight: 600; }
+
+/* -------------------------------- badges --------------------------------- */
+.portal-badge {
+  display: inline-block;
+  padding: .2rem .6rem;
+  border-radius: 50px;
+  font-size: var(--xs);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.portal-badge.pending,
+.portal-badge.unpaid,
+.portal-badge.new      { background: rgba(245, 158, 11, .14); color: #92400e; }
+.portal-badge.confirmed,
+.portal-badge.in-progress { background: rgba(2, 132, 199, .12); color: #075985; }
+.portal-badge.completed,
+.portal-badge.paid,
+.portal-badge.resolved { background: rgba(16, 185, 129, .14); color: #065f46; }
+.portal-badge.cancelled { background: rgba(239, 68, 68, .12); color: #991b1b; }
+.portal-badge.incomplete { background: var(--surface-alt); color: var(--muted); }
+
+/* ------------------------------- row actions ----------------------------- */
+.portal-actions { display: flex; gap: var(--s2); flex-wrap: wrap; }
+
+/* Small buttons build on the site's .btn (see style.css) so they share its
+   shape, radius, font and transition. */
+.btn-mini {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: var(--r);
+  padding: .45rem .9rem;
+  font: 700 var(--xs) inherit;
+  color: var(--navy);
+  cursor: pointer;
+  transition: border-color var(--ease), color var(--ease), background var(--ease);
+}
+.btn-mini:hover { border-color: var(--cyan); color: var(--cyan); }
+.btn-mini.primary { background: var(--navy); border-color: var(--navy); color: #fff; }
+.btn-mini.primary:hover { background: var(--cyan); border-color: var(--cyan); color: #fff; }
+.btn-mini.danger:hover { border-color: var(--red); color: var(--red); }
+
+/* -------------------------------- forms ---------------------------------- */
+.portal-form { max-width: 520px; }
+.portal-field { margin-bottom: var(--s4); }
+.portal-field label {
+  display: block;
+  font-size: var(--sm);
+  font-weight: 600;
+  color: var(--navy);
+  margin-bottom: var(--s2);
+}
+.portal-field input {
+  width: 100%;
+  padding: var(--s3) var(--s4);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  font: inherit;
+  font-size: var(--sm);
+  color: var(--navy);
+  background: var(--surface);
+  transition: border-color var(--ease), box-shadow var(--ease);
+}
+.portal-field input:focus {
+  outline: none;
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 3px rgba(0, 127, 168, .12);
+}
+.portal-field input[readonly] {
+  background: var(--surface-alt);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+/* ------------------------------- notices --------------------------------- */
+.portal-note {
+  font-size: var(--sm);
+  padding: var(--s3) var(--s4);
+  border-radius: var(--r);
+  margin-bottom: var(--s4);
+  display: none;
+  line-height: 1.6;
+}
+.portal-note.ok  { background: rgba(16, 185, 129, .12); color: #065f46; display: block; }
+.portal-note.err { background: rgba(239, 68, 68, .1);  color: #991b1b; display: block; }
+
+/* our reply under an enquiry */
+.portal-reply {
+  font-size: var(--sm);
+  color: var(--text);
+  background: var(--surface-alt);
+  border-left: 3px solid var(--cyan);
+  padding: var(--s3) var(--s4);
+  margin-top: var(--s2);
+  border-radius: 0 var(--r) var(--r) 0;
+  line-height: 1.6;
+}
+
+/* -------------------------------- modal ---------------------------------- */
+.portal-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 23, 42, .55);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  padding: var(--s5);
+}
+.portal-modal-backdrop.open { display: flex; }
+.portal-modal {
+  background: var(--surface);
+  border-radius: var(--r);
+  max-width: 420px;
+  width: 100%;
+  padding: var(--s6);
+  box-shadow: var(--sh-lg);
+}
+.portal-modal h3 {
+  margin: 0 0 var(--s3);
+  font-size: var(--lg);
+  font-weight: 800;
+  color: var(--navy);
+}
+.portal-modal p {
+  margin: 0 0 var(--s5);
+  font-size: var(--sm);
+  color: var(--text);
+  line-height: 1.7;
+}
+.portal-modal-actions { display: flex; gap: var(--s2); justify-content: flex-end; }
+
+/* ------------------------------ responsive ------------------------------- */
+@media (max-width: 720px) {
+  .portal-table th:nth-child(3),
+  .portal-table td:nth-child(3) { display: none; }
+  .portal-tabs { margin-top: calc(-1 * var(--s4)); }
+}
