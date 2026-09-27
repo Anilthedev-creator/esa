@@ -26,6 +26,21 @@ public class TokenService {
     }
 
     public String issue(Long userId, String email, String role) {
+        return issue(userId, email, role, ttlMillis);
+    }
+
+    /**
+     * Issues a token with an explicit lifetime in milliseconds.
+     *
+     * Production code uses {@link #issue(Long, String, String)}. This overload
+     * exists so a test can mint an already-expired token and prove the expiry
+     * check in {@link #verify(String)} really rejects it: the constructor floors
+     * the TTL at one hour, so a "short-lived" service still produces a token
+     * that is valid, and the expiry path is otherwise unreachable in a unit
+     * test. It changes no existing behaviour - every caller still goes through
+     * the three-argument form.
+     */
+    public String issue(Long userId, String email, String role, long ttlMillis) {
         long expiresAt = System.currentTimeMillis() + ttlMillis;
         // Email is LAST on purpose: split("\\|", 4) keeps any '|' inside the
         // email intact in the final field. With email in the middle, an address

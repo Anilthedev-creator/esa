@@ -66,8 +66,12 @@ class AdminAccessTest {
     @Test
     @DisplayName("an expired token is rejected")
     void expiredIsRejected() {
-        TokenService shortLived = new TokenService(SECRET, 1);
-        String stale = shortLived.issue(1L, "admin@esaengineering.com.au", "ADMIN");
+        // The constructor floors the TTL at one hour, so a "short-lived"
+        // TokenService still issues a token that is valid - mint one with an
+        // expiry in the past instead. This is the only way to reach the expiry
+        // branch in verify() from a unit test.
+        String stale = tokenService.issue(
+                1L, "admin@esaengineering.com.au", "ADMIN", -60_000L);
         ApiException e = assertThrows(ApiException.class,
                 () -> adminAccess.requireAdmin("Bearer " + stale));
         assertEquals(401, e.getStatus().value());
