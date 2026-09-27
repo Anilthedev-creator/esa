@@ -10,4 +10,7 @@ import java.util.Optional;
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
     Optional<Payment> findByTransactionId(String transactionId);
+
+    /** Replaces a full table scan + in-Java filter on every booking lookup. */
+    Optional<Payment> findFirstByBookingId(Long bookingId);
 }

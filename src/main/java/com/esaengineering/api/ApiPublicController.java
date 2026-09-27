@@ -26,11 +26,14 @@ public class ApiPublicController {
     private final BookingRepository bookingRepo;
     private final ContactRepository contactRepo;
     private final PaymentRepository paymentRepo;
+    private final AdminAccess adminAccess;
 
-    public ApiPublicController(BookingRepository bookingRepo, ContactRepository contactRepo, PaymentRepository paymentRepo) {
+    public ApiPublicController(BookingRepository bookingRepo, ContactRepository contactRepo,
+                                PaymentRepository paymentRepo, AdminAccess adminAccess) {
         this.bookingRepo = bookingRepo;
         this.contactRepo = contactRepo;
         this.paymentRepo = paymentRepo;
+        this.adminAccess = adminAccess;
     }
 
     // ---- bookings ----
@@ -90,7 +93,8 @@ public class ApiPublicController {
     @GetMapping("/bookings/{id}")
     public Map<String, Object> getBooking(@PathVariable Long id) {
         Booking b = bookingRepo.findByBookingId(id).orElseThrow(() -> ApiException.notFound("Booking not found"));
-        Optional<Payment> paymentOpt = paymentRepo.findAll().stream().filter(p -> p.getBookingId() != null && p.getBookingId().equals(b.getBookingID())).findFirst();
+        // Was: paymentRepo.findAll().stream().filter(...) - a full table scan per request.
+        Optional<Payment> paymentOpt = paymentRepo.findFirstByBookingId(b.getBookingID());
         Map<String, Object> bookingMap = new LinkedHashMap<>();
         bookingMap.put("id", b.getBookingID());
         bookingMap.put("name", b.getFullName());
@@ -116,9 +120,15 @@ public class ApiPublicController {
         return resp;
     }
 
-    // Legacy endpoint used by payment.js: /api/bookings/{id} already handled, but also /api/bookings without id?
+    /**
+     * Every booking, including names, emails, phones and ABNs. Nothing in the
+     * frontend calls this (the booking form POSTs, payment.js reads
+     * /api/bookings/{id}), so it is admin-only rather than a public dump.
+     */
     @GetMapping("/bookings")
-    public Map<String, Object> listBookings() {
+    public Map<String, Object> listBookings(
+            @RequestHeader(value = "Authorization", required = false) String auth) {
+        adminAccess.requireAdmin(auth);
         return Map.of("bookings", bookingRepo.findAll());
     }
 

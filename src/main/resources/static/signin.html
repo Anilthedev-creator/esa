@@ -110,7 +110,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const next = params.get('next');
   const redirectTarget = (next && next.startsWith('/') && !next.startsWith('//'))
     ? next
-    : (['dashboard.html', 'customers.html', 'enquiries.html', 'payments.html', 'analytics.html', 'settings.html', 'content.html'].includes(next) ? next : 'dashboard.html');
+    : (['dashboard.html', 'customers.html', 'enquiries.html', 'payments.html', 'analytics.html', 'settings.html', 'content.html', 'aboutPageAdmin.html', 'accountAdmin.html'].includes(next) ? next : 'dashboard.html');
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();

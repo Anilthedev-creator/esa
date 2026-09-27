@@ -31,10 +31,12 @@ public class ApiAuthController {
 
     private final ApiAuthService authService;
     private final TokenService tokenService;
+    private final AdminAccess adminAccess;
 
-    public ApiAuthController(ApiAuthService authService, TokenService tokenService) {
+    public ApiAuthController(ApiAuthService authService, TokenService tokenService, AdminAccess adminAccess) {
         this.authService = authService;
         this.tokenService = tokenService;
+        this.adminAccess = adminAccess;
     }
 
     @PostMapping("/signup")
@@ -87,8 +89,14 @@ public class ApiAuthController {
         return response;
     }
 
+    /**
+     * Creating an administrator is itself an admin-only action. Without this
+     * check a single unauthenticated POST handed out full admin rights.
+     */
     @PostMapping("/create/admin")
-    public Map<String, Object> createAdmin(@RequestBody Map<String, Object> body) {
+    public Map<String, Object> createAdmin(@RequestBody Map<String, Object> body,
+                                           @RequestHeader(value = "Authorization", required = false) String auth) {
+        adminAccess.requireAdmin(auth);
         String phone = text(body, "phoneNumber") != null ? text(body, "phoneNumber") : text(body, "phone");
         authService.createAdmin(text(body, "fullName"), text(body, "email"),
                 text(body, "password"), phone);

@@ -108,6 +108,67 @@ H2 2.x rejects these unquoted in DDL — the ones that bite JPA projects most of
 
 If you must keep a reserved name, either quote it explicitly (`@Column(name = "\"key\"")`) or set `hibernate.auto_quote_keyword=true` — but a plain rename is the least surprising option.
 
+## Security hardening (2026-09-27)
+
+An end-to-end audit of all 59 Java files found that authentication was effectively absent. All of the following are fixed.
+
+### What was wrong
+
+| # | Issue | Where |
+|---|-------|-------|
+| 1 | **Every `/api/admin/*` endpoint was open.** The guard returned early when no `Authorization` header was sent, so `curl` with no header read all customers, enquiries and payments | `ApiAdminController.checkAdminIfTokenPresent()` |
+| 2 | **Anyone could create an administrator.** `POST /api/auth/create/admin` had no check at all, and `accountAdmin.html` called it with no token | `ApiAuthController.createAdmin()` |
+| 3 | **Site content was writable by anyone.** All 12 `PUT /about/*` endpoints were unauthenticated | `AboutController` |
+| 4 | **The legacy `/auth` controller stored passwords in plain text** and compared them with `.equals()` | `AuthService` |
+| 5 | **Unauthenticated data + delete endpoints**: `/admin/customers`, `/admin/stats`, `/bookings/get`, `/contact/get`, `/payments`, `/api/bookings`, plus every `DELETE` | legacy controllers |
+| 6 | The analytics chart filled empty days with `Math.random()` — fabricated numbers presented as real data | `AnalyticsService` |
+
+### What changed
+
+- **New `AdminAccess` component** — the single gate in front of every admin endpoint. Missing header → 401, invalid/expired → 401, valid non-admin → 403. There is deliberately **no** "no token = allow" path.
+- **`ApiAdminController`** now calls `adminAccess.requireAdmin(auth)` on all 19 endpoints.
+- **`ApiAuthController.createAdmin`** requires an admin token.
+- **All 12 `AboutController` writes** require an admin token.
+- **Legacy controllers kept but locked down** (per your decision): reads and writes/deletes on `/admin`, `/bookings`, `/contact`, `/payments` now require an admin token. `/auth/register` and `/auth/login` stay public because that is what a login form needs.
+- **`AuthService` now hashes passwords** via `PasswordHasher` and upgrades legacy plain-text rows on successful login — same behaviour as `/api/auth/*`.
+- **Analytics no longer fabricates data.** Quiet days show as `0`.
+- **`ApiPublicController.getBooking`** uses `PaymentRepository.findFirstByBookingId` instead of `findAll()` + a Java-side filter (was an O(n) table scan per request).
+- **`CustomerDTO`** now actually joins phone/company from the matching `User` by email, as its Javadoc always claimed.
+- **`TokenService`** reordered its payload to `userId|role|expires|email` with `split("\\|", 4)`. An email containing `|` used to produce 5 fields and fail every verification.
+- **Constructor injection** replaces `@Autowired` field injection in `AboutController`, `AdminController`, `ContactService`.
+- **Deleted dead code**: `LoginReq` (no package declaration, unused), `PaymentStatus` (unused), `ChangePassword` (unused).
+- **Frontend**: `aboutAdmin.js` and `createAdmin.js` now send `Authorization: Bearer <token>` and redirect to `signin.html` when there is no session. `signin.html`'s `next` whitelist now includes those two pages.
+
+### Tests added
+
+`src/test/java/` (there were none):
+
+- `PasswordHasherTest` — format, random salt, plaintext never stored, correct/incorrect password, malformed stored values, legacy plain-text upgrade path
+- `TokenServiceTest` — round-trip, Bearer prefix, tampered payload, wrong secret, structurally broken tokens, expiry, and a **regression test for the `|`-in-email bug**
+- `AdminAccessTest` — the missing/blank/garbage header cases that used to be waved through, admin passes, customer gets 403, expired gets 401
+
+Run with `mvn test`.
+
+### Impact on how you use the app
+
+Direct `curl` against `/api/admin/*` now needs a token:
+
+```bash
+TOKEN=$(curl -s -X POST localhost:8080/api/auth/signin -H 'Content-Type: application/json' \
+  -d '{"email":"admin@esaengineering.com.au","password":"Admin123"}' | grep -o '"token":"[^"]*' | cut -d'"' -f4)
+curl -s localhost:8080/api/admin/settings -H "Authorization: Bearer $TOKEN"
+```
+
+The browser UI is unaffected — `admin-data.js` already attaches the token and its guard redirects to `signin.html` when there is none.
+
+### Known remaining items
+
+- **No rate limiting** on `/api/auth/signin`, `/api/bookings`, `/api/enquiries`.
+- **No token revocation** — logout is client-side only; a stolen token is valid until it expires (`app.auth.token-ttl-hours`).
+- **`confirmPayment` accepts any 12+ digit number** — simulated validation, not real payment processing.
+- **Some endpoints still return JPA entities directly** (`getEnquiryPublic`, `listBookings`, legacy controllers). No lazy-loading risk today (no relations on those entities), but it leaks internal fields.
+- **`app.auth.token-secret` is a checked-in default** — set it via env var in any real deployment.
+
 ## Project Structure
 
 ```

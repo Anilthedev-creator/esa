@@ -4,7 +4,6 @@ import com.esaengineering.model.CmsPage;
 import com.esaengineering.service.AnalyticsService;
 import com.esaengineering.service.CmsService;
 import com.esaengineering.service.SettingsService;
-import com.esaengineering.security.TokenService;
 import com.esaengineering.web.ApiException;
 
 import org.springframework.web.bind.annotation.*;
@@ -26,43 +25,32 @@ public class ApiAdminController {
     private final CmsService cmsService;
     private final AnalyticsService analyticsService;
     private final SettingsService settingsService;
-    private final TokenService tokenService;
+    private final AdminAccess adminAccess;
 
     public ApiAdminController(AdminDataService adminService,
                               CmsService cmsService,
                               AnalyticsService analyticsService,
                               SettingsService settingsService,
-                              TokenService tokenService) {
+                              AdminAccess adminAccess) {
         this.adminService = adminService;
         this.cmsService = cmsService;
         this.analyticsService = analyticsService;
         this.settingsService = settingsService;
-        this.tokenService = tokenService;
+        this.adminAccess = adminAccess;
         // NOTE: no database access here. Controller beans are created while the
         // application context is still starting, i.e. before Hibernate has
         // created the tables. Seeding happens in DataInitializer instead.
     }
 
-    // ---- helper for optional auth guard (if Authorization header present, validate admin) ----
-    private void checkAdminIfTokenPresent(String authHeader) {
-        if (authHeader == null || authHeader.isBlank()) {
-            // Allow in dev mode when no token sent (e.g. direct curl), but frontend will send token
-            return;
-        }
-        var payload = tokenService.verify(authHeader);
-        if (payload == null) throw ApiException.unauthorized("Session expired");
-        if (!"ADMIN".equalsIgnoreCase(payload.getRole())) throw ApiException.forbidden("Admin access required");
-    }
-
     @GetMapping("/stats")
     public Map<String, Object> stats(@RequestHeader(value = "Authorization", required = false) String auth) {
-        checkAdminIfTokenPresent(auth);
+        adminAccess.requireAdmin(auth);
         return adminService.stats();
     }
 
     @GetMapping("/customers")
     public Map<String, Object> customers(@RequestHeader(value = "Authorization", required = false) String auth) {
-        checkAdminIfTokenPresent(auth);
+        adminAccess.requireAdmin(auth);
         List<Map<String, Object>> rows = adminService.customers();
         return single("customers", rows, rows.size());
     }
@@ -70,7 +58,7 @@ public class ApiAdminController {
     @GetMapping("/customers/{id}")
     public Map<String, Object> customerOne(@PathVariable Long id,
                                            @RequestHeader(value = "Authorization", required = false) String auth) {
-        checkAdminIfTokenPresent(auth);
+        adminAccess.requireAdmin(auth);
         return Map.of("customer", adminService.customerById(id));
     }
 
@@ -78,14 +66,14 @@ public class ApiAdminController {
     public Map<String, Object> patchCustomer(@PathVariable Long id,
                                              @RequestBody Map<String, Object> body,
                                              @RequestHeader(value = "Authorization", required = false) String auth) {
-        checkAdminIfTokenPresent(auth);
+        adminAccess.requireAdmin(auth);
         Map<String, Object> updated = adminService.updateCustomer(id, body);
         return Map.of("customer", updated, "message", "Customer updated");
     }
 
     @GetMapping("/enquiries")
     public Map<String, Object> enquiries(@RequestHeader(value = "Authorization", required = false) String auth) {
-        checkAdminIfTokenPresent(auth);
+        adminAccess.requireAdmin(auth);
         List<Map<String, Object>> rows = adminService.enquiries();
         return single("enquiries", rows, rows.size());
     }
@@ -93,7 +81,7 @@ public class ApiAdminController {
     @GetMapping("/enquiries/{id}")
     public Map<String, Object> enquiryOne(@PathVariable Long id,
                                           @RequestHeader(value = "Authorization", required = false) String auth) {
-        checkAdminIfTokenPresent(auth);
+        adminAccess.requireAdmin(auth);
         return Map.of("enquiry", adminService.enquiryById(id));
     }
 
@@ -101,14 +89,14 @@ public class ApiAdminController {
     public Map<String, Object> patchEnquiry(@PathVariable Long id,
                                             @RequestBody Map<String, Object> body,
                                             @RequestHeader(value = "Authorization", required = false) String auth) {
-        checkAdminIfTokenPresent(auth);
+        adminAccess.requireAdmin(auth);
         Map<String, Object> updated = adminService.updateEnquiry(id, body);
         return Map.of("enquiry", updated, "message", "Enquiry updated");
     }
 
     @GetMapping("/payments")
     public Map<String, Object> payments(@RequestHeader(value = "Authorization", required = false) String auth) {
-        checkAdminIfTokenPresent(auth);
+        adminAccess.requireAdmin(auth);
         List<Map<String, Object>> rows = adminService.payments();
         return single("payments", rows, rows.size());
     }
@@ -116,7 +104,7 @@ public class ApiAdminController {
     @GetMapping("/payments/{id}")
     public Map<String, Object> paymentOne(@PathVariable Long id,
                                           @RequestHeader(value = "Authorization", required = false) String auth) {
-        checkAdminIfTokenPresent(auth);
+        adminAccess.requireAdmin(auth);
         return Map.of("payment", adminService.paymentById(id));
     }
 
@@ -124,7 +112,7 @@ public class ApiAdminController {
     public Map<String, Object> patchPayment(@PathVariable Long id,
                                             @RequestBody Map<String, Object> body,
                                             @RequestHeader(value = "Authorization", required = false) String auth) {
-        checkAdminIfTokenPresent(auth);
+        adminAccess.requireAdmin(auth);
         Map<String, Object> updated = adminService.updatePayment(id, body);
         return Map.of("payment", updated, "message", "Payment updated");
     }
@@ -133,7 +121,7 @@ public class ApiAdminController {
 
     @GetMapping("/pages")
     public Map<String, Object> pages(@RequestHeader(value = "Authorization", required = false) String auth) {
-        checkAdminIfTokenPresent(auth);
+        adminAccess.requireAdmin(auth);
         List<CmsPage> all = cmsService.listPages();
         List<Map<String, Object>> rows = all.stream().map(p -> {
             Map<String, Object> m = new LinkedHashMap<>();
@@ -150,7 +138,7 @@ public class ApiAdminController {
     @PostMapping("/pages")
     public Map<String, Object> createPage(@RequestBody Map<String, Object> body,
                                           @RequestHeader(value = "Authorization", required = false) String auth) {
-        checkAdminIfTokenPresent(auth);
+        adminAccess.requireAdmin(auth);
         String title = body.get("title") != null ? body.get("title").toString() : null;
         String slug = body.get("slug") != null ? body.get("slug").toString() : null;
         CmsPage created = cmsService.createPage(title, slug);
@@ -165,7 +153,7 @@ public class ApiAdminController {
     @GetMapping("/pages/{id}")
     public Map<String, Object> pageWithBlocks(@PathVariable Long id,
                                               @RequestHeader(value = "Authorization", required = false) String auth) {
-        checkAdminIfTokenPresent(auth);
+        adminAccess.requireAdmin(auth);
         return cmsService.getPageWithBlocks(id);
     }
 
@@ -173,7 +161,7 @@ public class ApiAdminController {
     public Map<String, Object> patchPage(@PathVariable Long id,
                                          @RequestBody Map<String, Object> body,
                                          @RequestHeader(value = "Authorization", required = false) String auth) {
-        checkAdminIfTokenPresent(auth);
+        adminAccess.requireAdmin(auth);
         String status = body.get("status") != null ? body.get("status").toString() : null;
         CmsPage updated = cmsService.updatePageStatus(id, status);
         Map<String, Object> m = new LinkedHashMap<>();
@@ -188,7 +176,7 @@ public class ApiAdminController {
     public Map<String, Object> putBlocks(@PathVariable Long id,
                                          @RequestBody Map<String, Object> body,
                                          @RequestHeader(value = "Authorization", required = false) String auth) {
-        checkAdminIfTokenPresent(auth);
+        adminAccess.requireAdmin(auth);
         Object blocksObj = body.get("blocks");
         if (!(blocksObj instanceof Map)) throw ApiException.badRequest("blocks must be an object");
         @SuppressWarnings("unchecked")
@@ -205,7 +193,7 @@ public class ApiAdminController {
     public Map<String, Object> deleteBlock(@PathVariable Long id,
                                            @PathVariable String key,
                                            @RequestHeader(value = "Authorization", required = false) String auth) {
-        checkAdminIfTokenPresent(auth);
+        adminAccess.requireAdmin(auth);
         cmsService.deleteBlockOverride(id, key);
         return Map.of("message", "Block reset to default", "success", true);
     }
@@ -215,7 +203,7 @@ public class ApiAdminController {
     @GetMapping("/analytics/activity")
     public Map<String, Object> activity(@RequestParam(value = "days", defaultValue = "7") int days,
                                         @RequestHeader(value = "Authorization", required = false) String auth) {
-        checkAdminIfTokenPresent(auth);
+        adminAccess.requireAdmin(auth);
         return analyticsService.getActivity(days);
     }
 
@@ -223,14 +211,14 @@ public class ApiAdminController {
 
     @GetMapping("/settings")
     public Map<String, Object> getSettings(@RequestHeader(value = "Authorization", required = false) String auth) {
-        checkAdminIfTokenPresent(auth);
+        adminAccess.requireAdmin(auth);
         return settingsService.getSettings();
     }
 
     @PutMapping("/settings")
     public Map<String, Object> putSettings(@RequestBody Map<String, Object> body,
                                            @RequestHeader(value = "Authorization", required = false) String auth) {
-        checkAdminIfTokenPresent(auth);
+        adminAccess.requireAdmin(auth);
         Map<String, String> incoming = new LinkedHashMap<>();
         for (Map.Entry<String, Object> e : body.entrySet()) {
             if (e.getValue() != null) incoming.put(e.getKey(), e.getValue().toString());

@@ -7,7 +7,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
@@ -40,11 +39,10 @@ public class AnalyticsService {
 
         // Group events by date
         Map<LocalDate, Long> visitsByDate = new HashMap<>();
-        Map<LocalDate, Long> enquiriesByDate = new HashMap<>(); // we approximate enquiries as 0 unless we have timestamps
-
-        // For simplicity, enquiries per day = contactRepo not timestamped -> distribute evenly or 0
-        // We'll try to use contact IDs as proxy for recent, but we have no date. So enquiries series will be 0 except we can use contact count spread.
-        // Better: just count 0 for now, but we can show visits.
+        // Contact has no per-row timestamp, so a true per-day enquiry series
+        // is not derivable from the current schema. It stays at 0 rather than
+        // being faked; contactCount is still reported as the total below.
+        Map<LocalDate, Long> enquiriesByDate = new HashMap<>();
 
         for (AnalyticsEvent ev : allEvents) {
             if (ev.getCreatedAt() == null) continue;
@@ -53,17 +51,14 @@ public class AnalyticsService {
             visitsByDate.merge(d, 1L, Long::sum);
         }
 
-        // If no events yet, generate some demo data based on existing bookings/contacts so chart is not empty
-        boolean hasData = !visitsByDate.isEmpty();
+        // Days with no recorded visits show as 0. We deliberately do NOT invent
+        // numbers: a chart full of Math.random() looked plausible but was
+        // fiction, which is worse than an empty chart.
         List<Map<String, Object>> series = new ArrayList<>();
         for (int i = 0; i < days; i++) {
             LocalDate d = start.plusDays(i);
-            long visits = visitsByDate.getOrDefault(d, hasData ? 0L : (long) (5 + Math.random() * 20));
+            long visits = visitsByDate.getOrDefault(d, 0L);
             long enquiries = enquiriesByDate.getOrDefault(d, 0L);
-            // If we have no real enquiry dates, synthesize small numbers
-            if (!hasData) {
-                enquiries = (long) (Math.random() * 3);
-            }
             Map<String, Object> point = new LinkedHashMap<>();
             point.put("date", d.toString());
             point.put("visits", visits);
