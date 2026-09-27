@@ -723,3 +723,54 @@ html.no-scroll,
 body.no-scroll {
   overflow: hidden;
 }
+
+/* Booking account required overlay */
+.booking-auth-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(10, 20, 35, 0.55);
+    backdrop-filter: blur(7px);
+    -webkit-backdrop-filter: blur(7px);
+}
+
+.booking-auth-overlay[hidden] {
+    display: none;
+}
+
+.booking-auth-modal {
+    width: 100%;
+    max-width: 460px;
+    padding: 32px;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+    text-align: center;
+}
+
+.booking-auth-modal h2 {
+    margin: 0 0 12px;
+    color: #10213b;
+    font-size: 25px;
+}
+
+.booking-auth-modal p {
+    margin: 0 0 24px;
+    color: #526174;
+    line-height: 1.6;
+}
+
+.booking-auth-buttons {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+body.booking-auth-open {
+    overflow: hidden;
+}

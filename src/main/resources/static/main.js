@@ -10,6 +10,7 @@ document.addEventListener("DOMContentLoaded", function () {
   setupDropdowns();
   setupForms();
   updateHeaderButtons();
+  showBookingAuthNotice();
 });
 
 
@@ -175,6 +176,14 @@ function showFormNote(form, text, isError) {
 function onFormSubmit(e) {
   e.preventDefault();
   var form = e.target;
+  // Require customers to sign in before booking
+  if (form.getAttribute("data-api") === "/api/bookings") {
+  if (typeof isLoggedIn !== "function" || !isLoggedIn()) {
+    window.location.href =
+      "signin.html?next=" + encodeURIComponent("booking.html");
+    return;
+  }
+} 
 
   if (!form.checkValidity()) {
     form.reportValidity();
@@ -286,4 +295,19 @@ function updateHeaderButtons() {
     e.preventDefault();
     if (typeof signOut === "function") signOut();
   });
+}
+
+function showBookingAuthNotice() {
+    var notice = document.getElementById("bookingAuthNotice");
+
+    if (!notice) return;
+
+    var loggedIn =
+        typeof isLoggedIn === "function" && isLoggedIn();
+
+    notice.hidden = loggedIn;
+    document.body.classList.toggle(
+        "booking-auth-open",
+        !loggedIn
+    );
 }

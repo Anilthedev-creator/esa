@@ -524,8 +524,6 @@ a, button, [role="button"], input, textarea, select {
   
  
 }
-#bookingForm h2 {
-    }
 
 #bookingForm {
 
@@ -682,14 +680,14 @@ transform: translateY(-2px);
 
 @media (max-width: 768px) {
 
-```
 #bookingForm {
 
     width: 90%;
 
     padding: 25px;
 }
-```
+
 
 }
+
 
