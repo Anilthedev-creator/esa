@@ -1,7 +1,5 @@
 package com.esaengineering.api;
 
-import com.esaengineering.service.ApiAuthService;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.LinkedHashMap;

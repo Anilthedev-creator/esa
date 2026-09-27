@@ -1,7 +1,7 @@
 package com.esaengineering.api;
 
-import com.esaengineering.service.ApiException;
-import com.esaengineering.service.TokenService;
+import com.esaengineering.security.TokenService;
+import com.esaengineering.web.ApiException;
 import org.springframework.stereotype.Component;
 
 /**
