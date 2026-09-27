@@ -1,11 +1,11 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 
-  <title>Enquiries | ESA Admin</title>
+  <title>Bookings | ESA Admin</title>
 
   <link rel="stylesheet" href="style.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
@@ -17,7 +17,7 @@
   />
 </head>
 
-<body data-admin-page="enquiries">
+<body data-admin-page="bookings">
 
 <div class="admin-layout">
 
@@ -42,15 +42,15 @@
         <i class="fa-solid fa-users"></i> Customer Management
       </a>
 
-
-      <a href="bookings.html">
+      <a class="active" href="bookings.html">
         <i class="fa-solid fa-calendar-check"></i> Bookings
       </a>
+
       <a href="payments.html">
         <i class="fa-solid fa-credit-card"></i> Payments
       </a>
 
-      <a class="active" href="enquiries.html">
+      <a href="enquiries.html">
         <i class="fa-solid fa-envelope"></i> Enquiries
       </a>
 
@@ -101,7 +101,7 @@
       <!-- TITLE -->
       <div class="dashboard-title">
         <i class="fa-solid fa-bars"></i>
-        <h2>Enquiries</h2>
+        <h2>Bookings</h2>
       </div>
 
       <!-- HEADER -->
@@ -109,7 +109,7 @@
 
         <div>
           <h3 class="section-heading">
-            All Enquiries
+            All Bookings
           </h3>
 
           <div class="heading-line"></div>
@@ -128,110 +128,26 @@
 
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Subject</th>
-              <th>Message</th>
-              <th>Status</th>
+              <th>Booking</th>
+              <th>Customer</th>
+              <th>Service</th>
               <th>Date</th>
+              <th>Email</th>
+              <th>Status</th>
               <th>Action</th>
             </tr>
           </thead>
 
-          <tbody id="enquiriesBody">
+          <tbody id="bookingsAdminBody">
 
             <tr>
-              <td>James Anderson</td>
-              <td>Structural Design</td>
-              <td>I would like more ..</td>
-
-              <td>
-                <span class="status enquiry-new">
-                  New
-                </span>
-              </td>
-
-              <td>27 Apr 2026</td>
-
-              <td class="action-icons">
-                <i class="fa-solid fa-pen"></i>
-                <i class="fa-regular fa-eye"></i>
-              </td>
-            </tr>
-
-            <tr>
-              <td>Olivia Taylor</td>
-              <td>Site Inspection</td>
-              <td>Can you provide a ..</td>
-
-              <td>
-                <span class="status enquiry-progress">
-                  In Progress
-                </span>
-              </td>
-
-              <td>27 Apr 2026</td>
-
-              <td class="action-icons">
-                <i class="fa-solid fa-pen"></i>
-                <i class="fa-regular fa-eye"></i>
-              </td>
-            </tr>
-
-            <tr>
-              <td>Liam Thompson</td>
-              <td>Project Management</td>
-              <td>Do you offer project ..</td>
-
-              <td>
-                <span class="status enquiry-resolved">
-                  Resolved
-                </span>
-              </td>
-
-              <td>27 Apr 2026</td>
-
-              <td class="action-icons">
-                <i class="fa-solid fa-pen"></i>
-                <i class="fa-regular fa-eye"></i>
-              </td>
-            </tr>
-
-            <tr>
-              <td>Sophia Martinez</td>
-              <td>Consultation</td>
-              <td>I need help with ..</td>
-
-              <td>
-                <span class="status enquiry-new">
-                  New
-                </span>
-              </td>
-
-              <td>27 Apr 2026</td>
-
-              <td class="action-icons">
-                <i class="fa-solid fa-pen"></i>
-                <i class="fa-regular fa-eye"></i>
-              </td>
-            </tr>
-
-            <tr>
-              <td>William Harris</td>
-              <td>General Enquiry</td>
-              <td>Looking for more ..</td>
-
-              <td>
-                <span class="status enquiry-progress">
-                  In Progress
-                </span>
-              </td>
-
-              <td>27 Apr 2026</td>
-
-              <td class="action-icons">
-                <i class="fa-solid fa-pen"></i>
-                <i class="fa-regular fa-eye"></i>
-              </td>
+              <td>—</td>
+              <td>Loading…</td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
             </tr>
 
           </tbody>
@@ -252,6 +168,3 @@
 
 </body>
 </html>
-
-
-

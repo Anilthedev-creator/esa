@@ -216,6 +216,8 @@ body {
   transition: box-shadow .2s var(--ease), transform .2s var(--ease);
 }
 .stat-card:hover { box-shadow: var(--sh-md); transform: translateY(-2px); }
+a.stat-card { text-decoration: none; color: inherit; }
+a.stat-card:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
 .stat-card p { margin: 0 0 4px; font-size: .74rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); }
 .stat-card h3 { margin: 0 0 6px; font-size: 1.85rem; font-weight: 800; color: var(--navy); letter-spacing: -.02em; }
 .stat-card span { font-size: .78rem; font-weight: 600; color: var(--muted); }

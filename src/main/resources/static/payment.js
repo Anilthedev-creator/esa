@@ -5,6 +5,9 @@
  * and confirms the booking once the consultation fee is paid.
  */
 
+/** Email on the booking, so the paid card can name the address to sign in with. */
+var bookedEmail = "";
+
 document.addEventListener("DOMContentLoaded", function () {
   var form = document.getElementById("paymentForm");
   if (!form) return;
@@ -26,6 +29,7 @@ document.addEventListener("DOMContentLoaded", function () {
       return res.json();
     })
     .then(function (data) {
+      bookedEmail = data.booking.email || "";
       renderSummary(data.booking);
 
       // if it is already paid just show the success card
@@ -52,6 +56,13 @@ document.addEventListener("DOMContentLoaded", function () {
       form.style.display = "none";
     });
 });
+
+/** Escapes text for safe interpolation into innerHTML. */
+function esc(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
 
 function showError(text) {
   var box = document.getElementById("paymentError");
@@ -85,6 +96,22 @@ function showPaid(reference) {
   if (reference) {
     document.getElementById("paidRef").textContent = "Payment reference: " + reference;
   }
+
+  // A customer who booked through the public form has no account, so the
+  // portal is not an option for them - offer to create one instead. Both
+  // routes let them see this booking later.
+  var actions = document.getElementById("paidActions");
+  if (!actions) return;
+  var signedIn = typeof isLoggedIn === "function" && isLoggedIn();
+  actions.innerHTML =
+    '<a href="portal.html" class="btn btn-navy">' +
+      (signedIn ? "View my portal" : "Track this booking") + "</a>" +
+    '<a href="index.html" class="btn">Back to home</a>' +
+    (signedIn
+      ? ""
+      : '<p style="flex-basis:100%; font-size:.8rem; color:var(--muted); margin:14px 0 0;">' +
+        "You will be asked to sign in. Use the same email you booked with " +
+        "(<strong>" + esc(bookedEmail || "") + "</strong>) so this booking appears.</p>");
 }
 
 function pay(payment) {

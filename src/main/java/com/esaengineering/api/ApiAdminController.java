@@ -97,6 +97,14 @@ public class ApiAdminController {
         return single("payments", rows, rows.size());
     }
 
+    /** Every booking, newest first. Feeds the admin bookings table. */
+    @GetMapping("/bookings")
+    public Map<String, Object> bookings(@RequestHeader(value = "Authorization", required = false) String auth) {
+        adminAccess.requireAdmin(auth);
+        List<Map<String, Object>> rows = adminService.bookings();
+        return single("bookings", rows, rows.size());
+    }
+
     @GetMapping("/payments/{id}")
     public Map<String, Object> paymentOne(@PathVariable Long id,
                                           @RequestHeader(value = "Authorization", required = false) String auth) {

@@ -276,7 +276,7 @@
   }
 
   /* ------------------------------ view/edit -------------------------------- */
-  var STORE = { customer: null, enquiry: null, payment: null, page: null };
+  var STORE = { customer: null, enquiry: null, payment: null, page: null, bookings: null };
 
   function bindActions(container) {
     container.querySelectorAll('[data-edit]').forEach(function (el) {
@@ -293,6 +293,9 @@
     });
     container.querySelectorAll('[data-content]').forEach(function (el) {
       el.addEventListener('click', function () { editPageContent(el.dataset.content); });
+    });
+    container.querySelectorAll('[data-booking-view]').forEach(function (el) {
+      el.addEventListener('click', function () { bookingDetailModal(el.dataset.bookingView); });
     });
   }
 
@@ -557,6 +560,57 @@
     } catch (e) { showOffline('enquiry list unavailable'); }
   }
 
+  /**
+   * Bookings come from GET /api/admin/bookings, which projects the Booking
+   * entity into the seven fields this table renders (see
+   * AdminDataService.bookings()). There is no GET /api/admin/bookings/{id}, so
+   * the detail modal is built from the row already in the list.
+   */
+  async function renderBookings() {
+    var body = $('bookingsAdminBody');
+    if (!body) return;
+    try {
+      var data = await api('/bookings');
+      var bookings = data.bookings || [];
+      STORE.bookings = bookings;
+      body.innerHTML = bookings.map(bookingAdminRow).join('') ||
+        '<tr><td colspan="7">No bookings yet</td></tr>';
+      bindActions(body);
+    } catch (e) { showOffline('booking list unavailable'); }
+  }
+
+  function bookingAdminRow(b) {
+    return '<tr>' +
+      '<td>#' + esc(b.bookingId) + '</td>' +
+      '<td>' + esc(b.customer) + '</td>' +
+      '<td>' + esc(b.service) + '</td>' +
+      '<td>' + esc(fmtDate(b.date)) + '</td>' +
+      '<td>' + esc(b.email) + '</td>' +
+      '<td>' + badge('booking', b.status) + '</td>' +
+      '<td class="action-icons">' +
+      '<i class="fa-regular fa-eye" data-booking-view="' + esc(b.bookingId) + '" title="View" style="cursor:pointer"></i>' +
+      '</td>' +
+      '</tr>';
+  }
+
+  function bookingDetailModal(bookingId) {
+    var b = (STORE.bookings || []).find(function (x) { return String(x.bookingId) === String(bookingId); });
+    if (!b) return;
+    var rows = {
+      'Booking': { value: '#' + b.bookingId },
+      'Customer': { value: b.customer || '—' },
+      'Service': { value: b.service || '—' },
+      'Status': { value: b.status || '—' },
+      'Booking date': { value: fmtDate(b.date) },
+      'Email': { value: b.email || '—' },
+      'Phone': { value: b.phone || '—' },
+      'ABN': { value: b.abn || '—' },
+      'Notes': { value: b.notes || '—' },
+      'Created': { value: fmtDate(b.createdAt) }
+    };
+    openModal('Booking #' + b.bookingId, fieldRows(rows));
+  }
+
   async function renderPayments() {
     try {
       var data = await api('/payments');
@@ -671,6 +725,7 @@
     customers: renderCustomers,
     enquiries: renderEnquiries,
     payments: renderPayments,
+    bookings: renderBookings,
     content: renderContent,
     settings: renderSettings
   };

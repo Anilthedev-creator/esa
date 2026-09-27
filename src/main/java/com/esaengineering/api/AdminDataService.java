@@ -228,6 +228,35 @@ public class AdminDataService {
     }
 
     @Transactional(readOnly = true)
+    /**
+     * Every booking, newest first, shaped for the admin bookings table.
+     *
+     * Deliberately a projection rather than the raw entity: the public
+     * {@code GET /api/bookings} returns JPA entities straight to JSON, which
+     * leaks internal fields and would change shape if the entity ever gains a
+     * column. The admin UI gets exactly the seven fields its table renders.
+     */
+    public List<Map<String, Object>> bookings() {
+        List<Booking> all = bookingRepository.findAll();
+        all.sort((a, b) -> Long.compare(b.getBookingID(), a.getBookingID()));
+
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (Booking b : all) {
+            rows.add(row(
+                    "bookingId", b.getBookingID(),
+                    "customer", b.getFullName(),
+                    "service", b.getServiceName(),
+                    "date", b.getBookingDate(),
+                    "email", b.getEmail(),
+                    "phone", b.getPhone(),
+                    "abn", b.getAbnNumber(),
+                    "notes", b.getDescription(),
+                    "status", b.getStatus() != null ? b.getStatus() : "pending",
+                    "createdAt", b.getCreatedAt()));
+        }
+        return rows;
+    }
+
     public List<Map<String, Object>> payments() {
         List<Payment> all = paymentRepository.findAll();
         all.sort((a, b) -> {

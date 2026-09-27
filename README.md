@@ -240,6 +240,51 @@ Previously every signed-in user was sent to `dashboard.html` — the admin conso
 
 `server.js` got the matching treatment: the analytics routes and the `analytics` JSON store are gone, the fee uses `CONSULTATION_FEE` (default 50), and all eleven `/api/portal/*` routes are implemented against the JSON files. Its `requireAdmin` middleware had the same "no Authorization header = dev open" hole the Spring side had, and that is now closed too — a missing token is a 401.
 
+## Dashboard navigation and a missing Bookings page (2026-09-27)
+
+The admin dashboard advertised things it could not reach. Both "View All" links
+pointed at `#`, so the "Recent Service Requests" and "Recent Enquiries" cards
+were dead ends, and the "Active Bookings" stat had no page behind it at all -
+the sidebar had Dashboard, Content, Customers, Payments, Enquiries and Settings,
+but no bookings view, even though a `booking` badge style and the stats payload
+already existed for one.
+
+**New `bookings.html`**, modelled exactly on `enquiries.html` so it reuses the
+existing `dashboard-wrapper`, `content-header`, `section-heading`, `dashboard-card`
+and `status` classes rather than introducing new styling. It lists every booking
+with customer, service, date, email and status, and an eye icon that opens the
+full detail (including ABN and notes) in the existing modal.
+
+It is backed by a new `GET /api/admin/bookings`, guarded by `AdminAccess` like
+every other admin endpoint. That endpoint **projects** the `Booking` entity into
+the fields the table needs instead of returning the raw entity the way the
+public `GET /api/bookings` does - which also closes one of the open audit items
+about JPA entities being serialised straight to JSON.
+
+The dashboard's four stat cards are now links (Total Users -> customers, Active
+Bookings -> bookings, Pending Enquiries -> enquiries, Revenue -> payments), with
+two CSS rules added so an anchor looks identical to the previous `div`. "Bookings"
+was added to the sidebar of every admin page, and the chart card was relabelled
+from "Website Activity" to "Bookings - last 14 days" because it has drawn
+bookings since the analytics feed was removed.
+
+## Booking and payment page copy corrected
+
+The booking page told customers "we'll contact you to scope the project and
+arrange an obligation-free discussion", which contradicted the flow: submitting
+the form now goes straight to the payment page. Its "How it works" panel is now
+a three-step explainer built from the existing `.info-card`, `.step-number` and
+`.card-border-*` classes, stating the $50 fee and that it is credited against
+later work, and the submit button notes that payment is the next step.
+
+Two links were also wrong. The payment page's "Change booking details" went back
+to `booking.html`, which submits a **new** booking and a second payment rather
+than editing anything - it now points at the contact page. And the paid card
+always offered "View my portal", but a customer who booked through the public
+form has no account, so the portal was unreachable; the card now checks for a
+session and otherwise offers to track the booking, naming the email to sign in
+with so the booking appears in their portal afterwards.
+
 ## Project Structure
 
 ```
@@ -338,6 +383,7 @@ The app starts on **http://localhost:8080**.
 | GET | `/api/admin/enquiries` | List enquiries |
 | GET | `/api/admin/enquiries/{id}` | Enquiry detail |
 | PATCH | `/api/admin/enquiries/{id}` | Update enquiry (status/reply) |
+| GET | `/api/admin/bookings` | List bookings (newest first) |
 | GET | `/api/admin/payments` | List payments |
 | GET | `/api/admin/payments/{id}` | Payment detail |
 | PATCH | `/api/admin/payments/{id}` | Update payment |
