@@ -50,6 +50,37 @@ The admin pages (`content.html`, `dashboard.html` etc.) call `/api/admin/*`. Pre
 
 Result: frontend and backend communicate flawlessly on same origin (`http://localhost:8080`), no CORS issues, no "Backend offline" when server is running.
 
+## Startup crash: `Table "site_settings" not found` (fixed)
+
+**Symptom** — the app died during startup with:
+
+```
+ApiAdminController.<init> → cmsService.ensureDefaultPages() + settingsService.ensureDefaults()
+→ repo.existsById() → SELECT ... FROM site_settings → Table "site_settings" not found
+```
+
+**Cause** — two things combined:
+
+1. **DB calls in a controller constructor.** Spring builds the `EntityManagerFactory` (which runs the DDL and creates the tables) *after* controller beans are instantiated. `ApiAdminController` and `ApiContentController` called `ensureDefaultPages()` / `ensureDefaults()` from their constructors, i.e. before the tables existed.
+2. **An H2 URL that fought `H2Dialect`.** The URL carried `MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH`. Those H2 compatibility flags disagreed with `org.hibernate.dialect.H2Dialect`, so Hibernate's `ddl-auto=update` did not add the new tables (`cms_pages`, `cms_blocks`, `site_settings`, `analytics_events`) to a database file created by an earlier run.
+
+**Fixes applied:**
+
+1. **Removed all DB calls from controller constructors** (`ApiAdminController`, `ApiContentController`) — constructors now only assign fields.
+2. **Added `DataInitializer`** (`CommandLineRunner`, `@Order(2)`), which runs *after* the `EntityManagerFactory` is built and therefore after the tables exist. It calls `cmsService.ensureDefaultPages()` and `settingsService.ensureDefaults()`, each in its own `try/catch` so a failure never aborts the boot.
+3. **`AdminBootstrap` is now `@Order(1)`** so the first administrator is created before pages/settings are seeded.
+4. **`hasAdministrator()`, `ensureDefaultPages()` and `ensureDefaults()` are resilient** — they catch `RuntimeException`, log a warning, and let startup continue (`noRollbackFor` on the transactional methods so the swallowed exception does not surface as `UnexpectedRollbackException`).
+5. **Simplified the H2 URL** — `MODE=PostgreSQL` / `DATABASE_TO_LOWER` / `DEFAULT_NULL_ORDERING` are gone; the dialect is now overridable via `DB_DIALECT`:
+
+```properties
+spring.datasource.url=${DB_URL:jdbc:h2:file:./data/esa_db;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE}
+spring.jpa.database-platform=${DB_DIALECT:org.hibernate.dialect.H2Dialect}
+```
+
+**Startup order is now:** Hibernate creates tables → `AdminBootstrap` (@Order 1) creates the admin → `DataInitializer` (@Order 2) seeds pages + settings → HTTP traffic.
+
+> **Already have an old `./data/esa_db.mv.db`?** `ddl-auto=update` adds the missing tables automatically, but if that file was created while the URL was mis-configured it is safest to delete it once: `rm -rf data` (it is gitignored, nothing tracked is lost). The app recreates it with the full schema on the next start.
+
 ## Project Structure
 
 ```

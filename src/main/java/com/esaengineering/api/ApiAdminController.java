@@ -38,8 +38,9 @@ public class ApiAdminController {
         this.analyticsService = analyticsService;
         this.settingsService = settingsService;
         this.tokenService = tokenService;
-        this.cmsService.ensureDefaultPages();
-        this.settingsService.ensureDefaults();
+        // NOTE: no database access here. Controller beans are created while the
+        // application context is still starting, i.e. before Hibernate has
+        // created the tables. Seeding happens in DataInitializer instead.
     }
 
     // ---- helper for optional auth guard (if Authorization header present, validate admin) ----

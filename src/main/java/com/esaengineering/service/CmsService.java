@@ -5,6 +5,8 @@ import com.esaengineering.model.CmsPage;
 import com.esaengineering.repository.CmsBlockRepository;
 import com.esaengineering.repository.CmsPageRepository;
 import com.esaengineering.web.ApiException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.stereotype.Service;
@@ -18,6 +20,8 @@ import java.util.regex.Pattern;
 
 @Service
 public class CmsService {
+
+    private static final Logger log = LoggerFactory.getLogger(CmsService.class);
 
     private final CmsPageRepository pageRepo;
     private final CmsBlockRepository blockRepo;
@@ -35,22 +39,34 @@ public class CmsService {
         this.blockRepo = blockRepo;
     }
 
-    @Transactional
+    /**
+     * Creates the built-in pages if the table is empty.
+     *
+     * Called from {@link com.esaengineering.api.DataInitializer} once the schema
+     * exists - never from a controller constructor. Resilient on purpose: a
+     * missing table must not abort the boot.
+     */
+    @Transactional(noRollbackFor = RuntimeException.class)
     public void ensureDefaultPages() {
-        if (pageRepo.count() > 0) return;
-        List<CmsPage> defaults = List.of(
-                new CmsPage("Home", "index.html", "published"),
-                new CmsPage("About Us", "about.html", "published"),
-                new CmsPage("Services", "services.html", "published"),
-                new CmsPage("Projects", "projects.html", "published"),
-                new CmsPage("Contact Us", "contact.html", "published"),
-                new CmsPage("Commissioning", "commissioning.html", "published"),
-                new CmsPage("Appraisals", "appraisals.html", "published"),
-                new CmsPage("Optimisation", "optimisation.html", "published"),
-                new CmsPage("Waste Management", "waste-management.html", "published"),
-                new CmsPage("Dangerous Goods", "dangerous-goods.html", "published")
-        );
-        pageRepo.saveAll(defaults);
+        try {
+            if (pageRepo.count() > 0) return;
+            List<CmsPage> defaults = List.of(
+                    new CmsPage("Home", "index.html", "published"),
+                    new CmsPage("About Us", "about.html", "published"),
+                    new CmsPage("Services", "services.html", "published"),
+                    new CmsPage("Projects", "projects.html", "published"),
+                    new CmsPage("Contact Us", "contact.html", "published"),
+                    new CmsPage("Commissioning", "commissioning.html", "published"),
+                    new CmsPage("Appraisals", "appraisals.html", "published"),
+                    new CmsPage("Optimisation", "optimisation.html", "published"),
+                    new CmsPage("Waste Management", "waste-management.html", "published"),
+                    new CmsPage("Dangerous Goods", "dangerous-goods.html", "published")
+            );
+            pageRepo.saveAll(defaults);
+        } catch (RuntimeException e) {
+            log.warn("Could not seed the default CMS pages (they will be retried on the next start): {}",
+                    e.getMessage());
+        }
     }
 
     @Transactional(readOnly = true)

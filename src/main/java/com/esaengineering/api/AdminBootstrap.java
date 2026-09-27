@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 /**
@@ -12,8 +13,14 @@ import org.springframework.stereotype.Component;
  * Runs at startup and does nothing once an ADMIN row exists, so your own
  * accounts are never touched and the default password cannot be re-created
  * after you change it. Override in application.properties (or env vars).
+ *
+ * Ordering: this is @Order(1), so the administrator exists before
+ * DataInitializer (@Order(2)) seeds pages and settings. Both run only after
+ * Hibernate has created the tables, which is why neither touches the database
+ * in a constructor.
  */
 @Component
+@Order(1)
 public class AdminBootstrap implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(AdminBootstrap.class);

@@ -18,12 +18,15 @@ import com.esaengineering.repository.PaymentRepository;
 import com.esaengineering.repository.UserRepository;
 import com.esaengineering.web.ApiException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AdminDataService {
 
+    private static final Logger log = LoggerFactory.getLogger(AdminDataService.class);
     private static final int RECENT_LIMIT = 5;
 
     private final BookingRepository bookingRepository;
@@ -238,12 +241,24 @@ public class AdminDataService {
         return paymentById(id);
     }
 
-    @Transactional(readOnly = true)
+    /**
+     * True when at least one ADMIN user exists.
+     *
+     * Resilient on purpose: if the users table is missing or the database is
+     * unreachable during startup this must not abort the boot - it just reports
+     * "no administrator yet" so the bootstrap can try to create one.
+     */
+    @Transactional(readOnly = true, noRollbackFor = RuntimeException.class)
     public boolean hasAdministrator() {
-        for (User user : userRepository.findAll()) {
-            if (user.getRole() == Role.ADMIN) return true;
+        try {
+            for (User user : userRepository.findAll()) {
+                if (user.getRole() == Role.ADMIN) return true;
+            }
+            return false;
+        } catch (RuntimeException e) {
+            log.warn("Could not check for an existing administrator: {}", e.getMessage());
+            return false;
         }
-        return false;
     }
 
     private List<Booking> newestFirst(List<Booking> bookings) {
