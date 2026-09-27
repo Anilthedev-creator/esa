@@ -2,6 +2,7 @@ package com.esaengineering.repository;
 
 import com.esaengineering.model.Payment;
 import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.List;
 import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
