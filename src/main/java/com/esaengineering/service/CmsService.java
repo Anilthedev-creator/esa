@@ -69,6 +69,12 @@ public class CmsService {
         }
     }
 
+    /** Used by DataInitializer to prove the table exists and was seeded. */
+    @Transactional(readOnly = true)
+    public long countPages() {
+        return pageRepo.count();
+    }
+
     @Transactional(readOnly = true)
     public List<CmsPage> listPages() {
         return pageRepo.findAll();

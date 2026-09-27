@@ -59,27 +59,54 @@ ApiAdminController.<init> → cmsService.ensureDefaultPages() + settingsService.
 → repo.existsById() → SELECT ... FROM site_settings → Table "site_settings" not found
 ```
 
-**Cause** — two things combined:
+**Cause** — three things, and the last one is the sneaky one:
 
 1. **DB calls in a controller constructor.** Spring builds the `EntityManagerFactory` (which runs the DDL and creates the tables) *after* controller beans are instantiated. `ApiAdminController` and `ApiContentController` called `ensureDefaultPages()` / `ensureDefaults()` from their constructors, i.e. before the tables existed.
-2. **An H2 URL that fought `H2Dialect`.** The URL carried `MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH`. Those H2 compatibility flags disagreed with `org.hibernate.dialect.H2Dialect`, so Hibernate's `ddl-auto=update` did not add the new tables (`cms_pages`, `cms_blocks`, `site_settings`, `analytics_events`) to a database file created by an earlier run.
+2. **An H2 URL that fought `H2Dialect`.** The URL carried `MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH`. Those H2 compatibility flags disagreed with `org.hibernate.dialect.H2Dialect`, so Hibernate's `ddl-auto=update` did not add the new tables to a database file created by an earlier run.
+3. **Reserved words as column names.** `SiteSetting` declared columns named `key` and `value`, and `CmsBlock` declared one named `value`. `KEY` and `VALUE` are **reserved words in H2 2.x**, so Hibernate's unquoted DDL —
+
+   ```sql
+   create table site_settings (key varchar(255) not null, value varchar(2000), primary key (key))
+   ```
+
+   — is a syntax error. Hibernate **logs the failed `CREATE TABLE` and then boots normally**, so the app starts, every other table gets created, and `site_settings`/`cms_blocks` silently never exist. This is why the settings panel was still broken after fixing (1): the *timing* was fixed but the *table* was still never created. H2's non-fatal DDL behaviour turns a one-line schema mistake into a confusing runtime error much later.
 
 **Fixes applied:**
 
 1. **Removed all DB calls from controller constructors** (`ApiAdminController`, `ApiContentController`) — constructors now only assign fields.
 2. **Added `DataInitializer`** (`CommandLineRunner`, `@Order(2)`), which runs *after* the `EntityManagerFactory` is built and therefore after the tables exist. It calls `cmsService.ensureDefaultPages()` and `settingsService.ensureDefaults()`, each in its own `try/catch` so a failure never aborts the boot.
-3. **`AdminBootstrap` is now `@Order(1)`** so the first administrator is created before pages/settings are seeded.
-4. **`hasAdministrator()`, `ensureDefaultPages()` and `ensureDefaults()` are resilient** — they catch `RuntimeException`, log a warning, and let startup continue (`noRollbackFor` on the transactional methods so the swallowed exception does not surface as `UnexpectedRollbackException`).
-5. **Simplified the H2 URL** — `MODE=PostgreSQL` / `DATABASE_TO_LOWER` / `DEFAULT_NULL_ORDERING` are gone; the dialect is now overridable via `DB_DIALECT`:
+3. **Renamed the reserved columns**: `key` → `setting_key`, `value` → `setting_value` (on `SiteSetting`) and `value` → `block_value` (on `CmsBlock`). The Java field names and the JSON keys the API serves (`key`, `value`, `siteName`, `adminEmail`, …) are unchanged, so no frontend change was needed.
+4. **`AdminBootstrap` is now `@Order(1)`** so the first administrator is created before pages/settings are seeded.
+5. **Made the seeding methods resilient** — `hasAdministrator()`, `ensureDefaultPages()` and `ensureDefaults()` catch `RuntimeException` and log (`noRollbackFor` on the transactional methods so the swallowed exception cannot surface as `UnexpectedRollbackException`).
+6. **`SettingsService.getSettings()` is no longer `readOnly`.** It calls `ensureDefaults()`, which *inserts*; in a read-only transaction those inserts are never flushed, so an empty table would render as blank settings instead of the defaults.
+7. **Simplified the H2 URL** — `MODE=PostgreSQL` / `DATABASE_TO_LOWER` / `DEFAULT_NULL_ORDERING` are gone; the dialect is now overridable via `DB_DIALECT`:
 
 ```properties
 spring.datasource.url=${DB_URL:jdbc:h2:file:./data/esa_db;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE}
 spring.jpa.database-platform=${DB_DIALECT:org.hibernate.dialect.H2Dialect}
 ```
 
-**Startup order is now:** Hibernate creates tables → `AdminBootstrap` (@Order 1) creates the admin → `DataInitializer` (@Order 2) seeds pages + settings → HTTP traffic.
+**Startup order is now:** Hibernate creates tables → `AdminBootstrap` (@Order 1) creates the admin → `DataInitializer` (@Order 2) seeds pages + settings **and logs the resulting row counts** → HTTP traffic.
 
-> **Already have an old `./data/esa_db.mv.db`?** `ddl-auto=update` adds the missing tables automatically, but if that file was created while the URL was mis-configured it is safest to delete it once: `rm -rf data` (it is gitignored, nothing tracked is lost). The app recreates it with the full schema on the next start.
+### If it still looks broken, check these in order
+
+1. **`rm -rf data` and restart.** This is required, not optional — your `./data/esa_db.mv.db` was written under the old schema and the old column names, and `ddl-auto=update` cannot migrate them. (`data/` is gitignored; nothing tracked is lost.)
+2. **Look for `CMS ready:` / `Settings ready:` in the boot log.** Those lines come from `DataInitializer` and print the row counts. If instead you see `site_settings is still EMPTY after seeding`, scroll up for a Hibernate DDL error — that is the real cause.
+3. **Confirm the tables exist** at `/h2-console` (JDBC URL `jdbc:h2:file:./data/esa_db`, user `sa`, empty password): `SHOW TABLES;` should list `site_settings`, `cms_pages`, `cms_blocks`, `analytics_events`.
+4. **Hit the endpoint directly** to separate backend from frontend:
+   ```bash
+   TOKEN=$(curl -s -X POST localhost:8080/api/auth/signin \
+     -H 'Content-Type: application/json' \
+     -d '{"email":"admin@esaengineering.com.au","password":"Admin123"}' | grep -o '"token":"[^"]*' | cut -d'"' -f4)
+   curl -s localhost:8080/api/admin/settings -H "Authorization: Bearer $TOKEN"
+   ```
+   You should get `{"settings":{"siteName":"ESA Engineering","adminEmail":"…","timezone":"Australia/Melbourne","language":"en-AU"}}`. A 500 with "table not found" means the table still isn't there; a `{}` means the table exists but is empty.
+
+### H2 reserved words to avoid as column names
+
+H2 2.x rejects these unquoted in DDL — the ones that bite JPA projects most often are **`KEY`**, **`VALUE`**, **`ORDER`**, **`USER`**, **`GROUP`**, **`YEAR`**, **`MONTH`**, **`DAY`**, **`HOUR`**, **`MINUTE`**, **`SECOND`**, **`LIMIT`**, **`OFFSET`**, **`TOP`**, **`ROW`**, **`TABLE`**, **`DEFAULT`**, **`PRIMARY`**, **`UNIQUE`**, **`CHECK`**, **`CONSTRAINT`**, **`VALUES`**, **`WHEN`**, **`WHERE`**, **`WITH`**. The authoritative list is in the H2 docs (Reserved Words). Prefer suffixed names: `setting_key`, `block_value`, `sort_order`, `user_role`.
+
+If you must keep a reserved name, either quote it explicitly (`@Column(name = "\"key\"")`) or set `hibernate.auto_quote_keyword=true` — but a plain rename is the least surprising option.
 
 ## Project Structure
 

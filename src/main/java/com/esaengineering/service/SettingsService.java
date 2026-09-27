@@ -46,7 +46,13 @@ public class SettingsService {
         }
     }
 
-    @Transactional(readOnly = true)
+    /**
+     * Read-only would be wrong here: this method calls ensureDefaults(), which
+     * INSERTs when rows are missing. In a read-only transaction those inserts
+     * are never flushed, so an empty table would silently render as empty
+     * settings in the admin panel instead of the defaults.
+     */
+    @Transactional
     public Map<String, Object> getSettings() {
         ensureDefaults();
         Map<String, Object> map = new LinkedHashMap<>();
@@ -56,6 +62,12 @@ public class SettingsService {
         Map<String, Object> resp = new LinkedHashMap<>();
         resp.put("settings", map);
         return resp;
+    }
+
+    /** Used by DataInitializer to prove the table exists and was seeded. */
+    @Transactional(readOnly = true)
+    public long countSettings() {
+        return repo.count();
     }
 
     @Transactional
