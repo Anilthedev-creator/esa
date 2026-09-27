@@ -3,6 +3,7 @@ package com.esaengineering.api;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -88,6 +89,22 @@ public class AdminDataService {
                     "status", contact.getStatus() != null ? contact.getStatus() : "new"));
         }
 
+        // Replaces the old /analytics/activity feed, which only ever counted
+        // hits on one page. Bookings are real rows, so this series and the
+        // week-on-week trend are honest numbers.
+        List<Map<String, Object>> bookingsByDay = bookingsPerDay(bookings, 14, today);
+
+        LocalDate weekStart = today.minusDays(6);
+        LocalDate prevWeekStart = today.minusDays(13);
+        long thisWeek = bookings.stream()
+                .filter(b -> b.getBookingDate() != null && !b.getBookingDate().isBefore(weekStart))
+                .count();
+        long lastWeek = bookings.stream()
+                .filter(b -> b.getBookingDate() != null
+                        && !b.getBookingDate().isBefore(prevWeekStart)
+                        && b.getBookingDate().isBefore(weekStart))
+                .count();
+
         return row(
                 "stats", row(
                         "totalUsers", userRepository.count(),
@@ -95,7 +112,27 @@ public class AdminDataService {
                         "pendingEnquiries", (long) enquiries.size(),
                         "revenue", revenue),
                 "recentRequests", recentRequests,
-                "recentEnquiries", recentEnquiries);
+                "recentEnquiries", recentEnquiries,
+                "bookingsByDay", bookingsByDay,
+                "bookingsThisWeek", thisWeek,
+                "bookingsLastWeek", lastWeek);
+    }
+
+    /** Bookings grouped per calendar day over the last {@code days} days, oldest first. */
+    private List<Map<String, Object>> bookingsPerDay(List<Booking> bookings, int days, LocalDate today) {
+        Map<LocalDate, Long> counts = new HashMap<>();
+        for (Booking b : bookings) {
+            if (b.getBookingDate() == null) continue;
+            LocalDate d = b.getBookingDate();
+            if (d.isBefore(today.minusDays(days - 1)) || d.isAfter(today)) continue;
+            counts.merge(d, 1L, Long::sum);
+        }
+        List<Map<String, Object>> series = new ArrayList<>();
+        for (int i = days - 1; i >= 0; i--) {
+            LocalDate d = today.minusDays(i);
+            series.add(row("date", d.toString(), "bookings", counts.getOrDefault(d, 0L)));
+        }
+        return series;
     }
 
     @Transactional(readOnly = true)

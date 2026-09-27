@@ -218,6 +218,17 @@ function onFormSubmit(e) {
     })
     .then(function (result) {
       console.log("form submitted ok");
+
+      // A booking is step 1 of 2: hand the customer straight to the payment
+      // page for the consultation fee. Without this the booking was created
+      // but payment.html was never reachable, so no fee was ever collected.
+      if (api === "/api/bookings" && result && result.booking && result.booking.id) {
+        showFormNote(form, "Booking received - taking you to payment...", false);
+        window.location.href =
+          "payment.html?booking=" + encodeURIComponent(result.booking.id);
+        return;
+      }
+
       showFormNote(form, result.message || "Thanks - we've received your request and will be in touch shortly.", false);
       form.reset();
     })
@@ -245,6 +256,11 @@ function setupForms() {
 // if the user is logged in (auth.js needs to be loaded for this
 // to work) we swap the "Sign in / Sign up" buttons for
 // "Dashboard / Sign out"
+//
+// The link target is role-aware: an administrator goes to dashboard.html
+// (the admin console), a customer goes to portal.html (their own bookings
+// and payments). Sending a customer to dashboard.html previously left them
+// staring at an admin page they had no access to.
 
 function updateHeaderButtons() {
   if (typeof isLoggedIn !== "function") return; // auth.js not loaded on this page
@@ -254,13 +270,15 @@ function updateHeaderButtons() {
   if (!actions) return;
 
   var user = (typeof getUser === "function") ? getUser() : null;
-  var firstName = "Dashboard";
+  var admin = (typeof isAdmin === "function") && isAdmin();
+  var home = admin ? "dashboard.html" : "portal.html";
+  var label = admin ? "Dashboard" : "My Portal";
   if (user && user.firstName) {
-    firstName = user.firstName;
+    label = user.firstName + (admin ? "'s Dashboard" : "'s Portal");
   }
 
   actions.innerHTML =
-    '<a href="dashboard.html" class="btn-pill btn-pill-red">' + firstName + "'s Dashboard</a>" +
+    '<a href="' + home + '" class="btn-pill btn-pill-red">' + label + "</a>" +
     '<a href="#" id="headerSignOut" class="btn-pill btn-pill-cyan">Sign out</a>';
 
   var signOutLink = document.getElementById("headerSignOut");

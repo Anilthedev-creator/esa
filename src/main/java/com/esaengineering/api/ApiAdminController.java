@@ -1,7 +1,6 @@
 package com.esaengineering.api;
 
 import com.esaengineering.model.CmsPage;
-import com.esaengineering.service.AnalyticsService;
 import com.esaengineering.service.CmsService;
 import com.esaengineering.service.SettingsService;
 import com.esaengineering.web.ApiException;
@@ -14,7 +13,7 @@ import java.util.Map;
 
 /**
  * Full admin API that the frontend (admin-data.js) expects.
- * Covers dashboard, customers, enquiries, payments, pages, analytics, settings.
+ * Covers dashboard, customers, enquiries, payments, pages, settings.
  */
 @CrossOrigin(origins = "*")
 @RestController
@@ -23,18 +22,15 @@ public class ApiAdminController {
 
     private final AdminDataService adminService;
     private final CmsService cmsService;
-    private final AnalyticsService analyticsService;
     private final SettingsService settingsService;
     private final AdminAccess adminAccess;
 
     public ApiAdminController(AdminDataService adminService,
                               CmsService cmsService,
-                              AnalyticsService analyticsService,
                               SettingsService settingsService,
                               AdminAccess adminAccess) {
         this.adminService = adminService;
         this.cmsService = cmsService;
-        this.analyticsService = analyticsService;
         this.settingsService = settingsService;
         this.adminAccess = adminAccess;
         // NOTE: no database access here. Controller beans are created while the
@@ -196,15 +192,6 @@ public class ApiAdminController {
         adminAccess.requireAdmin(auth);
         cmsService.deleteBlockOverride(id, key);
         return Map.of("message", "Block reset to default", "success", true);
-    }
-
-    // ---- analytics ----
-
-    @GetMapping("/analytics/activity")
-    public Map<String, Object> activity(@RequestParam(value = "days", defaultValue = "7") int days,
-                                        @RequestHeader(value = "Authorization", required = false) String auth) {
-        adminAccess.requireAdmin(auth);
-        return analyticsService.getActivity(days);
     }
 
     // ---- settings ----

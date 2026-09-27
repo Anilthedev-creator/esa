@@ -8,10 +8,10 @@
  *     data from /api/admin/*. Falls back to the static markup with a
  *     small "backend offline" notice if the API can't be reached.
  *  3. Actions     — view/edit modals, status changes, replies,
- *     add-page, settings save, activity chart + CSV export.
+ *     add-page, settings save, booking trend chart.
  *
  * Pages opt in with <body data-admin-page="dashboard|customers|
- * enquiries|payments|content|analytics|settings">.
+ * enquiries|payments|content|settings">.
  */
 
 (function () {
@@ -491,8 +491,6 @@
   }
 
   /* ------------------------------ page renderers --------------------------- */
-  var lastActivity = null; // latest /analytics/activity payload (for CSV export)
-
   async function renderDashboard() {
     var stats;
     try {
@@ -503,20 +501,23 @@
     $('statPendingEnquiries').textContent = (stats.stats.pendingEnquiries || 0).toLocaleString('en-AU');
     $('statRevenue').textContent = fmtMoney(stats.stats.revenue);
 
-    // Trend: website activity this week vs the previous week + live chart.
+    // Trend: bookings this week vs last week, from real booking rows.
     try {
-      var act = await api('/analytics/activity?days=30');
-      var series = act.series || [];
-      var recent = series.slice(-7).reduce(function (a, d) { return a + d.visits; }, 0);
-      var prev = series.slice(-14, -7).reduce(function (a, d) { return a + d.visits; }, 0);
+      var thisWeek = stats.bookingsThisWeek || 0;
+      var lastWeek = stats.bookingsLastWeek || 0;
       var trendEl = $('statTotalUsersTrend');
-      if (prev > 0 && trendEl) {
-        var pct = Math.round(((recent - prev) / prev) * 100);
-        var up = pct >= 0;
-        trendEl.textContent = (up ? '↑ ' : '↓ ') + Math.abs(pct) + '% site activity vs last week';
-        trendEl.style.color = up ? '#06a77d' : '#e63946';
+      if (trendEl) {
+        if (lastWeek > 0) {
+          var pct = Math.round(((thisWeek - lastWeek) / lastWeek) * 100);
+          var up = pct >= 0;
+          trendEl.textContent = (up ? '↑ ' : '↓ ') + Math.abs(pct) + '% bookings vs last week';
+          trendEl.style.color = up ? '#06a77d' : '#e63946';
+        } else {
+          trendEl.textContent = thisWeek + ' this week';
+          trendEl.style.color = '#5a6b84';
+        }
       }
-      renderChartInto($('dashboardChart'), series.slice(-14));
+      renderChartInto($('dashboardChart'), stats.bookingsByDay || []);
     } catch (e) { /* trends are cosmetic */ }
 
     var body = $('recentRequestsBody');
@@ -603,74 +604,27 @@
     }
   }
 
-  async function renderAnalytics() {
-    var range = $('activityRange');
-    var days = range ? (range.value === '30' ? 30 : 7) : 7;
-
-    // Stat cards (same endpoint as the dashboard).
-    try {
-      var stats = await api('/stats');
-      if ($('statTotalUsers')) $('statTotalUsers').textContent = (stats.stats.totalUsers || 0).toLocaleString('en-AU');
-      if ($('statActiveBookings')) $('statActiveBookings').textContent = (stats.stats.activeBookings || 0).toLocaleString('en-AU');
-      if ($('statPendingEnquiries')) $('statPendingEnquiries').textContent = (stats.stats.pendingEnquiries || 0).toLocaleString('en-AU');
-      if ($('statRevenue')) $('statRevenue').textContent = fmtMoney(stats.stats.revenue);
-    } catch (e) { /* stats are cosmetic here */ }
-
-    var act;
-    try {
-      act = await api('/analytics/activity?days=' + days);
-    } catch (e) { showOffline('activity data unavailable'); return; }
-    lastActivity = act;
-
-    renderChart(act.series || []);
-
-    // Bind the controls once — the handler re-renders itself.
-    if (range && !range.__esaBound) {
-      range.__esaBound = true;
-      range.addEventListener('change', function () { renderAnalytics(); });
-    }
-    var exportBtn = $('exportActivity');
-    if (exportBtn && !exportBtn.__esaBound) {
-      exportBtn.__esaBound = true;
-      exportBtn.addEventListener('click', function () {
-        if (!lastActivity) return;
-        var csv = 'date,visits,enquiries\n' + (lastActivity.series || []).map(function (d) {
-          return d.date + ',' + d.visits + ',' + d.enquiries;
-        }).join('\n');
-        var blob = new Blob([csv], { type: 'text/csv' });
-        var a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'esa-website-activity.csv';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-      });
-    }
-  }
-
+  /**
+   * Dashboard chart: bookings per day over the last 14 days, from real booking
+   * rows. The previous version drew two series (visits + enquiries) fed by the
+   * analytics endpoint, which only ever recorded hits on a single page.
+   */
   function renderChartInto(svg, series) {
     if (!svg || !series || !series.length) return;
     var W = 1000, H = 300, PAD = 20;
-    var maxVisits = Math.max.apply(null, series.map(function (d) { return d.visits; })) || 1;
-    var maxEnq = Math.max.apply(null, series.map(function (d) { return d.enquiries; })) || 1;
+    var max = Math.max.apply(null, series.map(function (d) { return d.bookings || 0; })) || 1;
     var x = function (i) { return PAD + (i * (W - PAD * 2)) / Math.max(1, series.length - 1); };
-    var yVisits = function (v) { return H - PAD - (v / maxVisits) * (H - PAD * 2); };
-    var yEnq = function (v) { return H - PAD - (v / maxEnq) * (H - PAD * 2); };
-    var pts = function (fn) { return series.map(function (d, i) { return x(i).toFixed(1) + ',' + fn(d).toFixed(1); }).join(' '); };
+    var y = function (v) { return H - PAD - (v / max) * (H - PAD * 2); };
+    var points = series.map(function (d, i) { return x(i).toFixed(1) + ',' + y(d.bookings || 0).toFixed(1); }).join(' ');
+    var area = points + ' ' + x(series.length - 1).toFixed(1) + ',' + (H - PAD) + ' ' + x(0).toFixed(1) + ',' + (H - PAD);
 
     var lines =
-      '<polyline fill="none" stroke="#06b6d4" stroke-width="4" stroke-linejoin="round" points="' + pts(function (d) { return yVisits(d.visits); }) + '"/>' +
-      '<polyline fill="none" stroke="#84cc16" stroke-width="4" stroke-linejoin="round" points="' + pts(function (d) { return yEnq(d.enquiries); }) + '"/>';
+      '<polygon fill="rgba(6,182,212,0.12)" points="' + area + '"/>' +
+      '<polyline fill="none" stroke="#06b6d4" stroke-width="4" stroke-linejoin="round" points="' + points + '"/>';
 
-    // #activityChart is a native <svg> (keeps its viewBox); the dashboard
-    // target is a plain div that needs a full svg element.
-    if (svg.tagName && svg.tagName.toLowerCase() === 'svg') {
-      svg.innerHTML = lines;
-    } else {
-      svg.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">' + lines + '</svg>';
-    }
+    // #dashboardChart is a plain div, so a full <svg> wrapper is required.
+    svg.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">' + lines + '</svg>';
   }
-  function renderChart(series) { renderChartInto($('activityChart'), series); }
 
   async function renderSettings() {
     var form = $('settingsForm');
@@ -718,7 +672,6 @@
     enquiries: renderEnquiries,
     payments: renderPayments,
     content: renderContent,
-    analytics: renderAnalytics,
     settings: renderSettings
   };
 

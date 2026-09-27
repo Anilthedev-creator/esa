@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>My Portal | ESA Engineering</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="admin.css">
+    <style>
+        /* Portal-specific: the customer-facing pages use style.css, but the
+           admin card/table classes come from admin.css. Only the bits the
+           portal actually needs are declared here so neither sheet is
+           duplicated wholesale. */
+        .portal-hero {
+            background: linear-gradient(135deg, var(--navy) 0%, #0f2a4a 100%);
+            color: #fff;
+            padding: 2.6rem 0 2.2rem;
+        }
+        .portal-hero h1 { font-size: clamp(1.7rem, 3.4vw, 2.4rem); font-weight: 800; margin: 0 0 .35rem; }
+        .portal-hero p { margin: 0; color: #c7d6e6; font-size: .98rem; }
+        .portal-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: -1.2rem 0 1.6rem; position: relative; z-index: 2; }
+        .portal-tab {
+            background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+            padding: .6rem 1.05rem; font-weight: 700; font-size: .9rem; color: var(--navy);
+            cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: .5rem;
+        }
+        .portal-tab:hover { border-color: var(--cyan); color: var(--cyan); }
+        .portal-tab.active { background: var(--navy); border-color: var(--navy); color: #fff; }
+        .portal-tab .count {
+            background: #eef2f7; color: var(--navy); border-radius: 999px;
+            padding: .1rem .5rem; font-size: .75rem; font-weight: 800;
+        }
+        .portal-tab.active .count { background: rgba(255,255,255,.22); color: #fff; }
+        .portal-panel { display: none; }
+        .portal-panel.active { display: block; }
+        .portal-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-bottom: 1.6rem; }
+        .portal-card {
+            background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
+            padding: 1.1rem 1.2rem; box-shadow: 0 1px 3px rgba(15,23,42,.05);
+        }
+        .portal-card .label { font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 .3rem; }
+        .portal-card .value { font-size: 1.6rem; font-weight: 800; color: var(--navy); margin: 0; }
+        .portal-card .sub { font-size: .82rem; color: var(--muted); margin: .2rem 0 0; }
+        .portal-table-wrap { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 3px rgba(15,23,42,.05); }
+        .portal-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+        .portal-table th {
+            text-align: left; background: #f8fafc; padding: .8rem 1rem; font-size: .76rem;
+            text-transform: uppercase; letter-spacing: .04em; color: var(--muted); border-bottom: 1px solid #e2e8f0;
+        }
+        .portal-table td { padding: .85rem 1rem; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+        .portal-table tr:last-child td { border-bottom: none; }
+        .portal-empty { padding: 2.4rem 1rem; text-align: center; color: var(--muted); font-size: .92rem; }
+        .portal-badge {
+            display: inline-block; padding: .22rem .6rem; border-radius: 999px;
+            font-size: .74rem; font-weight: 800; text-transform: capitalize; white-space: nowrap;
+        }
+        .portal-badge.pending, .portal-badge.unpaid, .portal-badge.new { background: #fef3c7; color: #92400e; }
+        .portal-badge.confirmed, .portal-badge.in-progress { background: #dbeafe; color: #1e40af; }
+        .portal-badge.completed, .portal-badge.paid, .portal-badge.resolved { background: #d1fae5; color: #065f46; }
+        .portal-badge.cancelled { background: #fee2e2; color: #991b1b; }
+        .portal-badge.incomplete { background: #f1f5f9; color: #475569; }
+        .portal-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+        .btn-mini {
+            border: 1px solid #e2e8f0; background: #fff; border-radius: 8px; padding: .38rem .7rem;
+            font-size: .8rem; font-weight: 700; color: var(--navy); cursor: pointer; font-family: inherit;
+        }
+        .btn-mini:hover { border-color: var(--cyan); color: var(--cyan); }
+        .btn-mini.primary { background: var(--navy); border-color: var(--navy); color: #fff; }
+        .btn-mini.primary:hover { background: #0a2540; color: #fff; }
+        .btn-mini.danger:hover { border-color: #e63946; color: #e63946; }
+        .portal-form { max-width: 520px; }
+        .portal-field { margin-bottom: 1rem; }
+        .portal-field label { display: block; font-size: .84rem; font-weight: 700; color: var(--navy); margin-bottom: .35rem; }
+        .portal-field input {
+            width: 100%; padding: .68rem .85rem; border: 1px solid #e2e8f0; border-radius: 10px;
+            font-family: inherit; font-size: .93rem; color: var(--navy); background: #fff;
+        }
+        .portal-field input:focus { outline: none; border-color: var(--cyan); }
+        .portal-field input[readonly] { background: #f8fafc; color: var(--muted); cursor: not-allowed; }
+        .portal-note { font-size: .85rem; padding: .7rem .95rem; border-radius: 10px; margin-bottom: 1rem; display: none; }
+        .portal-note.ok { background: #d1fae5; color: #065f46; display: block; }
+        .portal-note.err { background: #fee2e2; color: #991b1b; display: block; }
+        .portal-section { margin-bottom: 2.4rem; }
+        .portal-section h2 { font-size: 1.15rem; font-weight: 800; color: var(--navy); margin: 0 0 .9rem; }
+        .portal-hint { font-size: .85rem; color: var(--muted); margin: -.4rem 0 1rem; }
+        .portal-reply { font-size: .84rem; color: #334155; background: #f8fafc; border-left: 3px solid var(--cyan); padding: .55rem .8rem; margin-top: .5rem; border-radius: 0 8px 8px 0; }
+        .portal-modal-backdrop {
+            position: fixed; inset: 0; background: rgba(15,23,42,.55);
+            display: none; align-items: center; justify-content: center; z-index: 999; padding: 1.2rem;
+        }
+        .portal-modal-backdrop.open { display: flex; }
+        .portal-modal {
+            background: #fff; border-radius: 16px; max-width: 420px; width: 100%;
+            padding: 1.6rem; box-shadow: 0 24px 60px rgba(15,23,42,.28);
+        }
+        .portal-modal h3 { margin: 0 0 .6rem; font-size: 1.1rem; color: var(--navy); }
+        .portal-modal p { margin: 0 0 1.2rem; font-size: .92rem; color: #334155; line-height: 1.6; }
+        .portal-modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+        .btn-pill-sm {
+            border-radius: 999px; padding: .55rem 1.1rem; font-size: .88rem; font-weight: 700;
+            cursor: pointer; font-family: inherit; border: 1px solid transparent;
+        }
+        .btn-ghost { background: #f1f5f9; color: var(--navy); }
+        .btn-danger { background: #e63946; color: #fff; }
+        .btn-solid { background: var(--navy); color: #fff; }
+        @media (max-width: 720px) {
+            .portal-table th:nth-child(3), .portal-table td:nth-child(3) { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="main-header">
+  <div class="top-split-bar"></div>
+  <div class="container header-wrapper">
+
+    <a href="index.html" class="logo">
+      <img class="logo-img" src="images/logo.png" alt="Engineering Services Australia"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
+      <span class="logo-fallback"><span class="red">ESA</span> <span class="navy">ENGINEERING</span></span>
+    </a>
+
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle navigation menu">
+      <span></span><span></span><span></span>
+    </button>
+
+    <nav class="main-nav-box" id="mobileMenu">
+      <a href="index.html" class="nav-link">Home</a>
+      <div class="dropdown">
+        <a href="projects.html" class="nav-link dropdown-trigger">Projects <span class="arrow">‣</span></a>
+        <div class="dropdown-content"><a href="projects.html">All Projects</a></div>
+      </div>
+      <div class="dropdown">
+        <button type="button" class="nav-link dropdown-trigger" aria-haspopup="true" aria-expanded="false">Services <span class="arrow">‣</span></button>
+        <div class="dropdown-content">
+          <a href="commissioning.html">Plant Commissioning</a>
+          <a href="appraisals.html">Utility Appraisals</a>
+          <a href="optimisation.html">Production Optimisation</a>
+          <a href="waste-management.html">Waste Management</a>
+          <a href="dangerous-goods.html">Dangerous Goods</a>
+        </div>
+      </div>
+      <a href="about.html" class="nav-link">About us</a>
+      <a href="contact.html" class="nav-link">Contact</a>
+      <div class="header-actions">
+        <a href="signin.html" class="btn-pill btn-pill-red">Sign in</a>
+        <a href="signup.html" class="btn-pill btn-pill-cyan">Sign up</a>
+      </div>
+    </nav>
+
+  </div>
+</header>
+
+<section class="portal-hero">
+  <div class="container">
+    <h1>My Portal</h1>
+    <p>Your bookings, enquiries and payments — all in one place.</p>
+  </div>
+</section>
+
+<main class="container" style="padding: 0 0 3.5rem;">
+
+  <div class="portal-tabs" id="portalTabs">
+    <button class="portal-tab active" data-tab="overview">Overview</button>
+    <button class="portal-tab" data-tab="bookings">Bookings <span class="count" id="tabBookingsCount">0</span></button>
+    <button class="portal-tab" data-tab="enquiries">Enquiries <span class="count" id="tabEnquiriesCount">0</span></button>
+    <button class="portal-tab" data-tab="payments">Payments <span class="count" id="tabPaymentsCount">0</span></button>
+    <button class="portal-tab" data-tab="profile">Profile</button>
+  </div>
+
+  <div id="portalOffline" class="portal-note err"></div>
+
+  <!-- ---------------------------- OVERVIEW ---------------------------- -->
+  <section class="portal-panel active" id="panel-overview">
+    <div class="portal-cards">
+      <div class="portal-card">
+        <p class="label">Bookings</p>
+        <p class="value" id="ovBookings">–</p>
+        <p class="sub" id="ovBookingsSub">&nbsp;</p>
+      </div>
+      <div class="portal-card">
+        <p class="label">Outstanding fee</p>
+        <p class="value" id="ovOutstanding">–</p>
+        <p class="sub" id="ovOutstandingSub">&nbsp;</p>
+      </div>
+      <div class="portal-card">
+        <p class="label">Total paid</p>
+        <p class="value" id="ovPaid">–</p>
+        <p class="sub" id="ovPaidSub">&nbsp;</p>
+      </div>
+      <div class="portal-card">
+        <p class="label">Open enquiries</p>
+        <p class="value" id="ovEnquiries">–</p>
+        <p class="sub" id="ovEnquiriesSub">&nbsp;</p>
+      </div>
+    </div>
+
+    <div class="portal-section">
+      <h2>Recent bookings</h2>
+      <div id="ovRecentBookings"></div>
+    </div>
+  </section>
+
+  <!-- ---------------------------- BOOKINGS ----------------------------- -->
+  <section class="portal-panel" id="panel-bookings">
+    <div class="portal-section">
+      <h2>My bookings</h2>
+      <p class="portal-hint">A booking is confirmed once the consultation fee is paid. You can cancel any booking that has not been paid yet.</p>
+      <div id="bookingsBody"></div>
+    </div>
+  </section>
+
+  <!-- ---------------------------- ENQUIRIES ---------------------------- -->
+  <section class="portal-panel" id="panel-enquiries">
+    <div class="portal-section">
+      <h2>My enquiries</h2>
+      <p class="portal-hint">Once our team marks an enquiry resolved you can reopen it here if you need anything else.</p>
+      <div id="enquiriesBody"></div>
+    </div>
+  </section>
+
+  <!-- ---------------------------- PAYMENTS ----------------------------- -->
+  <section class="portal-panel" id="panel-payments">
+    <div class="portal-section">
+      <h2>My payments</h2>
+      <p class="portal-hint">Keep your payment reference for any query about a booking.</p>
+      <div id="paymentsBody"></div>
+    </div>
+  </section>
+
+  <!-- ----------------------------- PROFILE ----------------------------- -->
+  <section class="portal-panel" id="panel-profile">
+    <div class="portal-section">
+      <h2>Your details</h2>
+      <form class="portal-form" id="profileForm" novalidate>
+        <div class="portal-field">
+          <label for="profileName">Full name</label>
+          <input id="profileName" name="fullName" type="text" autocomplete="name">
+        </div>
+        <div class="portal-field">
+          <label for="profilePhone">Phone</label>
+          <input id="profilePhone" name="phoneNumber" type="tel" autocomplete="tel" placeholder="0400 000 000">
+        </div>
+        <div class="portal-field">
+          <label for="profileCompany">Company</label>
+          <input id="profileCompany" name="companyName" type="text" autocomplete="organization">
+        </div>
+        <div class="portal-field">
+          <label for="profileEmail">Email</label>
+          <input id="profileEmail" type="email" readonly>
+          <p class="portal-hint" style="margin:.4rem 0 0">Your bookings and payments are linked to this address — contact us if you need it changed.</p>
+        </div>
+        <button type="submit" class="btn-pill btn-pill-red">Save details</button>
+      </form>
+      <div id="profileNote" class="portal-note"></div>
+    </div>
+
+    <div class="portal-section">
+      <h2>Change password</h2>
+      <form class="portal-form" id="passwordForm" novalidate>
+        <div class="portal-field">
+          <label for="currentPassword">Current password</label>
+          <input id="currentPassword" type="password" autocomplete="current-password" required>
+        </div>
+        <div class="portal-field">
+          <label for="newPassword">New password</label>
+          <input id="newPassword" type="password" autocomplete="new-password" required>
+          <p class="portal-hint" style="margin:.4rem 0 0">At least 8 characters, with an uppercase letter, a lowercase letter and a number.</p>
+        </div>
+        <div class="portal-field">
+          <label for="confirmPassword">Confirm new password</label>
+          <input id="confirmPassword" type="password" autocomplete="new-password" required>
+        </div>
+        <button type="submit" class="btn-pill btn-pill-red">Update password</button>
+      </form>
+      <div id="passwordNote" class="portal-note"></div>
+    </div>
+  </section>
+
+</main>
+
+<!-- confirm dialog -->
+<div class="portal-modal-backdrop" id="confirmBackdrop" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+  <div class="portal-modal">
+    <h3 id="confirmTitle">Are you sure?</h3>
+    <p id="confirmBody"></p>
+    <div class="portal-modal-actions">
+      <button type="button" class="btn-pill-sm btn-ghost" id="confirmCancel">Keep it</button>
+      <button type="button" class="btn-pill-sm btn-danger" id="confirmOk">Yes, continue</button>
+    </div>
+  </div>
+</div>
+
+<footer class="main-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <img class="logo-img" src="images/logo-white.png" alt="Engineering Services Australia"
+             onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
+        <span class="logo-fallback"><span class="red">ESA</span> <span class="navy">ENGINEERING</span></span>
+        <p>Engineering Services Australia — technical excellence and attention to detail since 2004.</p>
+        <p style="margin-top:var(--s3);font-size:var(--sm);color:#9ca3af">📞 0402-464-823 &nbsp;·&nbsp; ✉️ engsa@live.com.au</p>
+      </div>
+      <div class="footer-links">
+        <h4>Services</h4>
+        <ul>
+          <li><a href="commissioning.html">Plant Commissioning</a></li>
+          <li><a href="appraisals.html">Utility Appraisals</a></li>
+          <li><a href="optimisation.html">Production Optimisation</a></li>
+          <li><a href="waste-management.html">Waste Management</a></li>
+          <li><a href="dangerous-goods.html">Dangerous Goods</a></li>
+        </ul>
+      </div>
+      <div class="footer-links">
+        <h4>Company</h4>
+        <ul>
+          <li><a href="about.html">About ESA</a></li>
+          <li><a href="projects.html">Projects</a></li>
+          <li><a href="contact.html">Contact</a></li>
+          <li><a href="privacy-policy.html">Privacy Policy</a></li>
+          <li><a href="safety-standards.html">Safety Standards</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 Engineering Services Australia Pty Ltd · ABN 92 108 345 384</p>
+    </div>
+  </div>
+</footer>
+
+<script src="main.js" defer></script>
+<script src="auth.js" defer></script>
+<script src="portal.js" defer></script>
+</body>
+</html>

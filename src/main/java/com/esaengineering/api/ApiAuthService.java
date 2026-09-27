@@ -92,6 +92,26 @@ public class ApiAuthService {
     }
 
     /**
+     * Changes the password for an already-authenticated customer.
+     *
+     * The caller's email comes from the verified token, never from the request
+     * body, so a customer can only ever change their own password. The current
+     * password must verify first - otherwise a stolen session token would be
+     * enough to lock the real owner out. Legacy plaintext rows are accepted here
+     * so those accounts can still be migrated, exactly as in {@link #authenticate}.
+     */
+    @Transactional
+    public void changePassword(String email, String currentPassword, String newPassword) {
+        User user = findByEmail(email)
+                .orElseThrow(() -> ApiException.unauthorized("Your session has expired - please sign in again"));
+        if (currentPassword == null || !PasswordHasher.matches(currentPassword, user.getPassword(), true)) {
+            throw ApiException.badRequest("Your current password is incorrect");
+        }
+        user.setPassword(PasswordHasher.hash(requirePassword(newPassword)));
+        userRepository.save(user);
+    }
+
+    /**
      * Shape static/auth.js keeps in localStorage and static/admin-data.js reads
      * for its guard. role is lower-cased on purpose: the guard tests
      * user.role !== 'admin'.

@@ -7,4 +7,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ContactRepository extends JpaRepository<Contact, Long> {
 
+    /** Customer portal: enquiries belonging to one email address. */
+    List<Contact> findByEmail(String email);
+
 }

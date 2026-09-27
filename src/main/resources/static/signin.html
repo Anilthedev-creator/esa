@@ -106,11 +106,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Where to go after a successful sign-in (set by the admin guard when
   // an unauthenticated visitor tries to open an admin page).
+  // With no explicit next, the destination depends on the role in the
+  // response: administrators to the console, customers to their own portal.
+  // Everyone used to be sent to dashboard.html, which customers cannot use.
   const params = new URLSearchParams(window.location.search);
   const next = params.get('next');
+  const ADMIN_PAGES = ['dashboard.html', 'customers.html', 'enquiries.html', 'payments.html', 'settings.html', 'content.html', 'aboutPageAdmin.html', 'accountAdmin.html'];
+  const PORTAL_PAGES = ['portal.html'];
   const redirectTarget = (next && next.startsWith('/') && !next.startsWith('//'))
     ? next
-    : (['dashboard.html', 'customers.html', 'enquiries.html', 'payments.html', 'analytics.html', 'settings.html', 'content.html', 'aboutPageAdmin.html', 'accountAdmin.html'].includes(next) ? next : 'dashboard.html');
+    : (ADMIN_PAGES.concat(PORTAL_PAGES).includes(next) ? next : null);
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -132,7 +137,11 @@ document.addEventListener('DOMContentLoaded', function() {
       const result = await signin(email, password);
 
       if (result.success !== false) {
-        window.location.href = redirectTarget;
+        // An explicit ?next= always wins (the admin guard set it). Otherwise
+        // the role decides: admins to the console, customers to their portal.
+        const role = result.user && result.user.role ? String(result.user.role).toLowerCase() : '';
+        const home = role === 'admin' ? 'dashboard.html' : 'portal.html';
+        window.location.href = redirectTarget || home;
       }
     } catch (error) {
       errorDiv.textContent = error.message || 'An error occurred during sign in';

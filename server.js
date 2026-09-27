@@ -18,6 +18,8 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
 const PORT = process.env.PORT || 8080;
+// Consultation fee, mirrors app.booking.consultation-fee in the Spring app.
+const CONSULTATION_FEE = Number(process.env.CONSULTATION_FEE || 50);
 const STATIC_DIR = path.join(__dirname, 'src/main/resources/static');
 const DATA_DIR = path.join(__dirname, 'data');
 const JWT_SECRET = process.env.JWT_SECRET || 'esa-local-dev-secret-change-me-in-production-32chars';
@@ -50,7 +52,6 @@ let bookings = load('bookings', []);
 let payments = load('payments', []);
 let pages = load('pages', null);
 let blocks = load('blocks', []); // {pageId, key, value, defaultValue, label, html}
-let analytics = load('analytics', []);
 let settings = load('settings', {
   siteName: 'ESA Engineering',
   adminEmail: 'admin@esaengineering.com.au',
@@ -137,13 +138,22 @@ function authUserFromReq(req) {
   return users.find(u => u.email === payload.email) || null;
 }
 function requireAdmin(req, res, next) {
-  // If no Authorization header, allow in dev mode for direct API testing, but frontend will send token
+  // No token = no access. There is deliberately no "dev open" path: an omitted
+  // Authorization header used to let anyone through the entire admin API.
   const auth = req.headers.authorization;
-  if (!auth) return next(); // dev open
+  if (!auth) return res.status(401).json({ message: 'Sign in to continue', success: false });
   const payload = verifyToken(auth);
   if (!payload) return res.status(401).json({ message: 'Your session has expired, please sign in again', success: false });
   if (payload.role !== 'ADMIN') return res.status(403).json({ message: 'Admin access required', success: false });
   req.userPayload = payload;
+  next();
+}
+function requireCustomer(req, res, next) {
+  const auth = req.headers.authorization;
+  if (!auth) return res.status(401).json({ message: 'Sign in to view your portal', success: false });
+  const payload = verifyToken(auth);
+  if (!payload || !payload.email) return res.status(401).json({ message: 'Your session has expired - please sign in again', success: false });
+  req.customerEmail = payload.email;
   next();
 }
 function fmtDate(iso) { if (!iso) return '—'; const d = new Date(iso); return isNaN(d) ? '—' : d.toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' }); }
@@ -444,32 +454,115 @@ app.get('/api/content', (req, res) => {
   res.json({ slug, blocks: map, page: page ? { title: page.title, slug: page.slug, status: page.status } : null });
 });
 
-// ---- ANALYTICS ----
-app.post('/api/analytics/track', (req, res) => {
-  let page = 'index.html', referrer = req.headers.referer || '';
-  if (typeof req.body === 'string') {
-    try { const j = JSON.parse(req.body); page = j.page || page; referrer = j.referrer || referrer; } catch {}
-  } else if (req.body) {
-    page = req.body.page || page;
-    referrer = req.body.referrer || referrer;
-  }
-  analytics.push({ id: analytics.length+1, page, referrer, createdAt: new Date().toISOString() });
-  save('analytics', analytics);
-  res.json({ success: true });
+// ---- CUSTOMER PORTAL (/api/portal) ----
+// Every lookup is scoped to the email inside the verified token. Nothing here
+// accepts a customer identity from the request body or the query string, so a
+// signed-in customer can only reach their own rows. A row belonging to someone
+// else answers 404, not 403, so guessing ids reveals nothing.
+const ownBookings = (email) => bookings.filter(b => b.email === email);
+const ownEnquiries = (email) => contacts.filter(c => c.email === email);
+const ownPayments = (email) => {
+  const ids = new Set(ownBookings(email).map(b => b.id));
+  return payments.filter(p => ids.has(p.bookingId));
+};
+const bookingSummary = (b) => {
+  const p = payments.find(x => x.bookingId === b.id) || null;
+  const payStatus = !p ? 'unpaid' : (p.status || 'incomplete');
+  return {
+    bookingId: b.id, name: b.fullName, service: b.serviceName, status: b.status,
+    bookingDate: b.bookingDate, createdAt: b.createdAt, fee: p ? p.amount : CONSULTATION_FEE,
+    paymentStatus: payStatus, paid: payStatus === 'completed',
+    paymentReference: p ? p.transactionId : null,
+    canCancel: (b.status === 'pending' || b.status === 'confirmed') && payStatus !== 'completed',
+    canPay: (b.status === 'pending' || b.status === 'confirmed') && payStatus !== 'completed' && payStatus !== 'cancelled'
+  };
+};
+const paymentSummary = (p) => ({
+  id: p.id, reference: p.transactionId, amount: p.amount, status: p.status || 'incomplete',
+  paid: (p.status || '') === 'completed', bookingId: p.bookingId, customerName: p.customerName, paymentDate: p.paymentDate
 });
-app.get('/api/admin/analytics/activity', requireAdmin, (req, res) => {
-  let days = parseInt(req.query.days||'7',10); if (isNaN(days)||days<=0) days=7; if (days>90) days=90;
-  const today = new Date(); const start = new Date(); start.setDate(today.getDate()-days+1);
-  const series = [];
-  for (let i=0;i<days;i++) {
-    const d = new Date(start); d.setDate(start.getDate()+i);
-    const iso = d.toISOString().slice(0,10);
-    const visits = analytics.filter(a=> (a.createdAt||'').slice(0,10)===iso).length || Math.floor(5+Math.random()*20);
-    const enq = contacts.filter(c=> (c.createdAt||'').slice(0,10)===iso).length || Math.floor(Math.random()*3);
-    series.push({ date: iso, visits, enquiries: enq });
-  }
-  res.json({ days, series, totalVisits: series.reduce((s,x)=>s+x.visits,0), totalEnquiries: contacts.length });
+
+app.get('/api/portal/me', requireCustomer, (req, res) => {
+  const u = users.find(x => x.email === req.customerEmail);
+  if (!u) return res.status(401).json({ message: 'Your session has expired - please sign in again', success: false });
+  res.json({ success: true, profile: { fullName: u.fullName, email: u.email, role: u.role, phoneNumber: u.phoneNumber || u.phone || '', companyName: u.companyName || u.company || '' } });
 });
+app.put('/api/portal/profile', requireCustomer, (req, res) => {
+  const u = users.find(x => x.email === req.customerEmail);
+  if (!u) return res.status(401).json({ message: 'Your session has expired - please sign in again', success: false });
+  // Email and role are not editable: the whole portal is scoped by the email.
+  const body = req.body || {};
+  if (body.fullName && String(body.fullName).trim()) u.fullName = String(body.fullName).trim();
+  u.phoneNumber = body.phoneNumber ? String(body.phoneNumber).trim() : '';
+  u.companyName = body.companyName ? String(body.companyName).trim() : '';
+  save('users', users);
+  res.json({ success: true, profile: { fullName: u.fullName, email: u.email, role: u.role, phoneNumber: u.phoneNumber, companyName: u.companyName } });
+});
+app.post('/api/portal/password', requireCustomer, (req, res) => {
+  const u = users.find(x => x.email === req.customerEmail);
+  if (!u) return res.status(401).json({ message: 'Your session has expired - please sign in again', success: false });
+  const { currentPassword, newPassword } = req.body || {};
+  // bcrypt first, then the legacy plain-text fallback that /signin still honours,
+  // so an old account can still be migrated rather than locked out.
+  if (!currentPassword || !(bcrypt.compareSync(String(currentPassword), u.password) || u.password === String(currentPassword))) {
+    return res.status(400).json({ message: 'Your current password is incorrect', success: false });
+  }
+  if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(String(newPassword || ''))) {
+    return res.status(400).json({ message: 'Password must be at least 8 characters and include an uppercase letter, a lowercase letter and a number.', success: false });
+  }
+  u.password = bcrypt.hashSync(String(newPassword), 10);
+  save('users', users);
+  res.json({ success: true, message: 'Your password has been changed' });
+});
+app.get('/api/portal/bookings', requireCustomer, (req, res) => {
+  res.json({ success: true, bookings: ownBookings(req.customerEmail).map(bookingSummary) });
+});
+app.get('/api/portal/bookings/:id', requireCustomer, (req, res) => {
+  const b = ownBookings(req.customerEmail).find(x => String(x.id) === req.params.id);
+  if (!b) return res.status(404).json({ message: 'Booking not found', success: false });
+  const p = payments.find(x => x.bookingId === b.id) || null;
+  const out = Object.assign(bookingSummary(b), { email: b.email, phone: b.phone, notes: b.description, payment: p ? paymentSummary(p) : null });
+  res.json({ success: true, booking: out });
+});
+app.post('/api/portal/bookings/:id/cancel', requireCustomer, (req, res) => {
+  const b = ownBookings(req.customerEmail).find(x => String(x.id) === req.params.id);
+  if (!b) return res.status(404).json({ message: 'Booking not found', success: false });
+  const status = b.status || 'pending';
+  if (status === 'cancelled') return res.status(400).json({ message: 'This booking is already cancelled', success: false });
+  if (status === 'completed') return res.status(400).json({ message: 'This booking is already completed and can no longer be cancelled', success: false });
+  const p = payments.find(x => x.bookingId === b.id) || null;
+  if (p && p.status === 'completed') return res.status(400).json({ message: 'This booking is already paid - contact us on 0402 464 823 to arrange a refund', success: false });
+  b.status = 'cancelled';
+  if (p) { p.status = 'cancelled'; }
+  save('bookings', bookings); save('payments', payments);
+  res.json({ success: true, message: 'Booking cancelled', booking: bookingSummary(b) });
+});
+app.get('/api/portal/enquiries', requireCustomer, (req, res) => {
+  res.json({ success: true, enquiries: ownEnquiries(req.customerEmail).map(c => ({ id: c.id, name: c.fullName, service: c.serviceName, message: c.description, status: c.status, createdAt: c.createdAt, reply: c.reply })) });
+});
+app.post('/api/portal/enquiries/:id/reopen', requireCustomer, (req, res) => {
+  const c = ownEnquiries(req.customerEmail).find(x => String(x.id) === req.params.id);
+  if (!c) return res.status(404).json({ message: 'Enquiry not found', success: false });
+  if (c.status !== 'resolved') return res.status(400).json({ message: 'Only a resolved enquiry can be reopened', success: false });
+  c.status = 'in-progress';
+  save('contacts', contacts);
+  res.json({ success: true, message: 'Enquiry reopened - our team will follow up', enquiry: { id: c.id, name: c.fullName, service: c.serviceName, message: c.description, status: c.status, createdAt: c.createdAt, reply: c.reply } });
+});
+app.get('/api/portal/payments', requireCustomer, (req, res) => {
+  res.json({ success: true, payments: ownPayments(req.customerEmail).map(paymentSummary) });
+});
+app.get('/api/portal/summary', requireCustomer, (req, res) => {
+  const u = users.find(x => x.email === req.customerEmail);
+  if (!u) return res.status(401).json({ message: 'Your session has expired - please sign in again', success: false });
+  res.json({
+    success: true,
+    bookings: ownBookings(req.customerEmail).map(bookingSummary),
+    enquiries: ownEnquiries(req.customerEmail).map(c => ({ id: c.id, name: c.fullName, service: c.serviceName, message: c.description, status: c.status, createdAt: c.createdAt, reply: c.reply })),
+    payments: ownPayments(req.customerEmail).map(paymentSummary),
+    profile: { fullName: u.fullName, email: u.email, role: u.role, phoneNumber: u.phoneNumber || u.phone || '', companyName: u.companyName || u.company || '' }
+  });
+});
+app.get('/api/portal/ping', (req, res) => res.json({ success: true, message: 'ok' }));
 
 // ---- SETTINGS ----
 app.get('/api/admin/settings', requireAdmin, (req, res) => res.json({ settings }));
@@ -495,7 +588,7 @@ app.post('/api/bookings', (req, res) => {
   bookings.push(booking);
   save('bookings', bookings);
   const payId = payments.length ? Math.max(...payments.map(p=>p.id))+1 : 1;
-  const payment = { id: payId, transactionId: `ESA-${id}-${Math.random().toString(36).substring(2,8).toUpperCase()}`, customerName: finalName, amount: 250, status: 'incomplete', paymentDate: null, bookingId: id };
+  const payment = { id: payId, transactionId: `ESA-${id}-${Math.random().toString(36).substring(2,8).toUpperCase()}`, customerName: finalName, amount: CONSULTATION_FEE, status: 'incomplete', paymentDate: null, bookingId: id };
   payments.push(payment);
   save('payments', payments);
   res.json({ message: "Thanks - we've received your request and will be in touch shortly.", success: true, booking: { id: booking.id, name: booking.fullName, service: booking.serviceName, status: booking.status, fee: booking.fee }, payment: { id: payment.id, reference: payment.transactionId, status: payment.status } });
@@ -504,7 +597,7 @@ app.get('/api/bookings/:id', (req, res) => {
   const b = bookings.find(x=>String(x.id)===req.params.id);
   if (!b) return res.status(404).json({ message: 'Booking not found' });
   const p = payments.find(x=>x.bookingId===b.id);
-  res.json({ booking: { id: b.id, name: b.fullName, email: b.email, phone: b.phone, service: b.serviceName, notes: b.description, status: b.status, fee: b.fee||250, createdAt: b.createdAt }, payment: p ? { id: p.id, reference: p.transactionId, status: p.status, amount: p.amount } : null });
+  res.json({ booking: { id: b.id, name: b.fullName, email: b.email, phone: b.phone, service: b.serviceName, notes: b.description, status: b.status, fee: b.fee||CONSULTATION_FEE, createdAt: b.createdAt }, payment: p ? { id: p.id, reference: p.transactionId, status: p.status, amount: p.amount } : null });
 });
 app.get('/api/bookings', (req, res) => res.json({ bookings }));
 

@@ -14,7 +14,7 @@ A full-stack web application for ESA Engineering, built with **Spring Boot 3** (
 
 ## Why "Backend offline" happened & how it's fixed
 
-The admin pages (`content.html`, `dashboard.html` etc.) call `/api/admin/*`. Previously:
+The admin pages (`content.html`, `dashboard.html` etc.) call `/api/admin/*`. Previously (this section records the original state; the analytics items listed here have since been **removed entirely** — see the 2026-09-27 note below):
 
 - Empty Java files (`Invoice.java`, `CustomerRepository.java` etc.) broke compilation
 - `application.properties` hard-coded a local Postgres (`sobusdas/1234`) that doesn't exist in most dev machines
@@ -92,7 +92,7 @@ spring.jpa.database-platform=${DB_DIALECT:org.hibernate.dialect.H2Dialect}
 
 1. **`rm -rf data` and restart.** This is required, not optional — your `./data/esa_db.mv.db` was written under the old schema and the old column names, and `ddl-auto=update` cannot migrate them. (`data/` is gitignored; nothing tracked is lost.)
 2. **Look for `CMS ready:` / `Settings ready:` in the boot log.** Those lines come from `DataInitializer` and print the row counts. If instead you see `site_settings is still EMPTY after seeding`, scroll up for a Hibernate DDL error — that is the real cause.
-3. **Confirm the tables exist** at `/h2-console` (JDBC URL `jdbc:h2:file:./data/esa_db`, user `sa`, empty password): `SHOW TABLES;` should list `site_settings`, `cms_pages`, `cms_blocks`, `analytics_events`.
+3. **Confirm the tables exist** at `/h2-console` (JDBC URL `jdbc:h2:file:./data/esa_db`, user `sa`, empty password): `SHOW TABLES;` should list `site_settings`, `cms_pages`, `cms_blocks`, `users`, `bookings`, `contacts`, `payments`. (The old `analytics_events` table is gone — see the analytics removal note below.)
 4. **Hit the endpoint directly** to separate backend from frontend:
    ```bash
    TOKEN=$(curl -s -X POST localhost:8080/api/auth/signin \
@@ -113,6 +113,8 @@ If you must keep a reserved name, either quote it explicitly (`@Column(name = "\
 An end-to-end audit of all 59 Java files found that authentication was effectively absent. All of the following are fixed.
 
 ### What was wrong
+
+*(This is the audit snapshot as it was found. The analytics items in row 6 have since been removed entirely — see the 2026-09-27 note below.)*
 
 | # | Issue | Where |
 |---|-------|-------|
@@ -169,17 +171,86 @@ The browser UI is unaffected — `admin-data.js` already attaches the token and 
 - **Some endpoints still return JPA entities directly** (`getEnquiryPublic`, `listBookings`, legacy controllers). No lazy-loading risk today (no relations on those entities), but it leaks internal fields.
 - **`app.auth.token-secret` is a checked-in default** — set it via env var in any real deployment.
 
+## Analytics removed, payments wired up, customer portal added (2026-09-27)
+
+### Analytics — removed entirely
+
+The analytics page measured nothing, so it has been deleted rather than repaired.
+
+What was wrong:
+
+- `tracking.js` was loaded by **exactly one page** (`payment.html`). Nothing else emitted a beacon, so the "visits" series was a count of people who had already reached step 2 of a booking.
+- `/api/admin/analytics/activity` fabricated its numbers: `Math.random()` filled in any day with no recorded hits, so the chart moved even with zero traffic.
+- The dashboard's "site activity" trend and chart were drawn from that same feed.
+
+Deleted: `analytics.html`, `tracking.js`, `AnalyticsService`, `ApiAnalyticsController`, `AnalyticsEvent`, `AnalyticsEventRepository`, the `/analytics/activity` endpoint, the `renderAnalytics` renderer and the CSV export in `admin-data.js`, every Analytics nav link, and the analytics-only CSS rules.
+
+**What replaced the dashboard chart.** Rather than leave the dashboard with a dead chart, its trend now uses real booking rows: `GET /api/admin/stats` additionally returns `bookingsByDay` (bookings per day for the last 14 days), `bookingsThisWeek` and `bookingsLastWeek`. The dashboard draws the same single-series chart from `bookingsByDay` and the trend reads "N bookings vs last week". These are honest counts of rows that exist, not estimates.
+
+### Payments — the booking flow now reaches the payment page
+
+`payment.html` and `payment.js` existed and were wired to live endpoints, but nothing ever navigated to them:
+
+- `main.js` showed a thank-you note after `POST /api/bookings` and **never redirected**, so a booking was created with a `PENDING` payment and no customer ever saw the payment page.
+- `booking-success.html` implied there was no payment step.
+
+Now: a successful `POST /api/bookings` redirects to `payment.html?booking=<id>`. Enquiries (`/api/enquiries`) still just show a thank-you note — only the booking endpoint redirects. The portal's "Pay" button navigates to the same URL, so an outstanding fee can be paid later, not just immediately after booking.
+
+**The consultation fee is now configurable at $50.** It was hard-coded as `250` in `ApiPublicController` (two places) and in the Node fallback, while `payment.html` already displayed a `$50` placeholder. The value now comes from:
+
+```properties
+app.booking.consultation-fee=50
+```
+
+`ApiPublicController` injects it with a `@Value` default of `50`, and uses it both when creating the `Payment` row and as the fallback when a booking has no payment row. The Node fallback reads `CONSULTATION_FEE` (default `50`). Change the property, not the Java.
+
+### Customer portal — new self-service area
+
+`portal.html` + `portal.js` + `ApiPortalController` (`/api/portal`) + `PortalService` + `PortalAccess`. The backend is scoped entirely by the email inside the bearer token; the frontend never sends a customer identity of its own.
+
+A customer can:
+
+- see their own bookings, enquiries and payments, plus an overview with totals and any outstanding fee
+- **pay an outstanding fee** (navigates to `payment.html?booking=<id>`)
+- **cancel their own booking** while it is still pending or confirmed and unpaid
+- **reopen their own enquiry** once our team has marked it resolved
+- edit their own profile (name, phone, company)
+- change their own password (current password required)
+
+An administrator browsing the portal sees exactly what a customer sees — their own rows.
+
+Two deliberate restrictions:
+
+- **Email is not editable.** It is the key the entire portal is scoped by, so changing it would silently orphan the customer's bookings and enquiries.
+- **A paid booking cannot be cancelled from the portal.** Cancelling a paid booking means a refund, which is a human decision. The customer is told to call instead.
+
+Rows belonging to someone else return **404, not 403**, so guessing booking or enquiry ids reveals nothing about other customers.
+
+`Payment` has no email column, so portal payments are resolved by joining on the customer's booking ids (`PaymentRepository.findByBookingIdIn`). Matching on `customerName` would have leaked payments from anyone with a similar name.
+
+### Sign-in and the header are now role-aware
+
+Previously every signed-in user was sent to `dashboard.html` — the admin console — including customers, who cannot use it.
+
+- `signin.html` now redirects by the role in the sign-in response: administrators to `dashboard.html`, everyone else to `portal.html`. An explicit `?next=` still wins.
+- `main.js` `updateHeaderButtons()` builds the same choice, so the header link says "My Portal" for a customer and "Dashboard" for an administrator.
+- The admin guard in `admin-data.js` already redirected non-admins away from the admin pages, so the two directions now agree.
+
+### Node fallback
+
+`server.js` got the matching treatment: the analytics routes and the `analytics` JSON store are gone, the fee uses `CONSULTATION_FEE` (default 50), and all eleven `/api/portal/*` routes are implemented against the JSON files. Its `requireAdmin` middleware had the same "no Authorization header = dev open" hole the Spring side had, and that is now closed too — a missing token is a 401.
+
 ## Project Structure
 
 ```
 ├── src/main/java/com/esaengineering/
-│   ├── api/                # REST API (admin, auth, public, content, analytics, health)
+│   ├── api/                # REST API (admin, auth, public, content, portal, health)
 │   ├── config/             # CORS, AppConfig (TokenService), DatabaseConfig
 │   ├── controller/         # Legacy controllers (/about, /bookings, /contact)
-│   ├── model/              # JPA entities + new CMS entities
+│   ├── model/              # JPA entities + CMS entities
 │   ├── repository/         # Spring Data JPA
 │   ├── security/           # PasswordHasher, TokenService
-│   ├── service/            # Business logic + CmsService, AnalyticsService, SettingsService
+│   ├── service/            # Business logic + CmsService, SettingsService
 │   └── web/                # ApiException, ApiExceptionHandler
 ├── src/main/resources/
 │   ├── application.properties
@@ -187,9 +258,10 @@ The browser UI is unaffected — `admin-data.js` already attaches the token and 
 │       ├── admin-data.js   # Admin portal wiring (now resilient)
 │       ├── auth.js         # Session layer
 │       ├── content.js      # CMS public loader
-│       ├── main.js         # Public site interactions
-│       ├── tracking.js     # Analytics beacon
-│       └── *.html
+│       ├── main.js         # Public site interactions + role-aware header
+│       ├── portal.js       # Customer portal (own bookings/enquiries/payments)
+│       ├── payment.js      # Step 2 of the booking flow
+│       └── *.html          # incl. portal.html (customer) and payment.html
 ├── server.js               # Node fallback (Express)
 ├── package.json            # npm start
 ├── pom.xml
@@ -233,6 +305,9 @@ The app starts on **http://localhost:8080**.
 | Services | /services.html |
 | Contact | /contact.html |
 | Sign In | /signin.html |
+| Sign Up | /signup.html |
+| Customer Portal | /portal.html |
+| Payment (step 2) | /payment.html?booking=&lt;id&gt; |
 | Admin Dashboard | /dashboard.html |
 | Content Management | /content.html |
 | API Health | /api/health |
@@ -256,7 +331,6 @@ The app starts on **http://localhost:8080**.
 | POST | `/api/enquiries` | Submit contact form |
 | POST | `/api/payments/{id}/confirm` | Confirm payment |
 | GET | `/api/content?slug=contact.html` | Public CMS blocks |
-| POST | `/api/analytics/track` | Track page view |
 | GET | `/api/admin/stats` | Dashboard stats |
 | GET | `/api/admin/customers` | List customers |
 | GET | `/api/admin/customers/{id}` | Customer detail |
@@ -273,9 +347,18 @@ The app starts on **http://localhost:8080**.
 | PATCH | `/api/admin/pages/{id}` | Update page status |
 | PUT | `/api/admin/pages/{id}/blocks` | Save blocks |
 | DELETE | `/api/admin/pages/{id}/blocks/{key}` | Reset block |
-| GET | `/api/admin/analytics/activity?days=7` | Activity chart |
 | GET | `/api/admin/settings` | Get settings |
 | PUT | `/api/admin/settings` | Save settings |
+| GET | `/api/portal/me` | Own profile (bearer token) |
+| PUT | `/api/portal/profile` | Update own profile |
+| POST | `/api/portal/password` | Change own password |
+| GET | `/api/portal/bookings` | Own bookings |
+| GET | `/api/portal/bookings/{id}` | Own booking + payment |
+| POST | `/api/portal/bookings/{id}/cancel` | Cancel own unpaid booking |
+| GET | `/api/portal/enquiries` | Own enquiries |
+| POST | `/api/portal/enquiries/{id}/reopen` | Reopen own resolved enquiry |
+| GET | `/api/portal/payments` | Own payments |
+| GET | `/api/portal/summary` | Everything above in one call |
 | GET | `/api/health` | Health check |
 
 ## Frontend ↔ Backend Communication
@@ -284,7 +367,8 @@ The app starts on **http://localhost:8080**.
 - **Auth**: `auth.js` stores `token` in `localStorage`, sends `Authorization: Bearer <token>` to admin APIs. `ApiAdminController` verifies via `TokenService`.
 - **Content**: `content.js` fetches `/api/content?slug=...` and injects into `[data-cms]` elements. Admin edits via `PUT /api/admin/pages/{id}/blocks`.
 - **Forms**: `main.js` handles `data-local-submit` + `data-api` forms (`/api/bookings`, `/api/enquiries`) with JSON.
-- **Analytics**: `tracking.js` uses `navigator.sendBeacon` to `/api/analytics/track`.
+- **Payments**: `main.js` redirects to `payment.html?booking=<id>` after a successful `POST /api/bookings`; `payment.js` loads the booking from `/api/bookings/{id}` and posts the card to `/api/payments/{id}/confirm`.
+- **Portal**: `portal.js` attaches the bearer token from `auth.js` to every `/api/portal/*` call. The server scopes each response to the email inside that token; the client never sends a customer identity.
 
 ## Troubleshooting "Backend offline"
 

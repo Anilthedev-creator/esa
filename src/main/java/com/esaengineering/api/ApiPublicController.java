@@ -8,6 +8,7 @@ import com.esaengineering.repository.ContactRepository;
 import com.esaengineering.repository.PaymentRepository;
 import com.esaengineering.web.ApiException;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -27,13 +28,16 @@ public class ApiPublicController {
     private final ContactRepository contactRepo;
     private final PaymentRepository paymentRepo;
     private final AdminAccess adminAccess;
+    private final BigDecimal consultationFee;
 
     public ApiPublicController(BookingRepository bookingRepo, ContactRepository contactRepo,
-                                PaymentRepository paymentRepo, AdminAccess adminAccess) {
+                                PaymentRepository paymentRepo, AdminAccess adminAccess,
+                                @Value("${app.booking.consultation-fee:50}") BigDecimal consultationFee) {
         this.bookingRepo = bookingRepo;
         this.contactRepo = contactRepo;
         this.paymentRepo = paymentRepo;
         this.adminAccess = adminAccess;
+        this.consultationFee = consultationFee;
     }
 
     // ---- bookings ----
@@ -65,7 +69,7 @@ public class ApiPublicController {
 
         // Create a pending payment for the booking flow (consultation fee)
         Payment p = new Payment();
-        p.setAmount(new BigDecimal("250"));
+        p.setAmount(consultationFee);
         p.setTransactionId("ESA-" + b.getBookingID() + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
         p.setCustomerName(name);
         p.setStatus("incomplete");
@@ -103,7 +107,7 @@ public class ApiPublicController {
         bookingMap.put("service", b.getServiceName());
         bookingMap.put("notes", b.getDescription());
         bookingMap.put("status", b.getStatus());
-        bookingMap.put("fee", paymentOpt.map(Payment::getAmount).orElse(new BigDecimal("250")));
+        bookingMap.put("fee", paymentOpt.map(Payment::getAmount).orElse(consultationFee));
         bookingMap.put("createdAt", b.getCreatedAt());
 
         Map<String, Object> resp = new LinkedHashMap<>();
