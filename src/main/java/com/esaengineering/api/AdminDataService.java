@@ -16,18 +16,11 @@ import com.esaengineering.repository.BookingRepository;
 import com.esaengineering.repository.ContactRepository;
 import com.esaengineering.repository.PaymentRepository;
 import com.esaengineering.repository.UserRepository;
+import com.esaengineering.web.ApiException;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Read models for static/admin-data.js.
- *
- * Keys here are exactly what the page renderers read (data.customers,
- * invoiceId, paidAt, stats.activeBookings ...) - not the entity property
- * names. Where a value has no column behind it yet it stays null so the UI
- * shows a dash rather than us inventing a number.
- */
 @Service
 public class AdminDataService {
 
@@ -48,8 +41,6 @@ public class AdminDataService {
         this.userRepository = userRepository;
     }
 
-    /* --------------------------------- stats --------------------------------- */
-
     @Transactional(readOnly = true)
     public Map<String, Object> stats() {
         List<Booking> bookings = newestFirst(bookingRepository.findAll());
@@ -64,8 +55,6 @@ public class AdminDataService {
             }
         }
 
-        // payments have no status column yet, so revenue is every recorded
-        // payment - replace with a filtered sum once that column exists.
         BigDecimal revenue = BigDecimal.ZERO;
         for (Payment payment : paymentRepository.findAll()) {
             if (payment.getAmount() != null) {
@@ -76,13 +65,13 @@ public class AdminDataService {
         List<Map<String, Object>> recentRequests = new ArrayList<>();
         for (Booking booking : bookings.subList(0, Math.min(RECENT_LIMIT, bookings.size()))) {
             boolean upcoming = booking.getBookingDate() != null && !booking.getBookingDate().isBefore(today);
+            String status = booking.getStatus() != null ? booking.getStatus() : (upcoming ? "confirmed" : "completed");
             recentRequests.add(row(
                     "id", booking.getBookingID(),
                     "customer", booking.getFullName(),
                     "service", booking.getServiceName(),
                     "date", booking.getBookingDate(),
-                    // no status column on bookings: derived from the date
-                    "status", upcoming ? "confirmed" : "completed"));
+                    "status", status));
         }
 
         List<Map<String, Object>> recentEnquiries = new ArrayList<>();
@@ -93,7 +82,7 @@ public class AdminDataService {
                     "id", contact.getContactId(),
                     "name", contact.getFullName(),
                     "preview", contact.getDescription(),
-                    "status", "new"));
+                    "status", contact.getStatus() != null ? contact.getStatus() : "new"));
         }
 
         return row(
@@ -106,8 +95,6 @@ public class AdminDataService {
                 "recentEnquiries", recentEnquiries);
     }
 
-    /* -------------------------------- customers ------------------------------ */
-
     @Transactional(readOnly = true)
     public List<Map<String, Object>> customers() {
         List<Map<String, Object>> rows = new ArrayList<>();
@@ -119,14 +106,44 @@ public class AdminDataService {
                     "phone", user.getPhoneNumber(),
                     "company", user.getCompanyName(),
                     "status", user.isActive() ? "active" : "inactive",
-                    // users has no updated_at column yet
                     "lastUpdated", null,
                     "role", user.getRole() == null ? "customer" : user.getRole().name().toLowerCase()));
         }
         return rows;
     }
 
-    /* -------------------------------- enquiries ------------------------------ */
+    @Transactional(readOnly = true)
+    public Map<String, Object> customerById(Long id) {
+        User user = userRepository.findById(id).orElseThrow(() -> ApiException.notFound("Customer not found"));
+        return row(
+                "id", user.getUserId(),
+                "name", user.getFullName(),
+                "email", user.getEmail(),
+                "phone", user.getPhoneNumber(),
+                "company", user.getCompanyName(),
+                "status", user.isActive() ? "active" : "inactive",
+                "role", user.getRole() == null ? "customer" : user.getRole().name().toLowerCase());
+    }
+
+    @Transactional
+    public Map<String, Object> updateCustomer(Long id, Map<String, Object> body) {
+        User user = userRepository.findById(id).orElseThrow(() -> ApiException.notFound("Customer not found"));
+        if (body.containsKey("firstName") || body.containsKey("lastName")) {
+            String first = body.get("firstName") != null ? body.get("firstName").toString().trim() : "";
+            String last = body.get("lastName") != null ? body.get("lastName").toString().trim() : "";
+            String full = (first + " " + last).trim();
+            if (!full.isEmpty()) user.setFullName(full);
+        }
+        if (body.containsKey("phone")) user.setPhoneNumber(body.get("phone") != null ? body.get("phone").toString() : "");
+        if (body.containsKey("companyName")) user.setCompanyName(body.get("companyName") != null ? body.get("companyName").toString() : "");
+        if (body.containsKey("company")) user.setCompanyName(body.get("company") != null ? body.get("company").toString() : "");
+        if (body.containsKey("status")) {
+            String s = body.get("status").toString().toLowerCase();
+            user.setActive(!"inactive".equals(s));
+        }
+        userRepository.save(user);
+        return customerById(id);
+    }
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> enquiries() {
@@ -140,15 +157,35 @@ public class AdminDataService {
                     "email", contact.getEmail(),
                     "subject", contact.getServiceName(),
                     "message", contact.getDescription(),
-                    // contact has no status / reply / date columns yet
-                    "status", "new",
-                    "reply", null,
-                    "date", null));
+                    "status", contact.getStatus() != null ? contact.getStatus() : "new",
+                    "reply", contact.getReply(),
+                    "date", contact.getCreatedAt()));
         }
         return rows;
     }
 
-    /* -------------------------------- payments ------------------------------- */
+    @Transactional(readOnly = true)
+    public Map<String, Object> enquiryById(Long id) {
+        Contact c = contactRepository.findById(id).orElseThrow(() -> ApiException.notFound("Enquiry not found"));
+        return row(
+                "id", c.getContactId(),
+                "name", c.getFullName(),
+                "email", c.getEmail(),
+                "subject", c.getServiceName(),
+                "message", c.getDescription(),
+                "status", c.getStatus(),
+                "reply", c.getReply(),
+                "date", c.getCreatedAt());
+    }
+
+    @Transactional
+    public Map<String, Object> updateEnquiry(Long id, Map<String, Object> body) {
+        Contact c = contactRepository.findById(id).orElseThrow(() -> ApiException.notFound("Enquiry not found"));
+        if (body.containsKey("status")) c.setStatus(body.get("status").toString());
+        if (body.containsKey("reply")) c.setReply(body.get("reply") != null ? body.get("reply").toString() : null);
+        contactRepository.save(c);
+        return enquiryById(id);
+    }
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> payments() {
@@ -156,15 +193,9 @@ public class AdminDataService {
         all.sort((a, b) -> {
             Long x = a.getPaymentId();
             Long y = b.getPaymentId();
-            if (x == null && y == null) {
-                return 0;
-            }
-            if (x == null) {
-                return 1;
-            }
-            if (y == null) {
-                return -1;
-            }
+            if (x == null && y == null) return 0;
+            if (x == null) return 1;
+            if (y == null) return -1;
             return Long.compare(y, x);
         });
 
@@ -173,29 +204,48 @@ public class AdminDataService {
             rows.add(row(
                     "id", payment.getPaymentId(),
                     "invoiceId", payment.getTransactionId(),
-                    // payments are not linked to a booking/customer yet
-                    "customerName", null,
+                    "customerName", payment.getCustomerName(),
                     "amount", payment.getAmount(),
-                    "status", payment.getPaymentDate() != null ? "completed" : "incomplete",
+                    "status", payment.getStatus() != null ? payment.getStatus() : (payment.getPaymentDate() != null ? "completed" : "incomplete"),
                     "paidAt", payment.getPaymentDate()));
         }
         return rows;
     }
 
-    /* --------------------------------- helpers ------------------------------- */
+    @Transactional(readOnly = true)
+    public Map<String, Object> paymentById(Long id) {
+        Payment p = paymentRepository.findById(id).orElseThrow(() -> ApiException.notFound("Payment not found"));
+        return row(
+                "id", p.getPaymentId(),
+                "invoiceId", p.getTransactionId(),
+                "customerName", p.getCustomerName(),
+                "amount", p.getAmount(),
+                "status", p.getStatus(),
+                "paidAt", p.getPaymentDate());
+    }
 
-    /** Used by AdminBootstrap so it never creates a second administrator. */
+    @Transactional
+    public Map<String, Object> updatePayment(Long id, Map<String, Object> body) {
+        Payment p = paymentRepository.findById(id).orElseThrow(() -> ApiException.notFound("Payment not found"));
+        if (body.containsKey("status")) p.setStatus(body.get("status").toString());
+        if (body.containsKey("amount")) {
+            try {
+                BigDecimal amt = new BigDecimal(body.get("amount").toString());
+                p.setAmount(amt);
+            } catch (Exception ignored) {}
+        }
+        paymentRepository.save(p);
+        return paymentById(id);
+    }
+
     @Transactional(readOnly = true)
     public boolean hasAdministrator() {
         for (User user : userRepository.findAll()) {
-            if (user.getRole() == Role.ADMIN) {
-                return true;
-            }
+            if (user.getRole() == Role.ADMIN) return true;
         }
         return false;
     }
 
-    /** Bookings have no created_at column, so the numeric id is the recency. */
     private List<Booking> newestFirst(List<Booking> bookings) {
         List<Booking> copy = new ArrayList<>(bookings);
         copy.sort((a, b) -> Long.compare(b.getBookingID(), a.getBookingID()));

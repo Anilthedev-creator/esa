@@ -134,12 +134,15 @@
     if (document.querySelector('.admin-offline-banner')) return;
     var banner = document.createElement('div');
     banner.className = 'admin-offline-banner';
+    // Updated message: backend can be either Node (npm start) or Spring Boot (mvn spring-boot:run)
     banner.innerHTML =
       '<strong>Backend offline</strong> — ' + esc(detail || 'showing static demo data') +
-      '. Start the server (<code>npm start</code>) and reload.';
+      '. Start the server (<code>npm start</code> or <code>mvn spring-boot:run</code>) and reload. ' +
+      '<button onclick="location.reload()" style="margin-left:10px;padding:4px 10px;cursor:pointer">Retry</button>';
     var wrapper = document.querySelector('.dashboard-wrapper');
     if (wrapper) wrapper.insertBefore(banner, wrapper.firstChild);
     else document.body.insertBefore(banner, document.body.firstChild);
+    console.warn('[ESA] Backend offline:', detail);
   }
 
   /* ------------------------------ status badges ---------------------------- */
