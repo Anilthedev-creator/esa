@@ -583,7 +583,7 @@ app.post('/api/bookings', (req, res) => {
   const id = bookings.length ? Math.max(...bookings.map(b=>b.id))+1 : 1;
   const booking = {
     id, fullName: finalName, name: finalName, email: finalEmail, phone: phone||'', service: service||serviceName||'General Inquiry', serviceName: service||serviceName||'General Inquiry',
-    notes: notes||description||message||'', description: notes||description||message||'', bookingDate: new Date().toISOString().slice(0,10), status: 'pending', createdAt: new Date().toISOString(), fee: 250
+    notes: notes||description||message||'', description: notes||description||message||'', bookingDate: new Date().toISOString().slice(0,10), status: 'pending', createdAt: new Date().toISOString(), fee: 50
   };
   bookings.push(booking);
   save('bookings', bookings);
