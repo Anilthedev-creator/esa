@@ -20,7 +20,8 @@ public class CmsBlock {
     @Column(length = 2000)
     private String label;
 
-    @Column(length = 10000)
+    /** block_value, not value: VALUE is a reserved word in H2 2.x. */
+    @Column(name = "block_value", length = 10000)
     private String value;
 
     @Column(length = 10000)

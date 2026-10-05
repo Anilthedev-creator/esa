@@ -41,16 +41,16 @@
         <i class="fa-solid fa-users"></i> Customer Management
       </a>
 
+
+      <a href="bookings.html">
+        <i class="fa-solid fa-calendar-check"></i> Bookings
+      </a>
       <a href="payments.html">
         <i class="fa-solid fa-credit-card"></i> Payments
       </a>
 
       <a href="enquiries.html">
         <i class="fa-solid fa-envelope"></i> Enquiries
-      </a>
-
-      <a href="analytics.html">
-        <i class="fa-solid fa-chart-line"></i> Analytics
       </a>
 
       <a href="settings.html">
@@ -107,53 +107,53 @@
       <!-- STATS -->
       <div class="stats-grid">
 
-        <div class="stat-card">
+        <a class="stat-card" href="customers.html">
           <div class="stat-icon cyan">
             <i class="fa-solid fa-users"></i>
           </div>
 
           <div>
             <p>Total Users</p>
-            <h3 id="statTotalUsers">—</h3>
+            <h3 id="statTotalUsers">&mdash;</h3>
             <span id="statTotalUsersTrend"></span>
           </div>
-        </div>
+        </a>
 
-        <div class="stat-card">
+        <a class="stat-card" href="bookings.html">
           <div class="stat-icon green">
             <i class="fa-solid fa-calendar"></i>
           </div>
 
           <div>
             <p>Active Bookings</p>
-            <h3 id="statActiveBookings">—</h3>
+            <h3 id="statActiveBookings">&mdash;</h3>
             <span id="statActiveBookingsTrend"></span>
           </div>
-        </div>
+        </a>
 
-        <div class="stat-card">
+        <a class="stat-card" href="enquiries.html">
           <div class="stat-icon yellow">
             <i class="fa-regular fa-envelope"></i>
           </div>
 
           <div>
             <p>Pending Enquiries</p>
-            <h3 id="statPendingEnquiries">—</h3>
+            <h3 id="statPendingEnquiries">&mdash;</h3>
             <span id="statPendingEnquiriesTrend"></span>
           </div>
-        </div>
+        </a>
 
-        <div class="stat-card">
+        <a class="stat-card" href="payments.html">
           <div class="stat-icon blue">
             <i class="fa-solid fa-dollar-sign"></i>
           </div>
 
           <div>
             <p>Revenue</p>
-            <h3 id="statRevenue">—</h3>
+            <h3 id="statRevenue">&mdash;</h3>
             <span id="statRevenueTrend"></span>
           </div>
-        </div>
+        </a>
 
       </div>
 
@@ -165,7 +165,7 @@
 
           <div class="card-header">
             <h3>Recent Service Requests</h3>
-            <a href="#">View All</a>
+            <a href="bookings.html">View All</a>
           </div>
 
           <table>
@@ -213,7 +213,7 @@
 
           <div class="card-header">
             <h3>Recent Enquiries</h3>
-            <a href="#">View All</a>
+            <a href="enquiries.html">View All</a>
           </div>
 
           <div id="recentEnquiriesList">
@@ -238,7 +238,7 @@
       <div class="chart-card">
 
         <div class="card-header">
-          <h3>Website Activity</h3>
+          <h3>Bookings — last 14 days</h3>
         </div>
 
         <div class="fake-chart" id="dashboardChart"></div>

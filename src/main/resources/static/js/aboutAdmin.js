@@ -1,3 +1,27 @@
+/*
+ * The /about write endpoints now require an administrator token (the same
+ * AdminAccess gate used by /api/admin/**). Without it every PUT was
+ * anonymously callable and the site copy could be rewritten by anyone.
+ */
+(function () {
+  var token = localStorage.getItem("token");
+  if (!token) {
+    window.location.replace("signin.html?next=aboutPageAdmin.html");
+    return;
+  }
+})();
+
+function authHeaders(extra) {
+  var token = localStorage.getItem("token");
+  if (!token) {
+    window.location.replace("signin.html?next=aboutPageAdmin.html");
+    throw new Error("Not signed in");
+  }
+  var headers = { "Content-Type": "application/json", "Authorization": "Bearer " + token };
+  if (extra) { for (var k in extra) headers[k] = extra[k]; }
+  return headers;
+}
+
 document.addEventListener("DOMContentLoaded", () => {
 
     loadAboutContent();
@@ -67,9 +91,7 @@ async function saveAboutContent(){
 
         method:"PUT",
 
-        headers:{
-            "Content-Type":"application/json"
-        },
+        headers: authHeaders(),
 
         body:JSON.stringify( document.getElementById("story").value)
 
@@ -87,9 +109,7 @@ async function saveAboutContent(){
 
         method:"PUT",
 
-        headers:{
-            "Content-Type":"application/json"
-        },
+        headers: authHeaders(),
 
         body:JSON.stringify(document.getElementById("heading1").value)
 
@@ -104,9 +124,7 @@ await fetch("/about/heading2",{
 
     method:"PUT",
 
-    headers:{
-        "Content-Type":"application/json"
-    },
+    headers: authHeaders(),
 
     body:JSON.stringify(document.getElementById("heading2").value)
 
@@ -120,9 +138,7 @@ await fetch("/about/paragraph1",{
 
     method:"PUT",
 
-    headers:{
-        "Content-Type":"application/json"
-    },
+    headers: authHeaders(),
 
     body:JSON.stringify(document.getElementById("paragraph1").value)
 
@@ -137,9 +153,7 @@ await fetch("/about/paragraph2",{
 
     method:"PUT",
 
-    headers:{
-        "Content-Type":"application/json"
-    },
+    headers: authHeaders(),
 
     body:JSON.stringify(document.getElementById("paragraph2").value)
 
@@ -152,9 +166,7 @@ await fetch("/about/paragraph3",{
 
     method:"PUT",
 
-    headers:{
-        "Content-Type":"application/json"
-    },
+    headers: authHeaders(),
 
     body:JSON.stringify(document.getElementById("paragraph3").value)
 
@@ -167,9 +179,7 @@ await fetch("/about/specialist1Name",{
 
     method:"PUT",
 
-    headers:{
-        "Content-Type":"application/json"
-    },
+    headers: authHeaders(),
 
     body:JSON.stringify(document.getElementById("specialist1Name").value)
 
@@ -182,9 +192,7 @@ await fetch("/about/specialist2Name",{
 
     method:"PUT",
 
-    headers:{
-        "Content-Type":"application/json"
-    },
+    headers: authHeaders(),
 
     body:JSON.stringify(document.getElementById("specialist2Name").value)
 
@@ -198,9 +206,7 @@ await fetch("/about/specialist2Position",{
 
     method:"PUT",
 
-    headers:{
-        "Content-Type":"application/json"
-    },
+    headers: authHeaders(),
 
     body:JSON.stringify(document.getElementById("specialist2Position").value)
 
@@ -213,9 +219,7 @@ await fetch("/about/specialist1Position",{
 
     method:"PUT",
 
-    headers:{
-        "Content-Type":"application/json"
-    },
+    headers: authHeaders(),
 
     body:JSON.stringify( document.getElementById("specialist1Position").value)
 
@@ -228,9 +232,7 @@ await fetch("/about/specialist1Biography",{
 
     method:"PUT",
 
-    headers:{
-        "Content-Type":"application/json"
-    },
+    headers: authHeaders(),
 
     body:JSON.stringify(document.getElementById("specialist1Biography").value)
 
@@ -240,9 +242,7 @@ await fetch("/about/specialist2Biography",{
 
     method:"PUT",
 
-    headers:{
-        "Content-Type":"application/json"
-    },
+    headers: authHeaders(),
 
     body:JSON.stringify(document.getElementById("specialist2Biography").value)
 

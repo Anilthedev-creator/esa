@@ -8,8 +8,9 @@ import com.esaengineering.model.Booking;
  * Read model for the admin customer list: a Booking flattened into the fields
  * the portal displays.
  *
- * A booking carries no phone number and no company, so those stay null until
- * they are joined from the matching User (by email). Deliberately a plain DTO
+ * A booking carries no phone number and no company, so those are joined from
+ * the matching User by email (see AdminService.getAllBookings). They stay null
+ * when the booking's email has no registered account. Deliberately a plain DTO
  * - no JPA annotations, it is never persisted.
  */
 public class CustomerDTO {

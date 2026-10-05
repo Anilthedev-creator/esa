@@ -26,8 +26,26 @@ public class TokenService {
     }
 
     public String issue(Long userId, String email, String role) {
+        return issue(userId, email, role, ttlMillis);
+    }
+
+    /**
+     * Issues a token with an explicit lifetime in milliseconds.
+     *
+     * Production code uses {@link #issue(Long, String, String)}. This overload
+     * exists so a test can mint an already-expired token and prove the expiry
+     * check in {@link #verify(String)} really rejects it: the constructor floors
+     * the TTL at one hour, so a "short-lived" service still produces a token
+     * that is valid, and the expiry path is otherwise unreachable in a unit
+     * test. It changes no existing behaviour - every caller still goes through
+     * the three-argument form.
+     */
+    public String issue(Long userId, String email, String role, long ttlMillis) {
         long expiresAt = System.currentTimeMillis() + ttlMillis;
-        String payload = userId + "|" + email + "|" + role + "|" + expiresAt;
+        // Email is LAST on purpose: split("\\|", 4) keeps any '|' inside the
+        // email intact in the final field. With email in the middle, an address
+        // like "a|b@example.com" produced 5 parts and verification failed.
+        String payload = userId + "|" + role + "|" + expiresAt + "|" + email;
         Base64.Encoder enc = Base64.getUrlEncoder().withoutPadding();
         String body = enc.encodeToString(payload.getBytes(StandardCharsets.UTF_8));
         return body + "." + enc.encodeToString(sign(body));
@@ -60,16 +78,16 @@ public class TokenService {
         } catch (IllegalArgumentException e) {
             return null;
         }
-        String[] parts = payload.split("\\|");
+        String[] parts = payload.split("\\|", 4);
         if (parts.length != 4) {
             return null;
         }
         try {
-            if (Long.parseLong(parts[3]) < System.currentTimeMillis()) {
+            if (Long.parseLong(parts[2]) < System.currentTimeMillis()) {
                 return null;
             }
             Long userId = parts[0].isEmpty() || "null".equals(parts[0]) ? null : Long.parseLong(parts[0]);
-            return new TokenPayload(userId, parts[1], parts[2]);
+            return new TokenPayload(userId, parts[3], parts[1]);
         } catch (NumberFormatException e) {
             return null;
         }

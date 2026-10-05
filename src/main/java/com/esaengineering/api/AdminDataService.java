@@ -3,6 +3,7 @@ package com.esaengineering.api;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,12 +19,15 @@ import com.esaengineering.repository.PaymentRepository;
 import com.esaengineering.repository.UserRepository;
 import com.esaengineering.web.ApiException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AdminDataService {
 
+    private static final Logger log = LoggerFactory.getLogger(AdminDataService.class);
     private static final int RECENT_LIMIT = 5;
 
     private final BookingRepository bookingRepository;
@@ -85,6 +89,22 @@ public class AdminDataService {
                     "status", contact.getStatus() != null ? contact.getStatus() : "new"));
         }
 
+        // Replaces the old /analytics/activity feed, which only ever counted
+        // hits on one page. Bookings are real rows, so this series and the
+        // week-on-week trend are honest numbers.
+        List<Map<String, Object>> bookingsByDay = bookingsPerDay(bookings, 14, today);
+
+        LocalDate weekStart = today.minusDays(6);
+        LocalDate prevWeekStart = today.minusDays(13);
+        long thisWeek = bookings.stream()
+                .filter(b -> b.getBookingDate() != null && !b.getBookingDate().isBefore(weekStart))
+                .count();
+        long lastWeek = bookings.stream()
+                .filter(b -> b.getBookingDate() != null
+                        && !b.getBookingDate().isBefore(prevWeekStart)
+                        && b.getBookingDate().isBefore(weekStart))
+                .count();
+
         return row(
                 "stats", row(
                         "totalUsers", userRepository.count(),
@@ -92,7 +112,27 @@ public class AdminDataService {
                         "pendingEnquiries", (long) enquiries.size(),
                         "revenue", revenue),
                 "recentRequests", recentRequests,
-                "recentEnquiries", recentEnquiries);
+                "recentEnquiries", recentEnquiries,
+                "bookingsByDay", bookingsByDay,
+                "bookingsThisWeek", thisWeek,
+                "bookingsLastWeek", lastWeek);
+    }
+
+    /** Bookings grouped per calendar day over the last {@code days} days, oldest first. */
+    private List<Map<String, Object>> bookingsPerDay(List<Booking> bookings, int days, LocalDate today) {
+        Map<LocalDate, Long> counts = new HashMap<>();
+        for (Booking b : bookings) {
+            if (b.getBookingDate() == null) continue;
+            LocalDate d = b.getBookingDate();
+            if (d.isBefore(today.minusDays(days - 1)) || d.isAfter(today)) continue;
+            counts.merge(d, 1L, Long::sum);
+        }
+        List<Map<String, Object>> series = new ArrayList<>();
+        for (int i = days - 1; i >= 0; i--) {
+            LocalDate d = today.minusDays(i);
+            series.add(row("date", d.toString(), "bookings", counts.getOrDefault(d, 0L)));
+        }
+        return series;
     }
 
     @Transactional(readOnly = true)
@@ -188,6 +228,35 @@ public class AdminDataService {
     }
 
     @Transactional(readOnly = true)
+    /**
+     * Every booking, newest first, shaped for the admin bookings table.
+     *
+     * Deliberately a projection rather than the raw entity: the public
+     * {@code GET /api/bookings} returns JPA entities straight to JSON, which
+     * leaks internal fields and would change shape if the entity ever gains a
+     * column. The admin UI gets exactly the seven fields its table renders.
+     */
+    public List<Map<String, Object>> bookings() {
+        List<Booking> all = bookingRepository.findAll();
+        all.sort((a, b) -> Long.compare(b.getBookingID(), a.getBookingID()));
+
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (Booking b : all) {
+            rows.add(row(
+                    "bookingId", b.getBookingID(),
+                    "customer", b.getFullName(),
+                    "service", b.getServiceName(),
+                    "date", b.getBookingDate(),
+                    "email", b.getEmail(),
+                    "phone", b.getPhone(),
+                    "abn", b.getAbnNumber(),
+                    "notes", b.getDescription(),
+                    "status", b.getStatus() != null ? b.getStatus() : "pending",
+                    "createdAt", b.getCreatedAt()));
+        }
+        return rows;
+    }
+
     public List<Map<String, Object>> payments() {
         List<Payment> all = paymentRepository.findAll();
         all.sort((a, b) -> {
@@ -238,12 +307,24 @@ public class AdminDataService {
         return paymentById(id);
     }
 
-    @Transactional(readOnly = true)
+    /**
+     * True when at least one ADMIN user exists.
+     *
+     * Resilient on purpose: if the users table is missing or the database is
+     * unreachable during startup this must not abort the boot - it just reports
+     * "no administrator yet" so the bootstrap can try to create one.
+     */
+    @Transactional(readOnly = true, noRollbackFor = RuntimeException.class)
     public boolean hasAdministrator() {
-        for (User user : userRepository.findAll()) {
-            if (user.getRole() == Role.ADMIN) return true;
+        try {
+            for (User user : userRepository.findAll()) {
+                if (user.getRole() == Role.ADMIN) return true;
+            }
+            return false;
+        } catch (RuntimeException e) {
+            log.warn("Could not check for an existing administrator: {}", e.getMessage());
+            return false;
         }
-        return false;
     }
 
     private List<Booking> newestFirst(List<Booking> bookings) {

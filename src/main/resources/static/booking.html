@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="Book a consultation with ESA Engineering — project scoping and obligation-free discussions.">
-  <title>Booking — ESA Engineering</title>
+  <title>Booking - Engineering</title>
         <link rel="stylesheet" href="style.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -64,7 +64,35 @@
 <main class="section-padding">
   <div class="container">
     <h1 class="section-title">Book a Consultation</h1>
+     <!-- Account required message -->
+        <div id="bookingAuthNotice"
+            class="booking-auth-overlay"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="bookingAuthTitle"
+            aria-describedby="bookingAuthMessage"
+            hidden>
 
+            <div class="booking-auth-modal">
+                <h2 id="bookingAuthTitle">Account required</h2>
+
+                <p id="bookingAuthMessage">
+                    Please sign in or create an account to complete your booking.
+                </p>
+
+                <div class="booking-auth-buttons">
+                    <a href="signin.html?next=booking.html"
+                      class="btn-pill btn-pill-red">
+                        Sign In
+                    </a>
+
+                    <a href="signup.html"
+                      class="btn-pill btn-pill-cyan">
+                        Create Account
+                    </a>
+                </div>
+            </div>
+        </div>
     <div class="contact-section">
       <form class="form" action="#" method="post" data-local-submit data-api="/api/bookings" style="max-width:700px">
         <div class="form-group">
@@ -95,12 +123,38 @@
         </div>
         <div style="margin-top:1rem">
           <button class="btn btn-cyan" type="submit">Request Booking</button>
+          <p style="color:var(--muted);font-size:var(--sm);margin-top:var(--s3)">
+            Next step: pay the $50 consultation fee.
+          </p>
         </div>
       </form>
 
       <div>
         <h3>How it works</h3>
-        <p style="color:var(--muted)">Submit your details and we'll contact you to scope the project and arrange an obligation-free discussion.</p>
+
+        <div class="info-card card-border-cyan">
+          <span class="step-number">1</span>
+          <h4>Submit your details</h4>
+          <p style="color:var(--muted)">Tell us what you need. It takes about a minute and there is no obligation at this point.</p>
+        </div>
+
+        <div class="info-card card-border-cyan">
+          <span class="step-number">2</span>
+          <h4>Pay the $50 consultation fee</h4>
+          <p style="color:var(--muted)">You are taken straight to a payment page. The fee covers the initial consultation and is credited against any work that follows.</p>
+        </div>
+
+        <div class="info-card card-border-red">
+          <span class="step-number">3</span>
+          <h4>We confirm your time</h4>
+          <p style="color:var(--muted)">Our team will be in touch within one business day to arrange a time that suits you.</p>
+        </div>
+
+        <p style="color:var(--muted);font-size:var(--sm)">
+          Already booked? You can pay an outstanding fee, cancel an unpaid booking or check
+          its status any time from
+          <a href="portal.html" class="details-link">your portal</a>.
+        </p>
       </div>
     </div>
   </div>
@@ -140,7 +194,7 @@
     </div>
   </div>
 </footer>
-
+<script src="auth.js" defer></script>
 <script src="main.js" defer></script>
 <script src="content.js" defer></script>
 </body>

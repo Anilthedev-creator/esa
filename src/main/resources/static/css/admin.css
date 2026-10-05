@@ -161,12 +161,7 @@ body{
     grid-template-columns: 2fr 1fr;
     gap: 25px;
     margin-bottom: 40px;
-}
-
-.stat-card,
-.dashboard-card,
-.chart-card,
-.analytics-card{
+}.stat-card, .dashboard-card, .chart-card {
     background: var(--surface);
     box-shadow: var(--sh-md);
     border-radius: var(--r);
@@ -182,11 +177,6 @@ body{
 .dashboard-card,
 .chart-card{
     padding: 25px;
-}
-
-.analytics-card{
-    padding: 30px;
-    margin-top: 30px;
 }
 
 .stat-icon{
@@ -212,12 +202,8 @@ body{
 .stat-card span{
     color: var(--success);
     font-size: 14px;
-}
-
-/* CARD HEADER */
-.card-header,
-.content-header,
-.analytics-header{
+}/* CARD HEADER */
+.card-header, .content-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -229,10 +215,6 @@ body{
 
 .content-header{
     margin-bottom: 25px;
-}
-
-.analytics-header{
-    margin-bottom: 30px;
 }
 
 .card-header a{
@@ -408,18 +390,7 @@ th{
 .filter-btn:hover{
     background: var(--text);
     color: var(--surface);
-}
-
-/* ANALYTICS PAGE */
-.analytics-actions{
-    display: flex;
-    gap: 15px;
-    align-items: center;
-    flex-wrap: wrap;
-}
-
-.analytics-actions select,
-.export-btn{
+}.export-btn {
     padding: 12px 18px;
     border: 1px solid var(--border);
     border-radius: 8px;
@@ -530,7 +501,6 @@ th{
   .action-icons { gap: 12px; font-size: 16px; }
   
   .filter-btn { padding: 10px 16px; font-size: 13px; }
-  .analytics-actions { flex-wrap: wrap; gap: 10px; }
   
   .chart-container { height: 250px; }
   .fake-chart { height: 250px; }

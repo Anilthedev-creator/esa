@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import com.esaengineering.model.Role;
 import com.esaengineering.model.User;
 import com.esaengineering.repository.UserRepository;
+import com.esaengineering.security.PasswordHasher;
 
 @Service
 public class AuthService {
@@ -41,7 +42,7 @@ public class AuthService {
         user.setFullName(fullName);
         user.setCompanyName(companyName);
         user.setEmail(email);
-        user.setPassword(password);
+        user.setPassword(PasswordHasher.hash(password));
         user.setPhoneNumber(phoneNumber);
 
         user.setRole(Role.CUSTOMER);
@@ -87,8 +88,8 @@ public class AuthService {
 
         user.setFullName(fullName);
         user.setEmail(email);
-        user.setPassword(password);
-        user.setPhoneNumber(phoneNumber); 
+        user.setPassword(PasswordHasher.hash(password));
+        user.setPhoneNumber(phoneNumber);
         user.setCompanyName("ESA");
         user.setRole(Role.ADMIN);
         user.setPasswordResetRequired(true);
@@ -118,8 +119,12 @@ public class AuthService {
 
         User user = userOptional.get();
 
-        if (!user.getPassword().equals(password)) {
+        if (!PasswordHasher.matches(password, user.getPassword(), true)) {
             return null;
+        }
+        if (PasswordHasher.needsUpgrade(user.getPassword())) {
+            user.setPassword(PasswordHasher.hash(password));
+            userRepository.save(user);
         }
 
         return user;
@@ -148,7 +153,7 @@ public class AuthService {
 
         User user = userOptional.get();
 
-        user.setPassword(newPassword);
+        user.setPassword(PasswordHasher.hash(newPassword));
 
         userRepository.save(user);
 

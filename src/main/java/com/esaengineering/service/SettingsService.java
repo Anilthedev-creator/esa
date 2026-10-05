@@ -2,6 +2,8 @@ package com.esaengineering.service;
 
 import com.esaengineering.model.SiteSetting;
 import com.esaengineering.repository.SiteSettingRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -12,13 +14,19 @@ import java.util.Optional;
 @Service
 public class SettingsService {
 
+    private static final Logger log = LoggerFactory.getLogger(SettingsService.class);
+
     private final SiteSettingRepository repo;
 
     public SettingsService(SiteSettingRepository repo) {
         this.repo = repo;
     }
 
-    @Transactional
+    /**
+     * Creates the built-in settings if they are missing. Resilient on purpose:
+     * a missing table must not abort the boot.
+     */
+    @Transactional(noRollbackFor = RuntimeException.class)
     public void ensureDefaults() {
         Map<String, String> defaults = Map.of(
                 "siteName", "ESA Engineering",
@@ -26,14 +34,25 @@ public class SettingsService {
                 "timezone", "Australia/Melbourne",
                 "language", "en-AU"
         );
-        for (Map.Entry<String, String> e : defaults.entrySet()) {
-            if (!repo.existsById(e.getKey())) {
-                repo.save(new SiteSetting(e.getKey(), e.getValue()));
+        try {
+            for (Map.Entry<String, String> e : defaults.entrySet()) {
+                if (!repo.existsById(e.getKey())) {
+                    repo.save(new SiteSetting(e.getKey(), e.getValue()));
+                }
             }
+        } catch (RuntimeException e) {
+            log.warn("Could not seed the default site settings (they will be retried on the next start): {}",
+                    e.getMessage());
         }
     }
 
-    @Transactional(readOnly = true)
+    /**
+     * Read-only would be wrong here: this method calls ensureDefaults(), which
+     * INSERTs when rows are missing. In a read-only transaction those inserts
+     * are never flushed, so an empty table would silently render as empty
+     * settings in the admin panel instead of the defaults.
+     */
+    @Transactional
     public Map<String, Object> getSettings() {
         ensureDefaults();
         Map<String, Object> map = new LinkedHashMap<>();
@@ -43,6 +62,12 @@ public class SettingsService {
         Map<String, Object> resp = new LinkedHashMap<>();
         resp.put("settings", map);
         return resp;
+    }
+
+    /** Used by DataInitializer to prove the table exists and was seeded. */
+    @Transactional(readOnly = true)
+    public long countSettings() {
+        return repo.count();
     }
 
     @Transactional

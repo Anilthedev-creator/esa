@@ -14,7 +14,7 @@ public class ApiContentController {
 
     public ApiContentController(CmsService cmsService) {
         this.cmsService = cmsService;
-        cmsService.ensureDefaultPages();
+        // NOTE: no database access here - see DataInitializer.
     }
 
     @GetMapping("/content")

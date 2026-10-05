@@ -9,6 +9,7 @@ import java.util.Map;
 import com.esaengineering.dto.CustomerDTO;
 import com.esaengineering.model.Booking;
 import com.esaengineering.model.Contact;
+import com.esaengineering.model.User;
 import com.esaengineering.repository.BookingRepository;
 import com.esaengineering.repository.ContactRepository;
 import com.esaengineering.repository.UserRepository;
@@ -35,6 +36,9 @@ public class AdminService {
     /*
      * Existing customer management method.
      * Gets booking information and converts it into CustomerDTO.
+     *
+     * A booking has no phone or company, so those are joined from the matching
+     * User by email. Bookings whose email has no account keep them null.
      */
     public List<CustomerDTO> getAllBookings() {
 
@@ -42,8 +46,22 @@ public class AdminService {
 
         List<Booking> bookings = bookingRepository.findAll();
 
+        // Index the users once by lower-cased email instead of searching per booking.
+        Map<String, User> usersByEmail = new HashMap<>();
+        for (User user : userRepository.findAll()) {
+            if (user.getEmail() != null) {
+                usersByEmail.putIfAbsent(user.getEmail().toLowerCase(), user);
+            }
+        }
+
         for (Booking booking : bookings) {
-            customers.add(new CustomerDTO(booking));
+            CustomerDTO dto = new CustomerDTO(booking);
+            User user = booking.getEmail() != null ? usersByEmail.get(booking.getEmail().toLowerCase()) : null;
+            if (user != null) {
+                dto.setPhoneNumber(user.getPhoneNumber());
+                dto.setCompanyName(user.getCompanyName());
+            }
+            customers.add(dto);
         }
 
         return customers;
