@@ -834,10 +834,11 @@ app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api/')) return res.status(404).json({ message: 'Not found' });
   const filePath = path.join(STATIC_DIR, req.path);
   if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) return res.sendFile(filePath);
-  // try index.html
-  const index = path.join(STATIC_DIR, 'index.html');
-  if (fs.existsSync(index)) return res.sendFile(index);
-  next();
+  // unknown page -> show the branded 404 instead of pretending its the home page.
+  // (spring boot does the same thing with static/error/404.html)
+  const notFound = path.join(STATIC_DIR, '404.html');
+  if (fs.existsSync(notFound)) return res.status(404).sendFile(notFound);
+  res.status(404).send('Not found');
 });
 
 app.listen(PORT, '0.0.0.0', () => {

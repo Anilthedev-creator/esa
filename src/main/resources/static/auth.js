@@ -165,3 +165,61 @@ function redirectIfNotLoggedIn(redirectTo) {
   if (!redirectTo) redirectTo = "signin.html";
   if (!isLoggedIn()) window.location.href = redirectTo;
 }
+
+/* ==========================================================================
+   ui pass (oct 2026)
+   ========================================================================== */
+
+// toast notifications - small helper so we can stop using alert() everywhere.
+// every page loads auth.js so this is available site-wide.
+window.showToast = function (msg, kind) {
+  var box = document.getElementById('toastBox');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'toastBox';
+    box.setAttribute('aria-live', 'polite');
+    document.body.appendChild(box);
+  }
+  var t = document.createElement('div');
+  t.className = 'toast' + (kind ? ' ' + kind : '');
+  t.textContent = msg;
+  box.appendChild(t);
+  setTimeout(function () {
+    t.classList.add('hide');
+    setTimeout(function () { t.remove(); }, 350);
+  }, 3500);
+};
+
+// highlight the header nav link for the page we are on. dropdown parents get
+// highlighted too when one of their children is the current page.
+document.addEventListener('DOMContentLoaded', function () {
+  var here = window.location.pathname.split('/').pop();
+  if (!here || here === '') here = 'index.html';
+  document.querySelectorAll('.main-nav-box .nav-link').forEach(function (link) {
+    var href = (link.getAttribute('href') || '').split('?')[0];
+    if (!href) return;
+    // "index.html" and "/" are the same page
+    var target = href.split('/').pop();
+    if (target === here || (here === 'index.html' && href === 'index.html')) {
+      link.classList.add('current');
+      // also light up the dropdown trigger this link lives under
+      var dd = link.closest('.dropdown');
+      if (dd) {
+        var trigger = dd.querySelector('.dropdown-trigger');
+        if (trigger) trigger.classList.add('current');
+      }
+    }
+  });
+  // dropdown children dont all carry .nav-link, so check them separately and
+  // highlight their parent trigger (e.g. commissioning.html -> Services)
+  document.querySelectorAll('.main-nav-box .dropdown-content a').forEach(function (child) {
+    var href = (child.getAttribute('href') || '').split('?')[0].split('/').pop();
+    if (href && href === here) {
+      var dd = child.closest('.dropdown');
+      if (dd) {
+        var trigger = dd.querySelector('.dropdown-trigger');
+        if (trigger) trigger.classList.add('current');
+      }
+    }
+  });
+});

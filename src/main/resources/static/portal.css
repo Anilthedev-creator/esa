@@ -338,3 +338,21 @@
   .portal-hero-row { flex-direction: column; align-items: flex-start; gap: var(--s5); }
   .portal-hero-avatar { width: 72px; height: 72px; font-size: 1.4rem; }
 }
+
+/* ==========================================================================
+   ui pass (oct 2026)
+   ========================================================================== */
+
+/* timeline chips: smaller on phones so they dont wrap into a wall of text */
+@media (max-width: 560px) {
+  .portal-timeline { gap: 3px; }
+  .portal-timeline .t-dot { font-size: .62rem; padding: 3px 7px; }
+}
+
+/* reschedule backdrop: make sure the dialog itself is reachable by keyboard */
+.portal-modal input:focus-visible,
+.portal-modal select:focus-visible,
+.portal-modal button:focus-visible {
+  outline: 3px solid #007fa8;
+  outline-offset: 2px;
+}

@@ -179,18 +179,42 @@
 
   var rescheduleId = null;
 
+  var reschedOpener = null; // button that opened the dialog, so focus can go back
+
   function openReschedule(id) {
     rescheduleId = id;
+    reschedOpener = document.activeElement;
     var b = state.bookings.filter(function (x) { return String(x.bookingId) === String(id); })[0];
     if (b && b.bookingDate) $("reschedDate").value = b.bookingDate;
     if (b && b.preferredSlot) $("reschedSlot").value = b.preferredSlot;
     $("reschedNote").className = "portal-note";
     $("reschedBackdrop").classList.add("open");
+    $("reschedDate").focus();
+  }
+
+  function closeReschedule() {
+    $("reschedBackdrop").classList.remove("open");
+    if (reschedOpener && reschedOpener.focus) reschedOpener.focus();
   }
 
   function bindReschedule() {
-    $("reschedCancel").addEventListener("click", function () {
-      $("reschedBackdrop").classList.remove("open");
+    $("reschedCancel").addEventListener("click", closeReschedule);
+    // click on the dark part behind the dialog closes it too
+    $("reschedBackdrop").addEventListener("click", function (e) {
+      if (e.target === $("reschedBackdrop")) closeReschedule();
+    });
+    // escape closes, and tab stays inside the dialog while its open
+    document.addEventListener("keydown", function (e) {
+      if (!$("reschedBackdrop").classList.contains("open")) return;
+      if (e.key === "Escape") { closeReschedule(); return; }
+      if (e.key === "Tab") {
+        var focusables = $("reschedBackdrop").querySelectorAll('input, select, button, [href]');
+        if (!focusables.length) return;
+        var first = focusables[0];
+        var last = focusables[focusables.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
     });
     $("reschedSave").addEventListener("click", async function () {
       if (!rescheduleId) return;
@@ -204,7 +228,8 @@
             preferredSlot: $("reschedSlot").value
           })
         });
-        $("reschedBackdrop").classList.remove("open");
+        closeReschedule();
+        if (window.showToast) window.showToast("Booking moved - we emailed you the new details.", "ok");
         await load();
       } catch (e) {
         note.err(e.message);
@@ -215,7 +240,10 @@
   /* ------------------------- payments csv export ------------------------- */
   // builds the csv in the browser, no server round trip needed
   function exportPaymentsCsv() {
-    if (!state.payments.length) { alert("No payments to export yet."); return; }
+    if (!state.payments.length) {
+      if (window.showToast) window.showToast("No payments to export yet.");
+      return;
+    }
     var lines = ["Reference,Booking,Name,Amount,Status,Date"];
     state.payments.forEach(function (p) {
       lines.push([p.reference, p.bookingId || "", p.customerName, p.amount, p.status, (p.paymentDate || "").slice(0, 10)]
@@ -227,6 +255,7 @@
     a.href = URL.createObjectURL(blob);
     a.download = "esa-payments.csv";
     a.click();
+    if (window.showToast) window.showToast("CSV downloaded (" + state.payments.length + " payments).", "ok");
   }
 
   function renderEnquiries() {

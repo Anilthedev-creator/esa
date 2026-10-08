@@ -12,13 +12,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-
+<a class="skip-link" href="#main-content">Skip to content</a>
 <header class="main-header">
   <div class="top-split-bar"></div>
   <div class="container header-wrapper">
 
     <a href="index.html" class="logo">
-      <img class="logo-img" src="images/logo.png" alt="Engineering Services Australia"
+      <img width="550" height="188" class="logo-img" src="images/logo.png" alt="Engineering Services Australia"
            onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
       <span class="logo-fallback"><span class="red">ESA</span> <span class="navy">ENGINEERING</span></span>
     </a>
@@ -61,7 +61,7 @@
   </div>
 </header>
 
-<main class="section-padding">
+<main id="main-content" class="section-padding">
   <div class="container">
     <h1 class="section-title">Book a Consultation</h1>
      <!-- Account required message -->
@@ -124,7 +124,16 @@
           </div>
           <div class="form-group">
             <label for="preferredSlot">Time slot (optional)</label>
-            <select id="preferredSlot" name="preferredSlot" class="form-control">
+            <!-- chips are nicer to click than a dropdown. the real select is
+                 hidden underneath so the form submit code didnt need changing -->
+            <div class="slot-chips" role="group" aria-label="Preferred time slot">
+              <button type="button" class="slot-chip active" data-slot="">No preference</button>
+              <button type="button" class="slot-chip" data-slot="08:00">8:00 am</button>
+              <button type="button" class="slot-chip" data-slot="10:00">10:00 am</button>
+              <button type="button" class="slot-chip" data-slot="13:00">1:00 pm</button>
+              <button type="button" class="slot-chip" data-slot="15:00">3:00 pm</button>
+            </div>
+            <select id="preferredSlot" name="preferredSlot" class="form-control" style="display:none" tabindex="-1" aria-hidden="true">
               <option value="">No preference</option>
             <option>08:00</option>
             <option>10:00</option>
@@ -166,7 +175,7 @@
           <p style="color:var(--muted)">Our team will be in touch within one business day to arrange a time that suits you.</p>
         </div>
 
-        <p style="color:var(--muted);font-size:var(--sm)">
+        <p class="muted-sm">
           Already booked? You can pay an outstanding fee, cancel an unpaid booking or check
           its status any time from
           <a href="portal.html" class="details-link">your portal</a>.
@@ -180,9 +189,9 @@
   <div class="container">
     <div class="footer-grid">
       <div class="footer-brand">
-        <h3><span style="color:var(--red)">ESA</span> Engineering</h3>
+        <h3><span class="red-text">ESA</span> Engineering</h3>
         <p>Engineering Services Australia — technical excellence and attention to detail since 2004.</p>
-        <p style="margin-top:var(--s3);font-size:var(--sm);color:#9ca3af">📞 0402-464-823 &nbsp;·&nbsp; ✉️ engsa@live.com.au</p>
+        <p class="footer-contact">📞 0402-464-823 &nbsp;·&nbsp; ✉️ engsa@live.com.au</p>
       </div>
       <div class="footer-links">
         <h4>Services</h4>
@@ -211,6 +220,22 @@
     </div>
   </div>
 </footer>
+<script>
+  // slot chips -> hidden select. kept inline because its six lines and only
+  // used on this page
+  document.addEventListener('DOMContentLoaded', function () {
+    var chips = document.querySelectorAll('.slot-chip');
+    var select = document.getElementById('preferredSlot');
+    if (!chips.length || !select) return;
+    chips.forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        chips.forEach(function (c) { c.classList.remove('active'); });
+        chip.classList.add('active');
+        select.value = chip.getAttribute('data-slot');
+      });
+    });
+  });
+</script>
 <script src="auth.js" defer></script>
 <script src="main.js" defer></script>
 <script src="content.js" defer></script>

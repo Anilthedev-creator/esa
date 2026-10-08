@@ -11,13 +11,13 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
+<a class="skip-link" href="#main-content">Skip to content</a>
 <header class="main-header">
   <div class="top-split-bar"></div>
   <div class="container header-wrapper">
 
     <a href="index.html" class="logo">
-      <img class="logo-img" src="images/logo.png" alt="Engineering Services Australia"
+      <img width="550" height="188" class="logo-img" src="images/logo.png" alt="Engineering Services Australia"
            onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
       <span class="logo-fallback"><span class="red">ESA</span> <span class="navy">ENGINEERING</span></span>
     </a>
@@ -60,7 +60,7 @@
   </div>
 </header>
 
-    <main class="section-padding">
+    <main id="main-content" class="section-padding">
         <div class="container" style="max-width: 760px;">
 
             <div id="paymentError" style="display:none; color:#e63946; margin-bottom:15px; padding:12px 16px; background:#ffe5e7; border-radius:6px; font-size:.9rem;"></div>
@@ -90,9 +90,9 @@
                         <p style="color:var(--muted);font-size:var(--sm);line-height:1.7;margin:0">
                             We don't take cards on this site. Please bank the fee to the
                             <strong>Engineering Services Australia Pty Ltd</strong> account
-                            (email <a href="mailto:engsa@live.com.au" style="color:var(--cyan);font-weight:600">engsa@live.com.au</a>
+                            (email <a href="mailto:engsa@live.com.au" style="color:var(--cyan-text);font-weight:600">engsa@live.com.au</a>
                             or call <strong>0402 464 823</strong> if you need the account details)
-                            and quote your reference <strong id="payReference" style="color:var(--red)">…</strong>
+                            and quote your reference <strong id="payReference" class="red-text">…</strong>
                             so we can match your transfer. Then log it below.
                         </p>
                     </div>
@@ -146,9 +146,9 @@
   <div class="container">
     <div class="footer-grid">
       <div class="footer-brand">
-        <h3><span style="color:var(--red)">ESA</span> Engineering</h3>
+        <h3><span class="red-text">ESA</span> Engineering</h3>
         <p>Engineering Services Australia — technical excellence and attention to detail since 2004.</p>
-        <p style="margin-top:var(--s3);font-size:var(--sm);color:#9ca3af">📞 0402-464-823 &nbsp;·&nbsp; ✉️ engsa@live.com.au</p>
+        <p class="footer-contact">📞 0402-464-823 &nbsp;·&nbsp; ✉️ engsa@live.com.au</p>
       </div>
       <div class="footer-links">
         <h4>Services</h4>

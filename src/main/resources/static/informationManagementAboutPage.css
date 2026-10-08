@@ -110,3 +110,12 @@ button:hover{
 
 }
 
+
+
+/* skip link (same as style.css, this page doesnt load that one) */
+.skip-link {
+  position: absolute; left: -9999px; top: 0; z-index: 2000;
+  background: #0b172a; color: #fff; padding: 10px 18px;
+  font-size: .9rem; font-weight: 700; border-radius: 0 0 8px 0; text-decoration: none;
+}
+.skip-link:focus { left: 0; }

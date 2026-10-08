@@ -12,12 +12,12 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-
+<a class="skip-link" href="#main-content">Skip to content</a>
 <header class="main-header">
   <div class="top-split-bar"></div>
   <div class="container header-wrapper">
     <a href="index.html" class="logo">
-      <img class="logo-img" src="images/logo.png" alt="Engineering Services Australia"
+      <img width="550" height="188" class="logo-img" src="images/logo.png" alt="Engineering Services Australia"
            onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
       <span class="logo-fallback"><span class="red">ESA</span> <span class="navy">ENGINEERING</span></span>
     </a>
@@ -60,30 +60,30 @@
   </div>
 </section>
 
-<main class="container section-padding">
+<main id="main-content" class="container section-padding">
   <div class="grid">
     <div class="card">
-      <div style="font-size:2rem;margin-bottom:var(--s4)">🦺</div>
+      <div class="icon-badge" aria-hidden="true">🦺</div>
       <h3 style="color:var(--navy);margin-bottom:var(--s3)">WHSE Policy</h3>
-      <p style="color:var(--muted);font-size:var(--sm);margin-bottom:var(--s5)">
+      <p class="muted-sm mb-6">
         Our zero-harm directive: JSEA requirements, LOTO enforcement, incident
         reporting timeframes and who owns what. Signed by the Director.
       </p>
       <a class="btn btn-navy btn-sm" href="resources/whse-policy.pdf" download>Download PDF</a>
     </div>
     <div class="card card-red">
-      <div style="font-size:2rem;margin-bottom:var(--s4)">📄</div>
+      <div class="icon-badge" aria-hidden="true">📄</div>
       <h3 style="color:var(--navy);margin-bottom:var(--s3)">Capability Statement</h3>
-      <p style="color:var(--muted);font-size:var(--sm);margin-bottom:var(--s5)">
+      <p class="muted-sm mb-6">
         One page on what we do, selected track record ($50k to $80M+ projects)
         and key personnel with their qualifications.
       </p>
       <a class="btn btn-red btn-sm" href="resources/capability-statement.pdf" download>Download PDF</a>
     </div>
     <div class="card">
-      <div style="font-size:2rem;margin-bottom:var(--s4)">🗂️</div>
+      <div class="icon-badge" aria-hidden="true">🗂️</div>
       <h3 style="color:var(--navy);margin-bottom:var(--s3)">Prequalification Summary</h3>
-      <p style="color:var(--muted);font-size:var(--sm);margin-bottom:var(--s5)">
+      <p class="muted-sm mb-6">
         Company details, insurance levels, WHSE references and qualification
         summaries for vendor prequalification forms.
       </p>
@@ -93,9 +93,9 @@
 
   <div class="info-card card-border-cyan" style="margin-top:var(--s10)">
     <h4 style="color:var(--navy);margin-bottom:var(--s2)">Need something that is not here?</h4>
-    <p style="color:var(--muted);font-size:var(--sm)">
+    <p class="muted-sm">
       Insurance certificates, ISO documentation or client references: email
-      <a href="mailto:engsa@live.com.au" style="color:var(--cyan);font-weight:600">engsa@live.com.au</a>
+      <a href="mailto:engsa@live.com.au" style="color:var(--cyan-text);font-weight:600">engsa@live.com.au</a>
       and we will send them across, usually the same day.
     </p>
   </div>
@@ -105,9 +105,9 @@
   <div class="container">
     <div class="footer-grid">
       <div class="footer-brand">
-        <h3><span style="color:var(--red)">ESA</span> Engineering</h3>
+        <h3><span class="red-text">ESA</span> Engineering</h3>
         <p>Engineering Services Australia — technical excellence and attention to detail since 2004.</p>
-        <p style="margin-top:var(--s3);font-size:var(--sm);color:#9ca3af">📞 0402-464-823 &nbsp;·&nbsp; ✉️ engsa@live.com.au</p>
+        <p class="footer-contact">📞 0402-464-823 &nbsp;·&nbsp; ✉️ engsa@live.com.au</p>
       </div>
       <div class="footer-links">
         <h4>Services</h4>

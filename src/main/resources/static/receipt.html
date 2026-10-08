@@ -13,8 +13,10 @@
     margin: 40px auto;
     background: #fff;
     border: 1px solid var(--border);
+    border-top: 4px solid var(--red); /* looks like a real document header */
     border-radius: var(--r);
     padding: 40px;
+    box-shadow: var(--sh-md);
   }
   .receipt-sheet h1 { font-size: 1.4rem; color: var(--navy); margin: 0 0 4px; }
   .receipt-sheet .sub { color: var(--muted); font-size: .85rem; margin: 0 0 24px; }
@@ -27,21 +29,24 @@
   .receipt-row span:last-child { font-weight: 600; color: var(--navy); text-align: right; }
   .receipt-total { font-size: 1.1rem; }
   .receipt-note { color: var(--muted); font-size: .8rem; margin-top: 24px; line-height: 1.6; }
-  .receipt-actions { text-align: center; margin: 20px 0 40px; }
+  .receipt-actions {
+    display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+    margin: 20px 0 40px;
+  }
   @media print {
     .receipt-actions, .main-header, .main-footer { display: none !important; }
-    .receipt-sheet { border: none; margin: 0; max-width: none; }
+    .receipt-sheet { border: none; margin: 0; max-width: none; box-shadow: none; }
     body { background: #fff; }
   }
 </style>
 </head>
 <body>
-
+<a class="skip-link" href="#main-content">Skip to content</a>
 <header class="main-header">
   <div class="top-split-bar"></div>
   <div class="container header-wrapper">
     <a href="index.html" class="logo">
-      <img class="logo-img" src="images/logo.png" alt="Engineering Services Australia"
+      <img width="550" height="188" class="logo-img" src="images/logo.png" alt="Engineering Services Australia"
            onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
       <span class="logo-fallback"><span class="red">ESA</span> <span class="navy">ENGINEERING</span></span>
     </a>
@@ -51,7 +56,7 @@
   </div>
 </header>
 
-<main>
+<main id="main-content">
   <div class="receipt-sheet" id="receiptSheet">
     <h1>Engineering Services Australia Pty Ltd</h1>
     <p class="sub">2212 Gundowring Road, Gundowring VIC 3691 &middot; ABN 92 108 345 384 &middot; 0402 464 823</p>
@@ -80,13 +85,13 @@ document.addEventListener('DOMContentLoaded', function () {
   }
   var id = new URLSearchParams(window.location.search).get('payment');
   var box = document.getElementById('receiptRows');
-  if (!id) { box.innerHTML = '<p style="color:var(--red)">No payment picked.</p>'; return; }
+  if (!id) { box.innerHTML = '<p class="red-text">No payment picked.</p>'; return; }
 
   fetch('/api/portal/payments', { headers: (typeof authHeaders === 'function' ? authHeaders() : {}) })
     .then(function (r) { return r.json(); })
     .then(function (data) {
       var p = (data.payments || []).filter(function (x) { return String(x.id) === String(id); })[0];
-      if (!p) { box.innerHTML = '<p style="color:var(--red)">We could not find that payment in your account.</p>'; return; }
+      if (!p) { box.innerHTML = '<p class="red-text">We could not find that payment in your account.</p>'; return; }
       var statusText = p.status === 'completed' ? 'PAID' : (p.status === 'pending' ? 'Transfer logged, waiting to clear' : 'Not paid yet');
       box.innerHTML =
         row('Reference', p.reference) +
@@ -97,7 +102,7 @@ document.addEventListener('DOMContentLoaded', function () {
         row('Amount', '$' + p.amount);
     })
     .catch(function () {
-      box.innerHTML = '<p style="color:var(--red)">Could not load the payment, is the server running?</p>';
+      box.innerHTML = '<p class="red-text">Could not load the payment, is the server running?</p>';
     });
 
   function row(label, value) {

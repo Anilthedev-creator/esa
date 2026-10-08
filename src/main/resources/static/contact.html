@@ -16,13 +16,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-
+<a class="skip-link" href="#main-content">Skip to content</a>
     <header class="main-header">
   <div class="top-split-bar"></div>
   <div class="container header-wrapper">
 
     <a href="index.html" class="logo">
-      <img class="logo-img" src="images/logo.png" alt="Engineering Services Australia"
+      <img width="550" height="188" class="logo-img" src="images/logo.png" alt="Engineering Services Australia"
            onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
       <span class="logo-fallback"><span class="red">ESA</span> <span class="navy">ENGINEERING</span></span>
     </a>
@@ -65,7 +65,7 @@
   </div>
 </header>
 
-    <main>
+    <main id="main-content">
         <section class="contact-hero">
             <div class="container">
                 <p class="accent-label">CONNECT WITH US</p>
@@ -99,7 +99,7 @@
 
                     <!-- extra questions per service, shown/hidden by the script
                          at the bottom of this page -->
-                    <div class="wizard-extra" data-for="Plant Commissioning" style="display:none">
+                    <div class="wizard-extra" data-for="Plant Commissioning">
                         <div class="form-group">
                             <label>Plant / facility type</label>
                             <input type="text" class="form-control" data-label="Plant type" placeholder="e.g. food processing, minerals, water">
@@ -109,13 +109,13 @@
                             <input type="text" class="form-control" data-label="Target start" placeholder="e.g. next month, Q3">
                         </div>
                     </div>
-                    <div class="wizard-extra" data-for="Utility Appraisal" style="display:none">
+                    <div class="wizard-extra" data-for="Utility Appraisal">
                         <div class="form-group">
                             <label>Approx. annual utility spend</label>
                             <input type="text" class="form-control" data-label="Utility spend" placeholder="e.g. $400k">
                         </div>
                     </div>
-                    <div class="wizard-extra" data-for="Production Optimisation" style="display:none">
+                    <div class="wizard-extra" data-for="Production Optimisation">
                         <div class="form-group">
                             <label>How many production lines?</label>
                             <input type="text" class="form-control" data-label="Lines" placeholder="e.g. 3">
@@ -125,13 +125,13 @@
                             <input type="text" class="form-control" data-label="Bottleneck" placeholder="e.g. packing station downtime">
                         </div>
                     </div>
-                    <div class="wizard-extra" data-for="Waste Management" style="display:none">
+                    <div class="wizard-extra" data-for="Waste Management">
                         <div class="form-group">
                             <label>Waste stream</label>
                             <input type="text" class="form-control" data-label="Waste stream" placeholder="e.g. liquid trade waste, scrap metal">
                         </div>
                     </div>
-                    <div class="wizard-extra" data-for="Dangerous Goods" style="display:none">
+                    <div class="wizard-extra" data-for="Dangerous Goods">
                         <div class="form-group">
                             <label>Chemical class &amp; storage volume</label>
                             <input type="text" class="form-control" data-label="Chemicals" placeholder="e.g. class 3, 40kL">
@@ -146,9 +146,14 @@
                         <input type="file" id="attachFile" class="form-control">
                         <input type="hidden" name="attachmentName" id="attachmentName">
                         <input type="hidden" name="attachmentData" id="attachmentData">
-                        <p id="attachNote" style="font-size:.8rem;color:var(--muted);margin-top:6px"></p>
+                        <p id="attachNote" class="xs muted mt-2" style="margin-top:6px"></p>
+                        <!-- shows what got picked, with a remove button (contact wizard script fills it) -->
+                        <p id="attachInfo" class="attach-info">
+                          <span id="attachInfoText"></span>
+                          <button type="button" id="attachRemove">Remove</button>
+                        </p>
                     </div>
-                    <button type="submit" class="btn btn-cyan" style="width: 100%;">Submit Request</button>
+                    <button type="submit" class="btn btn-red" style="width: 100%;">Submit Request</button>
                 </form>
             </div>
 
@@ -161,8 +166,8 @@
                         <strong>Engineering Services Australia</strong><br>
                         2212 Gundowring Road<br>
                         Gundowring VIC 3691<br><br>
-                        <strong>P:</strong> <a href="tel:+61402464823" style="color:var(--cyan);font-weight:600">0402 464 823</a><br>
-                        <strong>E:</strong> <a href="mailto:engsa@live.com.au" style="color:var(--cyan);font-weight:600">engsa@live.com.au</a>
+                        <strong>P:</strong> <a href="tel:+61402464823" style="color:var(--cyan-text);font-weight:600">0402 464 823</a><br>
+                        <strong>E:</strong> <a href="mailto:engsa@live.com.au" style="color:var(--cyan-text);font-weight:600">engsa@live.com.au</a>
                     </p>
                 </div>
 
@@ -191,7 +196,7 @@
   <div class="container">
     <div style="text-align:center;margin-bottom:var(--s8)">
       <p class="accent-label">FIND US</p>
-      <h2 style="color: var(--navy);">Head Office Location</h2>
+      <h2 class="navy-text">Head Office Location</h2>
     </div>
     <div style="border-radius:20px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,0.10);background:#fff">
       <iframe
@@ -206,7 +211,7 @@
         <h4 style="color:var(--navy);margin-bottom:var(--s2)">Our response promise</h4>
         <p style="color:var(--muted);font-size:var(--sm);max-width:760px">
           Every enquiry gets a reply from a real engineer within <strong>1 business day</strong>
-          (Mon&ndash;Fri, 8am&ndash;5pm AEST/AEDT). Site-based? Call <a href="tel:+61402464823" style="color:var(--cyan);font-weight:600">0402 464 823</a>
+          (Mon&ndash;Fri, 8am&ndash;5pm AEST/AEDT). Site-based? Call <a href="tel:+61402464823" style="color:var(--cyan-text);font-weight:600">0402 464 823</a>
           and leave the details &mdash; same-day call back if we are off site.
         </p>
       </div>
@@ -218,9 +223,9 @@
   <div class="container">
     <div class="footer-grid">
       <div class="footer-brand">
-        <h3><span style="color:var(--red)">ESA</span> Engineering</h3>
+        <h3><span class="red-text">ESA</span> Engineering</h3>
         <p>Engineering Services Australia — technical excellence and attention to detail since 2004.</p>
-        <p style="margin-top:var(--s3);font-size:var(--sm);color:#9ca3af">📞 0402-464-823 &nbsp;·&nbsp; ✉️ engsa@live.com.au</p>
+        <p class="footer-contact">📞 0402-464-823 &nbsp;·&nbsp; ✉️ engsa@live.com.au</p>
       </div>
       <div class="footer-links">
         <h4>Services</h4>
@@ -260,7 +265,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function showExtras() {
     extras.forEach(function (g) {
-      g.style.display = (g.getAttribute('data-for') === typeSel.value) ? 'block' : 'none';
+      // .show slides the block in (see style.css), display:none is the css default
+      if (g.getAttribute('data-for') === typeSel.value) g.classList.add('show');
+      else g.classList.remove('show');
     });
   }
   if (typeSel) { typeSel.addEventListener('change', showExtras); showExtras(); }
@@ -272,7 +279,7 @@ document.addEventListener('DOMContentLoaded', function () {
     form.addEventListener('submit', function () {
       var bits = [];
       extras.forEach(function (g) {
-        if (g.style.display === 'none') return;
+        if (!g.classList.contains('show')) return;
         g.querySelectorAll('input').forEach(function (inp) {
           if (inp.value) bits.push((inp.getAttribute('data-label') || 'Detail') + ': ' + inp.value);
         });
@@ -286,6 +293,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // attachment -> base64 into the hidden inputs (kept under ~4MB)
   var file = document.getElementById('attachFile');
+  var removeBtn = document.getElementById('attachRemove');
+  if (removeBtn) {
+    removeBtn.addEventListener('click', function () {
+      file.value = '';
+      document.getElementById('attachmentName').value = '';
+      document.getElementById('attachmentData').value = '';
+      document.getElementById('attachInfo').classList.remove('show');
+      document.getElementById('attachNote').textContent = '';
+    });
+  }
   if (file) {
     file.addEventListener('change', function () {
       var note = document.getElementById('attachNote');
@@ -303,7 +320,11 @@ document.addEventListener('DOMContentLoaded', function () {
         var dataUrl = String(reader.result || '');
         document.getElementById('attachmentName').value = file.files[0].name;
         document.getElementById('attachmentData').value = dataUrl.slice(dataUrl.indexOf(',') + 1);
-        note.textContent = 'Attached: ' + file.files[0].name;
+        // show the picked file in the little info bar with its size
+        var kb = Math.max(1, Math.round(file.files[0].size / 1024));
+        document.getElementById('attachInfoText').textContent = '\u{1F4CE} ' + file.files[0].name + ' (' + kb + ' KB)';
+        document.getElementById('attachInfo').classList.add('show');
+        note.textContent = '';
       };
       reader.readAsDataURL(file.files[0]);
     });

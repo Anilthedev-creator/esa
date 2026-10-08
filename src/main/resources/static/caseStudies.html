@@ -13,13 +13,13 @@
 </head>
 
 <body data-admin-page="casestudies">
-
+<a class="skip-link" href="#main-content">Skip to content</a>
 <div class="admin-layout">
 
   <!-- SIDEBAR (same as the other admin pages) -->
   <aside id="sidebar" class="sidebar">
     <div class="sidebar-logo">
-      <img src="images/logo-white.png" alt="Engineering Services Australia">
+      <img loading="lazy" width="550" height="188" src="images/logo-white.png" alt="Engineering Services Australia">
     </div>
     <nav class="sidebar-nav">
       <a href="dashboard.html"><i class="fa-solid fa-gauge-high"></i> Dashboard</a>
@@ -41,7 +41,7 @@
   </aside>
 
   <!-- MAIN -->
-  <main class="main-content">
+  <main id="main-content" class="main-content">
 
     <header class="admin-topbar">
       <div class="topbar-links">
@@ -85,22 +85,26 @@
           <label>Value chip
             <input id="studyValue" class="admin-input" style="width:100%;margin-top:4px" placeholder="e.g. $80M facility">
           </label>
-          <label>Image
-            <select id="studyImage" class="admin-input" style="width:100%;margin-top:4px">
-              <option value="images/project-grain.jpg">Grain silos</option>
-              <option value="images/project-pipeline.jpg">Pipeline</option>
-              <option value="images/project-remote-site.jpg">Remote site at night</option>
-              <option value="images/project-wastewater.jpg">Wastewater aerial</option>
-              <option value="images/project-water-treatment.jpg">Water treatment aerial</option>
-              <option value="images/project-mining.jpg">Open pit mine</option>
-              <option value="images/project-fuel.jpg">Fuel tanks</option>
-              <option value="images/project-food.jpg">Production line</option>
-              <option value="images/project-trade-waste.jpg">Lab sampling</option>
-              <option value="images/project-dust-control.jpg">Dust silo</option>
-              <option value="images/project-tank-farm.jpg">Tank farm</option>
-              <option value="images/project-relocation.jpg">Crane lift</option>
-            </select>
-          </label>
+          <div style="grid-column:1/-1">
+            <label>Image <span class="admin-muted">(click a thumbnail)</span></label>
+            <!-- hidden input keeps the same id so payload()/edit() didnt need
+                 changing, the radios just sync into it -->
+            <input type="hidden" id="studyImage" value="images/project-grain.jpg">
+            <div class="thumb-grid" id="thumbGrid">
+              <label class="thumb-option" title="Grain silos"><input type="radio" name="studyThumb" value="images/project-grain.jpg" checked><img src="images/project-grain.jpg" alt="Grain silos" loading="lazy"></label>
+              <label class="thumb-option" title="Pipeline"><input type="radio" name="studyThumb" value="images/project-pipeline.jpg"><img src="images/project-pipeline.jpg" alt="Pipeline" loading="lazy"></label>
+              <label class="thumb-option" title="Remote site at night"><input type="radio" name="studyThumb" value="images/project-remote-site.jpg"><img src="images/project-remote-site.jpg" alt="Remote site at night" loading="lazy"></label>
+              <label class="thumb-option" title="Wastewater aerial"><input type="radio" name="studyThumb" value="images/project-wastewater.jpg"><img src="images/project-wastewater.jpg" alt="Wastewater aerial" loading="lazy"></label>
+              <label class="thumb-option" title="Water treatment aerial"><input type="radio" name="studyThumb" value="images/project-water-treatment.jpg"><img src="images/project-water-treatment.jpg" alt="Water treatment aerial" loading="lazy"></label>
+              <label class="thumb-option" title="Open pit mine"><input type="radio" name="studyThumb" value="images/project-mining.jpg"><img src="images/project-mining.jpg" alt="Open pit mine" loading="lazy"></label>
+              <label class="thumb-option" title="Fuel tanks"><input type="radio" name="studyThumb" value="images/project-fuel.jpg"><img src="images/project-fuel.jpg" alt="Fuel tanks" loading="lazy"></label>
+              <label class="thumb-option" title="Production line"><input type="radio" name="studyThumb" value="images/project-food.jpg"><img src="images/project-food.jpg" alt="Production line" loading="lazy"></label>
+              <label class="thumb-option" title="Lab sampling"><input type="radio" name="studyThumb" value="images/project-trade-waste.jpg"><img src="images/project-trade-waste.jpg" alt="Lab sampling" loading="lazy"></label>
+              <label class="thumb-option" title="Dust silo"><input type="radio" name="studyThumb" value="images/project-dust-control.jpg"><img src="images/project-dust-control.jpg" alt="Dust silo" loading="lazy"></label>
+              <label class="thumb-option" title="Tank farm"><input type="radio" name="studyThumb" value="images/project-tank-farm.jpg"><img src="images/project-tank-farm.jpg" alt="Tank farm" loading="lazy"></label>
+              <label class="thumb-option" title="Crane lift"><input type="radio" name="studyThumb" value="images/project-relocation.jpg"><img src="images/project-relocation.jpg" alt="Crane lift" loading="lazy"></label>
+            </div>
+          </div>
           <label>Status
             <select id="studyStatus" class="admin-input" style="width:100%;margin-top:4px">
               <option value="published">Published</option>
@@ -120,7 +124,8 @@
 
       <!-- list -->
       <div class="dashboard-card">
-        <table>
+        <div class="table-scroll">
+<table>
           <thead>
             <tr><th>Title</th><th>Category</th><th>Status</th><th>Action</th></tr>
           </thead>
@@ -128,6 +133,7 @@
             <tr><td colspan="4">Loading...</td></tr>
           </tbody>
         </table>
+</div>
       </div>
 
     </section>
@@ -188,6 +194,19 @@ document.addEventListener('DOMContentLoaded', function () {
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
+  // keep the hidden #studyImage in sync with whichever thumbnail is picked
+  function setThumb(value) {
+    document.getElementById('studyImage').value = value;
+    document.querySelectorAll('#thumbGrid input[type="radio"]').forEach(function (r) {
+      r.checked = (r.value === value);
+    });
+  }
+  document.getElementById('thumbGrid').addEventListener('change', function (e) {
+    if (e.target.name === 'studyThumb') {
+      document.getElementById('studyImage').value = e.target.value;
+    }
+  });
+
   function payload() {
     return {
       title: document.getElementById('studyTitle').value.trim(),
@@ -219,6 +238,7 @@ document.addEventListener('DOMContentLoaded', function () {
   function clearForm() {
     document.getElementById('studyForm').reset();
     document.getElementById('studyId').value = '';
+    setThumb('images/project-grain.jpg'); // reset() does this too but be explicit
     document.getElementById('formHeading').textContent = 'Add a case study';
   }
   document.getElementById('resetForm').addEventListener('click', clearForm);
@@ -226,9 +246,17 @@ document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('studiesBody').addEventListener('click', function (e) {
     var del = e.target.closest('[data-del]');
     if (del) {
-      if (!confirm('Delete this case study?')) return;
-      fetch(API + '/' + del.getAttribute('data-del'), { method: 'DELETE', headers: headers() })
-        .then(function () { load(); });
+      var delId = del.getAttribute('data-del');
+      window.esaConfirm('Delete this case study?',
+        'It will disappear from the projects page straight away. This cannot be undone.',
+        'Delete it').then(function (yes) {
+        if (!yes) return;
+        fetch(API + '/' + delId, { method: 'DELETE', headers: headers() })
+          .then(function () {
+            if (window.showToast) window.showToast('Case study deleted.', 'ok');
+            load();
+          });
+      });
       return;
     }
     var ed = e.target.closest('[data-edit]');
@@ -245,7 +273,7 @@ document.addEventListener('DOMContentLoaded', function () {
           document.getElementById('studyLocation').value = p.location || '';
           document.getElementById('studyValue').value = p.valueLabel || '';
           document.getElementById('studySummary').value = p.summary || '';
-          document.getElementById('studyImage').value = p.image || 'images/project-remote-site.jpg';
+          setThumb(p.image || 'images/project-remote-site.jpg');
           document.getElementById('studyStatus').value = p.status || 'draft';
           document.getElementById('formHeading').textContent = 'Edit case study #' + p.id;
           window.scrollTo(0, 0);

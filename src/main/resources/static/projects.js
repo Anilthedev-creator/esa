@@ -1,5 +1,6 @@
 // projects.js
-// makes the filter buttons above the project grid actually work.
+// makes the filter buttons above the project grid actually work, and pulls in
+// the case studies the office publishes from the admin (caseStudies.html).
 // each project photo carries a data-cat="water|mining|food|fuel|infra"
 // and each button carries a data-filter with the same word (or "all").
 
@@ -8,32 +9,108 @@ document.addEventListener("DOMContentLoaded", function () {
   var grid = document.querySelector(".project-grid");
   if (!buttons.length || !grid) return;
 
-  // case studies the office published from the admin get tacked on after the
-  // built-in cards, same markup so the filters work on them too
+  var countEl = document.getElementById("projectCount");
+  var currentFilter = "all";
+
+  // category -> the label we show on the card
+  var LABELS = {
+    water: "Water & Wastewater",
+    mining: "Mining",
+    food: "Food & Beverage",
+    fuel: "Fuel & Energy",
+    infra: "Infrastructure"
+  };
+
+  // three shimmer cards so the grid doesnt jump when the api cards arrive
+  function showSkeletons() {
+    for (var i = 0; i < 3; i++) {
+      var sk = document.createElement("div");
+      sk.className = "skeleton-card";
+      sk.setAttribute("data-skeleton", "1");
+      sk.innerHTML = '<div class="skeleton-img"></div>' +
+        '<div class="skeleton-line w60"></div>' +
+        '<div class="skeleton-line"></div>' +
+        '<div class="skeleton-line w60"></div>';
+      grid.appendChild(sk);
+    }
+  }
+  function hideSkeletons() {
+    grid.querySelectorAll("[data-skeleton]").forEach(function (sk) { sk.remove(); });
+  }
+
+  function buildCard(p, i) {
+    var card = document.createElement("div");
+    card.className = "card" + ((i % 2) ? " card-red" : "");
+    // same markup as the built-in cards so the filters work on these too
+    card.innerHTML =
+      '<img class="card-photo" src="' + (p.image || "images/project-remote-site.jpg") + '" data-cat="' + (p.category || "infra") + '" alt="' + String(p.title || "").replace(/"/g, "&quot;") + '" loading="lazy">' +
+      '<span class="accent-label">' + (LABELS[p.category] || LABELS.infra) + "</span>" +
+      '<h3 class="proj-card-title">' + String(p.title || "") + "</h3>" +
+      '<p class="proj-card-sum">' + String(p.summary || "") + "</p>" +
+      '<div class="proj-card-foot">' +
+        '<span class="proj-loc">' + String(p.location || "") + "</span>" +
+        '<span class="proj-val">' + String(p.valueLabel || "") + "</span>" +
+      "</div>";
+    return card;
+  }
+
+  // "Showing X of Y projects" under the filter bar
+  function updateCount() {
+    if (!countEl) return;
+    var photos = grid.querySelectorAll(".card-photo");
+    var shown = 0;
+    photos.forEach(function (img) {
+      var card = img.closest(".card");
+      if (card && card.style.display !== "none") shown++;
+    });
+    countEl.textContent = "Showing " + shown + " of " + photos.length + " projects";
+  }
+
+  function applyFilter(want) {
+    currentFilter = want;
+    var photos = grid.querySelectorAll(".card-photo");
+    var visibleCount = 0;
+    photos.forEach(function (img) {
+      var card = img.closest(".card");
+      if (!card) return;
+      if (want === "all" || img.getAttribute("data-cat") === want) {
+        card.style.display = "";
+        visibleCount++;
+      } else {
+        card.style.display = "none";
+      }
+    });
+    // friendly message instead of a wall of blank space
+    var oldEmpty = grid.querySelector(".empty-state");
+    if (oldEmpty) oldEmpty.remove();
+    if (!visibleCount) {
+      var e = document.createElement("div");
+      e.className = "empty-state";
+      e.textContent = "No projects in this category yet - check back soon or pick another filter.";
+      grid.appendChild(e);
+    }
+    updateCount();
+  }
+
+  showSkeletons();
   fetch("/api/projects")
     .then(function (r) { return r.ok ? r.json() : { projects: [] }; })
     .then(function (data) {
-      (data.projects || []).forEach(function (p) {
-        var card = document.createElement("div");
-        card.className = "card" + ((data.projects.indexOf(p) % 2) ? " card-red" : "");
-        card.innerHTML =
-          '<img class="card-photo" src="' + (p.image || "images/project-remote-site.jpg") + '" data-cat="' + (p.category || "infra") + '" alt="' + String(p.title || "").replace(/"/g, "&quot;") + '" loading="lazy">' +
-          '<span class="accent-label">' + (p.category === "water" ? "Water & Wastewater" : p.category === "mining" ? "Mining" : p.category === "food" ? "Food & Beverage" : p.category === "fuel" ? "Fuel & Energy" : "Infrastructure") + "</span>" +
-          '<h3 style="font-size:1rem;margin-bottom:.5rem;color:var(--navy)">' + String(p.title || "") + "</h3>" +
-          '<p style="font-size:var(--sm);color:var(--muted);margin-bottom:var(--s4)">' + String(p.summary || "") + "</p>" +
-          '<div style="display:flex;justify-content:space-between;align-items:center;padding-top:var(--s4);border-top:1px solid var(--border)">' +
-            '<span style="font-size:var(--xs);color:var(--muted)">' + String(p.location || "") + "</span>" +
-            '<span style="font-size:var(--xs);font-weight:700;color:var(--navy)">' + String(p.valueLabel || "") + "</span>" +
-          "</div>";
-        grid.appendChild(card);
+      hideSkeletons();
+      (data.projects || []).forEach(function (p, i) {
+        grid.appendChild(buildCard(p, i));
       });
+      // re-apply whatever filter is on so new cards respect it
+      applyFilter(currentFilter);
     })
-    .catch(function () { /* offline is fine, the built-in cards still show */ });
+    .catch(function () {
+      // offline is fine, the built-in cards still show
+      hideSkeletons();
+      updateCount();
+    });
 
   buttons.forEach(function (btn) {
     btn.addEventListener("click", function () {
-      var want = btn.getAttribute("data-filter");
-
       // swap the active look onto the clicked button
       buttons.forEach(function (b) {
         b.classList.remove("btn-navy");
@@ -41,18 +118,9 @@ document.addEventListener("DOMContentLoaded", function () {
       });
       btn.classList.remove("btn-ghost");
       btn.classList.add("btn-navy");
-
-      // show/hide the cards (re-queried so added case studies are included)
-      var photos = grid.querySelectorAll(".card-photo");
-      photos.forEach(function (img) {
-        var card = img.closest(".card");
-        if (!card) return;
-        if (want === "all" || img.getAttribute("data-cat") === want) {
-          card.style.display = "";
-        } else {
-          card.style.display = "none";
-        }
-      });
+      applyFilter(btn.getAttribute("data-filter"));
     });
   });
+
+  updateCount();
 });

@@ -284,6 +284,44 @@
   /* ------------------------------ view/edit -------------------------------- */
   var STORE = { customer: null, enquiry: null, payment: null, page: null, bookings: null };
 
+  /* Client-side pagination for the big tables. Called after every render:
+     rows over pageSize get hidden and a Prev/Next pager is built under the
+     table. Small lists just show everything with no pager. */
+  function paginate(bodyId, pageSize) {
+    var body = $(bodyId);
+    if (!body) return;
+    var table = body.closest('table');
+    var card = table.closest('.dashboard-card') || table.parentNode;
+    var oldPager = document.getElementById(bodyId + 'Pager');
+    if (oldPager) oldPager.remove();
+    var rows = Array.prototype.slice.call(body.querySelectorAll('tr'));
+    if (rows.length <= pageSize) {
+      rows.forEach(function (r) { r.style.display = ''; });
+      return;
+    }
+    var page = 0;
+    var pages = Math.ceil(rows.length / pageSize);
+    var pager = document.createElement('div');
+    pager.className = 'table-pager';
+    pager.id = bodyId + 'Pager';
+    pager.innerHTML = '<span class="pager-info"></span>' +
+      '<button type="button" class="pager-prev">Prev</button>' +
+      '<button type="button" class="pager-next">Next</button>';
+    card.appendChild(pager);
+    function draw() {
+      rows.forEach(function (r, i) {
+        r.style.display = (i >= page * pageSize && i < (page + 1) * pageSize) ? '' : 'none';
+      });
+      pager.querySelector('.pager-info').textContent =
+        'Showing ' + (page * pageSize + 1) + '-' + Math.min((page + 1) * pageSize, rows.length) + ' of ' + rows.length;
+      pager.querySelector('.pager-prev').disabled = (page === 0);
+      pager.querySelector('.pager-next').disabled = (page === pages - 1);
+    }
+    pager.querySelector('.pager-prev').addEventListener('click', function () { if (page > 0) { page--; draw(); } });
+    pager.querySelector('.pager-next').addEventListener('click', function () { if (page < pages - 1) { page++; draw(); } });
+    draw();
+  }
+
   function bindActions(container) {
     container.querySelectorAll('[data-edit]').forEach(function (el) {
       el.addEventListener('click', function () {
@@ -305,11 +343,14 @@
     });
     container.querySelectorAll('[data-mark-paid]').forEach(function (el) {
       el.addEventListener('click', async function () {
-        if (!confirm('Mark this payment completed? Only do this once the transfer is in the bank feed.')) return;
+        var yes = await window.esaConfirm('Mark payment completed?',
+          'Only do this once the transfer is visible in the bank feed.', 'Mark completed');
+        if (!yes) return;
         try {
           await api('/payments/' + el.dataset.markPaid, { method: 'PATCH', body: JSON.stringify({ status: 'completed' }) });
+          if (window.showToast) window.showToast('Payment marked completed.', 'ok');
           refresh();
-        } catch (e) { alert(e.message); }
+        } catch (e) { if (window.showToast) window.showToast(e.message, 'err'); }
       });
     });
   }
@@ -563,6 +604,7 @@
       $('customersBody').innerHTML = data.customers.map(customerRow).join('') ||
         '<tr><td colspan="6">No customers yet</td></tr>';
       bindActions($('customersBody'));
+      paginate('customersBody', 12);
     } catch (e) { showOffline('customer list unavailable'); }
   }
 
@@ -572,6 +614,7 @@
       $('enquiriesBody').innerHTML = data.enquiries.map(enquiryRow).join('') ||
         '<tr><td colspan="6">No enquiries yet</td></tr>';
       bindActions($('enquiriesBody'));
+      paginate('enquiriesBody', 12);
     } catch (e) { showOffline('enquiry list unavailable'); }
   }
 
@@ -591,6 +634,7 @@
       body.innerHTML = bookings.map(bookingAdminRow).join('') ||
         '<tr><td colspan="7">No bookings yet</td></tr>';
       bindActions(body);
+      paginate('bookingsAdminBody', 12);
     } catch (e) { showOffline('booking list unavailable'); }
   }
 
@@ -632,6 +676,7 @@
       $('paymentsBody').innerHTML = data.payments.map(paymentRow).join('') ||
         '<tr><td colspan="6">No payments yet</td></tr>';
       bindActions($('paymentsBody'));
+      paginate('paymentsBody', 12);
     } catch (e) { showOffline('payment list unavailable'); }
   }
 
@@ -641,6 +686,7 @@
       $('pagesBody').innerHTML = data.pages.map(pageRow).join('') ||
         '<tr><td colspan="4">No pages yet</td></tr>';
       bindActions($('pagesBody'));
+      paginate('pagesBody', 12);
     } catch (e) { showOffline('page list unavailable'); }
 
     // "+ Add New Page" (bind once — refresh() re-runs this renderer)

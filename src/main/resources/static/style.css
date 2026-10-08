@@ -3,6 +3,7 @@
   /* Brand Colors */
   --red: #d12f3c;
   --cyan: #007fa8;
+  --cyan-text: #0a6a8a; /* darker cyan for links/text on white, passes AA */
   --navy: #0b172a;
   --yellow: #f59e0b;
 
@@ -849,3 +850,284 @@ body.no-scroll {
 body.booking-auth-open {
     overflow: hidden;
 }
+
+/* ==========================================================================
+   ui pass (oct 2026) - shared bits used across the site
+   ========================================================================== */
+
+/* keyboard focus: make it obvious everywhere */
+:focus-visible {
+  outline: 3px solid var(--cyan);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* skip link - hidden until tabbed to */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 2000;
+  background: var(--navy);
+  color: #fff;
+  padding: 10px 18px;
+  font-size: var(--sm);
+  font-weight: 700;
+  border-radius: 0 0 8px 0;
+  text-decoration: none;
+}
+.skip-link:focus {
+  left: 0;
+}
+
+/* which page am i on - header nav current state (set by auth.js) */
+.main-nav-box .nav-link.current {
+  color: var(--red);
+}
+.main-nav-box .nav-link.current::after {
+  content: "";
+  display: block;
+  height: 2px;
+  background: var(--red);
+  border-radius: 2px;
+  margin-top: 2px;
+}
+
+/* little utility classes so pages stop repeating inline styles */
+.text-center { text-align: center; }
+.muted { color: var(--muted); }
+.sm { font-size: var(--sm); }
+.xs { font-size: var(--xs); }
+.mt-2 { margin-top: var(--s2); }
+.mt-4 { margin-top: var(--s4); }
+.mt-6 { margin-top: var(--s6); }
+.mt-8 { margin-top: var(--s8); }
+.mb-4 { margin-bottom: var(--s4); }
+.mb-6 { margin-bottom: var(--s6); }
+.mb-8 { margin-bottom: var(--s8); }
+.flex-between { display: flex; justify-content: space-between; align-items: center; }
+.gap-4 { gap: var(--s4); }
+.wrap { flex-wrap: wrap; }
+
+/* round badge behind the emoji icons (resources cards etc) */
+.icon-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--featured);
+  font-size: 1.6rem;
+  margin-bottom: var(--s4);
+}
+
+/* toast notifications - replaces the ugly alert() popups. auth.js makes these */
+#toastBox {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 3000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: min(360px, calc(100vw - 32px));
+}
+.toast {
+  background: var(--navy);
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: var(--sm);
+  box-shadow: var(--sh-lg);
+  border-left: 4px solid var(--cyan);
+  animation: toastIn .25s var(--ease);
+}
+.toast.err { border-left-color: var(--danger); }
+.toast.ok  { border-left-color: var(--success); }
+.toast.hide { opacity: 0; transform: translateY(6px); transition: all .3s; }
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* shared form messages (signin/signup/forgot/reset used to each have their own) */
+.form-error {
+  display: none;
+  color: var(--red);
+  margin-bottom: 15px;
+  padding: 10px;
+  background: rgba(239,68,68,.1);
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+.form-ok {
+  display: none;
+  color: #065f46;
+  margin-bottom: 15px;
+  padding: 10px;
+  background: rgba(16,185,129,.12);
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+/* booking time slot chips (the select is hidden but still posts the value) */
+.slot-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+.slot-chip {
+  border: 1.5px solid var(--border);
+  background: #fff;
+  color: var(--navy);
+  font: inherit;
+  font-size: var(--sm);
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all var(--ease);
+}
+.slot-chip:hover { border-color: var(--cyan); }
+.slot-chip.active {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: #fff;
+}
+
+/* skeleton cards shown while /api/projects loads */
+.skeleton-card { border-radius: 16px; overflow: hidden; background: var(--surface); box-shadow: var(--sh-md); }
+.skeleton-img, .skeleton-line {
+  background: linear-gradient(90deg, #eef1f5 25%, #e2e7ee 50%, #eef1f5 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite linear;
+}
+.skeleton-img { height: 200px; }
+.skeleton-line { height: 14px; border-radius: 6px; margin: 14px 16px; }
+.skeleton-line.w60 { width: 60%; }
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+/* empty state (projects grid etc) */
+.empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: var(--muted);
+  padding: var(--s10) var(--s4);
+  font-size: var(--sm);
+}
+
+/* contact wizard extras slide in instead of just appearing */
+.wizard-extra { display: none; }
+.wizard-extra.show {
+  display: block;
+  animation: wizardIn .25s var(--ease);
+}
+@keyframes wizardIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* chosen attachment line under the file input */
+.attach-info {
+  display: none;
+  margin-top: 8px;
+  font-size: var(--sm);
+  color: var(--navy);
+  background: var(--featured);
+  border-radius: 8px;
+  padding: 8px 12px;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+.attach-info.show { display: flex; }
+.attach-info button {
+  background: none;
+  border: none;
+  color: var(--red);
+  font: inherit;
+  font-size: var(--xs);
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* password extras: show/hide toggle, caps lock hint, strength meter (auth-forms.js) */
+.pwd-wrap { position: relative; }
+.pwd-wrap .form-control { padding-right: 64px; }
+.pwd-toggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: var(--xs);
+  font-weight: 700;
+  color: var(--cyan-text);
+  cursor: pointer;
+  padding: 6px 8px;
+}
+.caps-hint {
+  display: none;
+  font-size: var(--xs);
+  color: var(--warning);
+  margin-top: 4px;
+  font-weight: 600;
+}
+.caps-hint.show { display: block; }
+.pwd-meter {
+  display: none;
+  margin-top: 6px;
+}
+.pwd-meter.show { display: block; }
+.pwd-meter .bar {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--border);
+  overflow: hidden;
+}
+.pwd-meter .bar span {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: var(--danger);
+  transition: width var(--ease), background var(--ease);
+}
+.pwd-meter .label {
+  font-size: var(--xs);
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+/* footer: one column on phones */
+@media (max-width: 640px) {
+  .footer-grid { grid-template-columns: 1fr; gap: var(--s8); }
+}
+
+/* button variants note: btn-red / btn-navy / btn-outline / btn-sm and the
+   pills are the ones pages should use. btn-cyan, btn-dark, btn-ghost are
+   older aliases - kept so nothing breaks, but dont reach for them in new
+   pages. */
+
+/* project card internals - these five inline styles were copy-pasted on
+   every card in projects.html (and in projects.js), now they are classes */
+.proj-card-title { font-size: 1rem; margin-bottom: .5rem; color: var(--navy); }
+.proj-card-sum { font-size: var(--sm); color: var(--muted); margin-bottom: var(--s4); }
+.proj-card-foot {
+  display: flex; justify-content: space-between; align-items: center;
+  padding-top: var(--s4); border-top: 1px solid var(--border);
+}
+.proj-loc { font-size: var(--xs); color: var(--muted); }
+.proj-val { font-size: var(--xs); font-weight: 700; color: var(--navy); }
+/* and a few generic ones for the worst repeat offenders */
+.navy-text { color: var(--navy); }
+.red-text { color: var(--red); }
+.muted-sm { color: var(--muted); font-size: var(--sm); }
+.footer-contact { margin-top: var(--s3); font-size: var(--sm); color: #9ca3af; }

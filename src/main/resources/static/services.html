@@ -16,13 +16,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-
+<a class="skip-link" href="#main-content">Skip to content</a>
     <header class="main-header">
   <div class="top-split-bar"></div>
   <div class="container header-wrapper">
 
     <a href="index.html" class="logo">
-      <img class="logo-img" src="images/logo.png" alt="Engineering Services Australia"
+      <img width="550" height="188" class="logo-img" src="images/logo.png" alt="Engineering Services Australia"
            onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
       <span class="logo-fallback"><span class="red">ESA</span> <span class="navy">ENGINEERING</span></span>
     </a>
@@ -65,7 +65,7 @@
   </div>
 </header>
 
-    <main class="container" style="padding-top: 60px; padding-bottom: 80px;">
+    <main id="main-content" class="container" style="padding-top: 60px; padding-bottom: 80px;">
         <h1 style="margin-bottom: 40px;" data-cms="services-heading">Expert Engineering Solutions.</h1>
         <p style="max-width: 700px; color: var(--muted); margin-bottom: 60px;" data-cms="services-intro">
             At ESA, we know that your process must be operational for the maximum possible time. We assist in managing critical engineering activities to maximise on-stream time and minimise costs.
@@ -73,50 +73,50 @@
 
         <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
             <a href="commissioning.html" class="card" style="text-decoration: none; color: inherit;">
-                <h3 style="color: var(--navy);">Plant Commissioning</h3>
+                <h3 class="navy-text">Plant Commissioning</h3>
                 <p style="font-size: 0.9rem; margin-top: 10px;">Planning and execution of operational readiness for new facilities.</p>
                 <span style="color: var(--red); font-weight: 700; display: block; margin-top: 20px;">Learn More →</span>
             </a>
 
             <a href="optimisation.html" class="card" style="text-decoration: none; color: inherit;">
-                <h3 style="color: var(--navy);">Production Optimisation</h3>
+                <h3 class="navy-text">Production Optimisation</h3>
                 <p style="font-size: 0.9rem; margin-top: 10px;">Maximising efficiency in automated production lines and mechanical processes.</p>
                 <span style="color: var(--red); font-weight: 700; display: block; margin-top: 20px;">Learn More →</span>
             </a>
 
             <div class="card">
-                <h3 style="color: var(--navy);">Engineering Design</h3>
+                <h3 class="navy-text">Engineering Design</h3>
                 <p style="font-size: 0.9rem; margin-top: 10px;">Specialized design in pressure vessels, piping, materials handling, and dust control.</p>
             </div>
 
             <div class="card">
-                <h3 style="color: var(--navy);">Maintenance Planning</h3>
+                <h3 class="navy-text">Maintenance Planning</h3>
                 <p style="font-size: 0.9rem; margin-top: 10px;">Major maintenance shutdown planning and support to ensure minimal downtime.</p>
             </div>
 
             <div class="card card-border-cyan">
-                <h3 style="color: var(--navy);">Drafting Services</h3>
+                <h3 class="navy-text">Drafting Services</h3>
                 <p style="font-size: 0.9rem; margin-top: 10px;">Professional drafting and technical record-keeping systems for industrial assets.</p>
             </div>
 
             <a href="dangerous-goods.html" class="card" style="text-decoration: none; color: inherit;">
-                <h3 style="color: var(--navy);">Dangerous Goods</h3>
+                <h3 class="navy-text">Dangerous Goods</h3>
                 <p style="font-size: 0.9rem; margin-top: 10px;">Compliance with AS1940 standards for storage and handling of chemicals.</p>
                 <span style="color: var(--red); font-weight: 700; display: block; margin-top: 20px;">Learn More →</span>
             </a>
 
             <div class="card card-border-red">
-                <h3 style="color: var(--navy);">Project Management</h3>
+                <h3 class="navy-text">Project Management</h3>
                 <p style="font-size: 0.9rem; margin-top: 10px;">Capital project execution delivered on time and on budget — from small upgrades to $80M facilities, with detailed execution planning, troubleshooting and on-site support.</p>
             </div>
 
             <div class="card">
-                <h3 style="color: var(--navy);">Integrated Engineering Support</h3>
+                <h3 class="navy-text">Integrated Engineering Support</h3>
                 <p style="font-size: 0.9rem; margin-top: 10px;">Embedded senior engineers working inside your organisation — filling knowledge gaps, covering leave or boosting productivity for the period you need.</p>
             </div>
 
             <div class="card card-border-cyan">
-                <h3 style="color: var(--navy);">Training &amp; Technical Writing</h3>
+                <h3 class="navy-text">Training &amp; Technical Writing</h3>
                 <p style="font-size: 0.9rem; margin-top: 10px;">Process operation manuals, machine theory, site inductions, maintenance procedures, critical equipment specification sheets and workplace risk assessments.</p>
             </div>
         </div>
@@ -126,9 +126,9 @@
   <div class="container">
     <div class="footer-grid">
       <div class="footer-brand">
-        <h3><span style="color:var(--red)">ESA</span> Engineering</h3>
+        <h3><span class="red-text">ESA</span> Engineering</h3>
         <p>Engineering Services Australia — technical excellence and attention to detail since 2004.</p>
-        <p style="margin-top:var(--s3);font-size:var(--sm);color:#9ca3af">📞 0402-464-823 &nbsp;·&nbsp; ✉️ engsa@live.com.au</p>
+        <p class="footer-contact">📞 0402-464-823 &nbsp;·&nbsp; ✉️ engsa@live.com.au</p>
       </div>
       <div class="footer-links">
         <h4>Services</h4>
