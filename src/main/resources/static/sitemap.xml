@@ -15,4 +15,10 @@
   <url><loc>https://esaengineering.example.com/booking.html</loc></url>
   <url><loc>https://esaengineering.example.com/safety-standards.html</loc></url>
   <url><loc>https://esaengineering.example.com/privacy-policy.html</loc></url>
+  <!-- new resources page -->
+  <url>
+    <loc>https://esaengineering.example.com/resources.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
 </urlset>

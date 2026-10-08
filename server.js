@@ -401,6 +401,51 @@ app.patch('/api/admin/payments/:id', requireAdmin, (req, res) => {
   res.json({ payment: p, message: 'Payment updated' });
 });
 
+// ---- CASE STUDIES (projects the office adds from the admin page) ----
+// the projects page keeps its built-in cards and these get added on top,
+// so the site still has content before anyone touches the admin
+let caseStudies = load('case-studies', []);
+
+function studyFields(body, old) {
+  return {
+    title: body.title !== undefined ? String(body.title) : (old ? old.title : ''),
+    category: body.category !== undefined ? String(body.category) : (old ? old.category : 'infra'),
+    location: body.location !== undefined ? String(body.location) : (old ? old.location : ''),
+    valueLabel: body.valueLabel !== undefined ? String(body.valueLabel) : (old ? old.valueLabel : ''),
+    summary: body.summary !== undefined ? String(body.summary) : (old ? old.summary : ''),
+    image: body.image !== undefined ? String(body.image) : (old ? old.image : 'images/project-remote-site.jpg'),
+    status: body.status !== undefined ? String(body.status) : (old ? old.status : 'draft')
+  };
+}
+
+app.get('/api/projects', (req, res) => {
+  res.json({ projects: caseStudies.filter(p => p.status === 'published') });
+});
+// admin list, drafts included (the public one only shows published)
+app.get('/api/admin/projects', requireAdmin, (req, res) => {
+  res.json({ projects: caseStudies });
+});
+app.post('/api/admin/projects', requireAdmin, (req, res) => {
+  if (!req.body.title) return res.status(400).json({ message: 'Title is required', success: false });
+  const id = caseStudies.length ? Math.max(...caseStudies.map(p => p.id)) + 1 : 1;
+  const study = Object.assign({ id: id, createdAt: new Date().toISOString() }, studyFields(req.body, null));
+  caseStudies.push(study);
+  save('case-studies', caseStudies);
+  res.json({ project: study, message: 'Case study saved', success: true });
+});
+app.patch('/api/admin/projects/:id', requireAdmin, (req, res) => {
+  const p = caseStudies.find(x => String(x.id) === req.params.id);
+  if (!p) return res.status(404).json({ message: 'Case study not found', success: false });
+  Object.assign(p, studyFields(req.body, p));
+  save('case-studies', caseStudies);
+  res.json({ project: p, message: 'Case study updated', success: true });
+});
+app.delete('/api/admin/projects/:id', requireAdmin, (req, res) => {
+  caseStudies = caseStudies.filter(x => String(x.id) !== req.params.id);
+  save('case-studies', caseStudies);
+  res.json({ message: 'Case study deleted', success: true });
+});
+
 // ---- PAGES CMS ----
 function discoverBlocksFromFile(slug) {
   const filePath = path.join(STATIC_DIR, slug);

@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>Case Studies | ESA Admin</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="admin.css">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+</head>
+
+<body data-admin-page="casestudies">
+
+<div class="admin-layout">
+
+  <!-- SIDEBAR (same as the other admin pages) -->
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-logo">
+      <img src="images/logo-white.png" alt="Engineering Services Australia">
+    </div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html"><i class="fa-solid fa-gauge-high"></i> Dashboard</a>
+      <a href="content.html"><i class="fa-solid fa-file-lines"></i> Content Management</a>
+      <a href="customers.html"><i class="fa-solid fa-users"></i> Customer Management</a>
+      <a href="bookings.html"><i class="fa-solid fa-calendar-check"></i> Bookings</a>
+      <a href="payments.html"><i class="fa-solid fa-credit-card"></i> Payments</a>
+      <a href="enquiries.html"><i class="fa-solid fa-envelope"></i> Enquiries</a>
+      <a class="active" href="caseStudies.html"><i class="fa-solid fa-folder-open"></i> Case Studies</a>
+      <a href="settings.html"><i class="fa-solid fa-gear"></i> Settings</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-circle">AD</div>
+      <div>
+        <p>Admin User</p>
+        <span>Administrator</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main-content">
+
+    <header class="admin-topbar">
+      <div class="topbar-links">
+        <a href="index.html">Home</a>
+        <a href="projects.html">Projects</a>
+        <a href="services.html">Services</a>
+        <a href="contact.html">Contact</a>
+        <a href="about.html">About us</a>
+      </div>
+      <button id="adminToggle" class="admin-btn" aria-controls="sidebar" aria-expanded="false">Menu</button>
+    </header>
+
+    <section class="dashboard-wrapper">
+
+      <div class="dashboard-title">
+        <i class="fa-solid fa-folder-open"></i>
+        <h2>Case Studies</h2>
+      </div>
+
+      <!-- form card -->
+      <div class="dashboard-card" style="padding:20px;margin-bottom:20px">
+        <h3 class="section-heading" id="formHeading">Add a case study</h3>
+        <div class="heading-line"></div>
+        <form id="studyForm" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px">
+          <input type="hidden" id="studyId">
+          <label style="grid-column:1/-1">Title *
+            <input id="studyTitle" class="admin-input" style="width:100%;margin-top:4px" placeholder="e.g. 80,000T Grain Storage Facility — Port Kembla NSW" required>
+          </label>
+          <label>Category
+            <select id="studyCategory" class="admin-input" style="width:100%;margin-top:4px">
+              <option value="water">Water &amp; Wastewater</option>
+              <option value="mining">Mining</option>
+              <option value="food">Food &amp; Beverage</option>
+              <option value="fuel">Fuel &amp; Energy</option>
+              <option value="infra">Infrastructure</option>
+            </select>
+          </label>
+          <label>Location
+            <input id="studyLocation" class="admin-input" style="width:100%;margin-top:4px" placeholder="e.g. Port Kembla, NSW">
+          </label>
+          <label>Value chip
+            <input id="studyValue" class="admin-input" style="width:100%;margin-top:4px" placeholder="e.g. $80M facility">
+          </label>
+          <label>Image
+            <select id="studyImage" class="admin-input" style="width:100%;margin-top:4px">
+              <option value="images/project-grain.jpg">Grain silos</option>
+              <option value="images/project-pipeline.jpg">Pipeline</option>
+              <option value="images/project-remote-site.jpg">Remote site at night</option>
+              <option value="images/project-wastewater.jpg">Wastewater aerial</option>
+              <option value="images/project-water-treatment.jpg">Water treatment aerial</option>
+              <option value="images/project-mining.jpg">Open pit mine</option>
+              <option value="images/project-fuel.jpg">Fuel tanks</option>
+              <option value="images/project-food.jpg">Production line</option>
+              <option value="images/project-trade-waste.jpg">Lab sampling</option>
+              <option value="images/project-dust-control.jpg">Dust silo</option>
+              <option value="images/project-tank-farm.jpg">Tank farm</option>
+              <option value="images/project-relocation.jpg">Crane lift</option>
+            </select>
+          </label>
+          <label>Status
+            <select id="studyStatus" class="admin-input" style="width:100%;margin-top:4px">
+              <option value="published">Published</option>
+              <option value="draft">Draft</option>
+            </select>
+          </label>
+          <label style="grid-column:1/-1">Summary
+            <textarea id="studySummary" class="admin-input" style="width:100%;margin-top:4px" rows="3" placeholder="One or two sentences for the project card"></textarea>
+          </label>
+          <div style="grid-column:1/-1;display:flex;gap:10px">
+            <button type="submit" class="admin-btn">Save case study</button>
+            <button type="button" class="admin-btn-secondary" id="resetForm">Clear form</button>
+          </div>
+        </form>
+        <p id="formNote" style="margin-top:10px;font-size:.85rem"></p>
+      </div>
+
+      <!-- list -->
+      <div class="dashboard-card">
+        <table>
+          <thead>
+            <tr><th>Title</th><th>Category</th><th>Status</th><th>Action</th></tr>
+          </thead>
+          <tbody id="studiesBody">
+            <tr><td colspan="4">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </section>
+  </main>
+</div>
+
+<script src="auth.js"></script>
+<script src="admin.js"></script>
+<script>
+// case studies admin: plain and simple, talks to /api/admin/projects
+// (the same endpoints server.js and the spring api both expose)
+document.addEventListener('DOMContentLoaded', function () {
+  if (typeof redirectIfNotLoggedIn === 'function' && !isLoggedIn()) {
+    redirectIfNotLoggedIn('signin.html');
+    return;
+  }
+  var API = '/api/admin/projects';
+
+  function headers() {
+    var h = { 'Content-Type': 'application/json' };
+    if (typeof authHeaders === 'function') Object.assign(h, authHeaders());
+    return h;
+  }
+
+  function note(msg, bad) {
+    var el = document.getElementById('formNote');
+    el.textContent = msg || '';
+    el.style.color = bad ? '#e63946' : '#06a77d';
+  }
+
+  function load() {
+    // admin endpoint so drafts show up here too, not just published ones
+    fetch('/api/admin/projects', { headers: headers() })
+      .then(function (r) { return r.json(); })
+      .then(function (data) { render(data.projects || []); })
+      .catch(function () { render([]); });
+  }
+
+  function render(list) {
+    var body = document.getElementById('studiesBody');
+    if (!list.length) {
+      body.innerHTML = '<tr><td colspan="4">No published case studies yet. Saved drafts stay hidden from the site.</td></tr>';
+      return;
+    }
+    body.innerHTML = list.map(function (p) {
+      return '<tr>' +
+        '<td>' + esc(p.title) + '<br><small>' + esc(p.location || '') + '</small></td>' +
+        '<td>' + esc(p.category || '') + '</td>' +
+        '<td>' + esc(p.status || '') + '</td>' +
+        '<td>' +
+          '<button class="admin-btn-secondary" data-edit="' + p.id + '">Edit</button> ' +
+          '<button class="admin-btn-secondary" data-del="' + p.id + '">Delete</button>' +
+        '</td></tr>';
+    }).join('');
+  }
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function payload() {
+    return {
+      title: document.getElementById('studyTitle').value.trim(),
+      category: document.getElementById('studyCategory').value,
+      location: document.getElementById('studyLocation').value.trim(),
+      valueLabel: document.getElementById('studyValue').value.trim(),
+      summary: document.getElementById('studySummary').value.trim(),
+      image: document.getElementById('studyImage').value,
+      status: document.getElementById('studyStatus').value
+    };
+  }
+
+  document.getElementById('studyForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var id = document.getElementById('studyId').value;
+    var opts = { method: id ? 'PATCH' : 'POST', headers: headers(), body: JSON.stringify(payload()) };
+    if (id) opts.url = API + '/' + id;
+    fetch(id ? API + '/' + id : API, opts)
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (res) {
+        if (!res.ok) { note(res.d.message || 'Could not save', true); return; }
+        note('Saved. Published ones show on projects.html straight away.');
+        clearForm();
+        load();
+      })
+      .catch(function () { note('Could not reach the server', true); });
+  });
+
+  function clearForm() {
+    document.getElementById('studyForm').reset();
+    document.getElementById('studyId').value = '';
+    document.getElementById('formHeading').textContent = 'Add a case study';
+  }
+  document.getElementById('resetForm').addEventListener('click', clearForm);
+
+  document.getElementById('studiesBody').addEventListener('click', function (e) {
+    var del = e.target.closest('[data-del]');
+    if (del) {
+      if (!confirm('Delete this case study?')) return;
+      fetch(API + '/' + del.getAttribute('data-del'), { method: 'DELETE', headers: headers() })
+        .then(function () { load(); });
+      return;
+    }
+    var ed = e.target.closest('[data-edit]');
+    if (ed) {
+      // pull the row data back so the form can be filled in
+      fetch('/api/admin/projects', { headers: headers() })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          var p = (data.projects || []).filter(function (x) { return String(x.id) === ed.getAttribute('data-edit'); })[0];
+          if (!p) return;
+          document.getElementById('studyId').value = p.id;
+          document.getElementById('studyTitle').value = p.title || '';
+          document.getElementById('studyCategory').value = p.category || 'infra';
+          document.getElementById('studyLocation').value = p.location || '';
+          document.getElementById('studyValue').value = p.valueLabel || '';
+          document.getElementById('studySummary').value = p.summary || '';
+          document.getElementById('studyImage').value = p.image || 'images/project-remote-site.jpg';
+          document.getElementById('studyStatus').value = p.status || 'draft';
+          document.getElementById('formHeading').textContent = 'Edit case study #' + p.id;
+          window.scrollTo(0, 0);
+        });
+    }
+  });
+
+  load();
+});
+</script>
+</body>
+</html>
