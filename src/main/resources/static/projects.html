@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Projects — ESA Engineering</title>
+<meta property="og:title" content="Projects | ESA Engineering">
+<meta property="og:description" content="Grain storage, water pipelines, mine sites and tank farms — a selection of ESA engineering projects across Australia and internationally.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="images/project-grain.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="stylesheet" href="style.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -95,18 +101,18 @@
   <div class="container section-padding">
 
     <div class="filter-bar">
-      <button class="btn btn-navy">All Projects</button>
-      <button class="btn btn-ghost">Water &amp; Wastewater</button>
-      <button class="btn btn-ghost">Mining</button>
-      <button class="btn btn-ghost">Food &amp; Beverage</button>
-      <button class="btn btn-ghost">Fuel &amp; Energy</button>
-      <button class="btn btn-ghost">Infrastructure</button>
+      <button class="btn btn-navy" data-filter="all">All Projects</button>
+      <button class="btn btn-ghost" data-filter="water">Water &amp; Wastewater</button>
+      <button class="btn btn-ghost" data-filter="mining">Mining</button>
+      <button class="btn btn-ghost" data-filter="food">Food &amp; Beverage</button>
+      <button class="btn btn-ghost" data-filter="fuel">Fuel &amp; Energy</button>
+      <button class="btn btn-ghost" data-filter="infra">Infrastructure</button>
     </div>
 
     <div class="project-grid">
 
       <div class="card">
-        <img class="card-photo" src="images/project-grain.jpg" alt="Grain storage silos — 80,000T grain storage facility, Port Kembla NSW" loading="lazy">
+        <img class="card-photo" src="images/project-grain.jpg" data-cat="infra" alt="Grain storage silos — 80,000T grain storage facility, Port Kembla NSW" loading="lazy">
         <span class="accent-label">Grain Storage</span>
         <h3 style="font-size:1rem;margin-bottom:.5rem;color:var(--navy)">80,000T Grain Storage Facility — Port Kembla NSW</h3>
         <p style="font-size:var(--sm);color:var(--muted);margin-bottom:var(--s4)">Project engineering and site management for the construction and commissioning of an 80 million dollar, 110,000 tonne grain storage facility.</p>
@@ -117,7 +123,7 @@
       </div>
 
       <div class="card card-red">
-        <img class="card-photo" src="images/project-pipeline.jpg" alt="Large-diameter pipeline sections staged in the field — 50km re-use water pipeline, NSW" loading="lazy">
+        <img class="card-photo" src="images/project-pipeline.jpg" data-cat="water" alt="Large-diameter pipeline sections staged in the field — 50km re-use water pipeline, NSW" loading="lazy">
         <span class="accent-label">Water Infrastructure</span>
         <h3 style="font-size:1rem;margin-bottom:.5rem;color:var(--navy)">50km Re-use Water Pipeline Commissioning — NSW</h3>
         <p style="font-size:var(--sm);color:var(--muted);margin-bottom:var(--s4)">Co-ordination of commissioning of a 50km re-use water pipeline including 2 booster stations and 5 raw water pump stations.</p>
@@ -128,7 +134,7 @@
       </div>
 
       <div class="card">
-        <img class="card-photo" src="images/project-remote-site.jpg" alt="Remote mine site at night — Oyu Tolgoi business readiness support, Mongolia">
+        <img class="card-photo" src="images/project-remote-site.jpg" data-cat="mining" alt="Remote mine site at night — Oyu Tolgoi business readiness support, Mongolia">
         <span class="accent-label">Mining</span>
         <h3 style="font-size:1rem;margin-bottom:.5rem;color:var(--navy)">Oyu Tolgoi Copper Mine Business Readiness — Mongolia</h3>
         <p style="font-size:var(--sm);color:var(--muted);margin-bottom:var(--s4)">Engineering and commissioning support — project close-outs, steam boiler recommissioning, diesel spill remediation and heat distribution network.</p>
@@ -139,7 +145,7 @@
       </div>
 
       <div class="card card-red">
-        <img class="card-photo" src="images/project-wastewater.jpg" alt="Aerial view of circular clarifier tanks — MBR sewerage treatment plant, Camden Haven NSW" loading="lazy">
+        <img class="card-photo" src="images/project-wastewater.jpg" data-cat="water" alt="Aerial view of circular clarifier tanks — MBR sewerage treatment plant, Camden Haven NSW" loading="lazy">
         <span class="accent-label">Wastewater</span>
         <h3 style="font-size:1rem;margin-bottom:.5rem;color:var(--navy)">MBR Sewerage Treatment Plant — Camden Haven NSW</h3>
         <p style="font-size:var(--sm);color:var(--muted);margin-bottom:var(--s4)">Engineering support for construction of an MBR sewerage treatment plant — project management, sub-contractor supervision, and full commissioning.</p>
@@ -150,7 +156,7 @@
       </div>
 
       <div class="card">
-        <img class="card-photo" src="images/project-mining.jpg" alt="Open-pit mine with heavy machinery — international mining engineering support" loading="lazy">
+        <img class="card-photo" src="images/project-mining.jpg" data-cat="mining" alt="Open-pit mine with heavy machinery — international mining engineering support" loading="lazy">
         <span class="accent-label">Mining — International</span>
         <h3 style="font-size:1rem;margin-bottom:.5rem;color:var(--navy)">$8M Acid Mist Collection System — Oxiana EW Tank House, Laos</h3>
         <p style="font-size:var(--sm);color:var(--muted);margin-bottom:var(--s4)">Specialist engineering services managing contractor selection, supply and installation of an $8M acid mist collection system.</p>
@@ -161,7 +167,7 @@
       </div>
 
       <div class="card card-red">
-        <img class="card-photo" src="images/project-water-treatment.jpg" alt="Aerial view of sedimentation tanks — Tai-Po wastewater treatment plant expansion, Hong Kong" loading="lazy">
+        <img class="card-photo" src="images/project-water-treatment.jpg" data-cat="water" alt="Aerial view of sedimentation tanks — Tai-Po wastewater treatment plant expansion, Hong Kong" loading="lazy">
         <span class="accent-label">Water Treatment</span>
         <h3 style="font-size:1rem;margin-bottom:.5rem;color:var(--navy)">Tai-Po Wastewater Treatment Plant Expansion — Hong Kong</h3>
         <p style="font-size:var(--sm);color:var(--muted);margin-bottom:var(--s4)">Remote design checking for expansion from 420ML/day to 840ML/day capacity — engaged by Hyder Consulting.</p>
@@ -172,7 +178,7 @@
       </div>
 
       <div class="card">
-        <img class="card-photo" src="images/project-fuel.jpg" alt="Fuel storage tanks and pipework — $5M facility shutdown planning and execution" loading="lazy">
+        <img class="card-photo" src="images/project-fuel.jpg" data-cat="fuel" alt="Fuel storage tanks and pipework — $5M facility shutdown planning and execution" loading="lazy">
         <span class="accent-label">Fuel Industry</span>
         <h3 style="font-size:1rem;margin-bottom:.5rem;color:var(--navy)">$5M Facility Shutdown — Planning &amp; Execution</h3>
         <p style="font-size:var(--sm);color:var(--muted);margin-bottom:var(--s4)">Scheduling and work scoping for a $5M, 25,000 man-hour facility shutdown — contractor coordination, critical path scheduling and execution support.</p>
@@ -183,7 +189,7 @@
       </div>
 
       <div class="card card-red">
-        <img class="card-photo" src="images/project-food.jpg" alt="Stainless process vessel on a production line — food and beverage productivity improvement" loading="lazy">
+        <img class="card-photo" src="images/project-food.jpg" data-cat="food" alt="Stainless process vessel on a production line — food and beverage productivity improvement" loading="lazy">
         <span class="accent-label">Food &amp; Beverage</span>
         <h3 style="font-size:1rem;margin-bottom:.5rem;color:var(--navy)">Aerosol Can &amp; Aluminium Casting Productivity Improvement</h3>
         <p style="font-size:var(--sm);color:var(--muted);margin-bottom:var(--s4)">Mechanical, electrical and chemical engineering across 3 aerosol can production lines and 1 aluminium casting plant.</p>
@@ -194,7 +200,7 @@
       </div>
 
       <div class="card">
-        <img class="card-photo" src="images/project-trade-waste.jpg" alt="Laboratory quality-control sampling — liquid trade waste compliance system" loading="lazy">
+        <img class="card-photo" src="images/project-trade-waste.jpg" data-cat="water" alt="Laboratory quality-control sampling — liquid trade waste compliance system" loading="lazy">
         <span class="accent-label">Textile / Waste</span>
         <h3 style="font-size:1rem;margin-bottom:.5rem;color:var(--navy)">Liquid Trade Waste Quality Control System</h3>
         <p style="font-size:var(--sm);color:var(--muted);margin-bottom:var(--s4)">Design and installation of a fully compliant liquid trade waste control system — pH monitoring, automated discharge valve and electronic data logging.</p>
@@ -205,7 +211,7 @@
       </div>
 
       <div class="card card-red">
-        <img class="card-photo" src="images/project-dust-control.jpg" alt="90 cubic metre sawdust silo with integrated dust control cyclone">
+        <img class="card-photo" src="images/project-dust-control.jpg" data-cat="infra" alt="90 cubic metre sawdust silo with integrated dust control cyclone">
         <span class="accent-label">Infrastructure</span>
         <h3 style="font-size:1rem;margin-bottom:.5rem;color:var(--navy)">90m³ Sawdust Silo with Integrated Dust Control</h3>
         <p style="font-size:var(--sm);color:var(--muted);margin-bottom:var(--s4)">Design, supervision and construction of a 90m³ sawdust silo with integrated dust control system — delivered within budget.</p>
@@ -216,7 +222,7 @@
       </div>
 
       <div class="card">
-        <img class="card-photo" src="images/project-tank-farm.jpg" alt="Large diameter storage tank farm under construction — API-650 design">
+        <img class="card-photo" src="images/project-tank-farm.jpg" data-cat="fuel" alt="Large diameter storage tank farm under construction — API-650 design">
         <span class="accent-label">Fuel / Chemical</span>
         <h3 style="font-size:1rem;margin-bottom:.5rem;color:var(--navy)">2 × 10m Dia Sulphuric Acid Tanks — API-650 Design</h3>
         <p style="font-size:var(--sm);color:var(--muted);margin-bottom:var(--s4)">Design of two 10m diameter × 8m tall sulphuric acid storage tanks to API-650 and NACE standards for a mining/chemical processing client.</p>
@@ -227,7 +233,7 @@
       </div>
 
       <div class="card card-red">
-        <img class="card-photo" src="images/project-relocation.jpg" alt="Overhead crane lifting a heavy steel structure — processing plant relocation study" loading="lazy">
+        <img class="card-photo" src="images/project-relocation.jpg" data-cat="infra" alt="Overhead crane lifting a heavy steel structure — processing plant relocation study" loading="lazy">
         <span class="accent-label">Plant Relocation</span>
         <h3 style="font-size:1rem;margin-bottom:.5rem;color:var(--navy)">$4.5M Processing Plant Relocation Study</h3>
         <p style="font-size:var(--sm);color:var(--muted);margin-bottom:var(--s4)">Detailed pre-engineering study and $4.5M cost estimate (±25%) for relocation of a processing plant — logistics, civil requirements and utility connections.</p>
@@ -286,6 +292,7 @@
   </div>
 </footer>
 <script src="auth.js" defer></script>
+<script src="projects.js" defer></script>
 <script src="main.js" defer></script>
 <script src="content.js" defer></script>
 </body>

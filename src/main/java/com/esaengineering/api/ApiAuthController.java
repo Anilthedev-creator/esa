@@ -65,6 +65,50 @@ public class ApiAuthController {
         return session(message, user);
     }
 
+    // forgot password: step 1, hand out a reset link
+    @PostMapping("/forgot-password")
+    public Map<String, Object> forgotPassword(@RequestBody Map<String, Object> body) {
+        String email = text(body, "email");
+        if (email == null) throw ApiException.badRequest("Please put in your email address.");
+        String token = authService.startPasswordReset(email);
+        if (token != null) {
+            // no mail server wired up yet (TODO) so same trick as server.js:
+            // the "email" is written to data/outbox as a txt file
+            writeOutbox(email, "Reset your ESA portal password",
+                    "Someone asked to reset your ESA portal password.\n"
+                    + "Open reset-password.html?token=" + token + " to pick a new one.\n"
+                    + "The link works for 1 hour. If it was not you, ignore this email.");
+        }
+        // same answer either way so the form cant be used to probe for accounts
+        Map<String, Object> resp = new LinkedHashMap<>();
+        resp.put("message", "If that email is in our system a reset link is on its way.");
+        resp.put("success", true);
+        return resp;
+    }
+
+    // forgot password: step 2, the reset page posts token + new password
+    @PostMapping("/reset-password")
+    public Map<String, Object> resetPassword(@RequestBody Map<String, Object> body) {
+        authService.finishPasswordReset(text(body, "token"), text(body, "password"));
+        Map<String, Object> resp = new LinkedHashMap<>();
+        resp.put("message", "Password updated, you can sign in with it now.");
+        resp.put("success", true);
+        return resp;
+    }
+
+    // super basic mail stand-in, mirrors sendMail() in server.js
+    private void writeOutbox(String to, String subject, String bodyText) {
+        try {
+            java.nio.file.Path dir = java.nio.file.Paths.get("data", "outbox");
+            java.nio.file.Files.createDirectories(dir);
+            String fname = System.currentTimeMillis() + "-" + to.replaceAll("[^a-z0-9]", "_") + ".txt";
+            String txt = "To: " + to + "\nSubject: " + subject + "\n\n" + bodyText + "\n";
+            java.nio.file.Files.write(dir.resolve(fname), txt.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            System.out.println("[mail] outbox write failed: " + e.getMessage());
+        }
+    }
+
     @GetMapping("/me")
     public Map<String, Object> me(@RequestHeader(value = "Authorization", required = false) String authorization) {
         TokenService.TokenPayload payload = tokenService.verify(authorization);

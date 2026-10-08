@@ -242,13 +242,19 @@
       '</tr>';
   }
   function paymentRow(p) {
+    // unwrap the td from actionIcons so we can squeeze one more button in
+    var actions = actionIcons('payment', p.id).replace(/^<td[^>]*>|<\/td>$/g, '');
+    // once the bank transfer shows up in the feed the office ticks it off here
+    if (p.status !== 'completed') {
+      actions += ' <button class="admin-btn-secondary" data-mark-paid="' + p.id + '" style="margin-left:6px">Mark paid</button>';
+    }
     return '<tr>' +
       '<td>' + esc(p.invoiceId) + '</td>' +
       '<td>' + esc(p.customerName) + '</td>' +
       '<td>' + esc(fmtMoney(p.amount)) + '</td>' +
       '<td>' + badge('payment', p.status) + '</td>' +
       '<td>' + esc(p.paidAt ? fmtDate(p.paidAt) : '—') + '</td>' +
-      actionIcons('payment', p.id) +
+      '<td class="action-icons">' + actions + '</td>' +
       '</tr>';
   }
   function pageRow(p) {
@@ -296,6 +302,15 @@
     });
     container.querySelectorAll('[data-booking-view]').forEach(function (el) {
       el.addEventListener('click', function () { bookingDetailModal(el.dataset.bookingView); });
+    });
+    container.querySelectorAll('[data-mark-paid]').forEach(function (el) {
+      el.addEventListener('click', async function () {
+        if (!confirm('Mark this payment completed? Only do this once the transfer is in the bank feed.')) return;
+        try {
+          await api('/payments/' + el.dataset.markPaid, { method: 'PATCH', body: JSON.stringify({ status: 'completed' }) });
+          refresh();
+        } catch (e) { alert(e.message); }
+      });
     });
   }
 

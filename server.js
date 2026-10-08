@@ -16,6 +16,7 @@ const fs = require('fs');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto'); // for the password reset tokens
 
 const PORT = process.env.PORT || 8080;
 // Consultation fee, mirrors app.booking.consultation-fee in the Spring app.
@@ -45,6 +46,23 @@ function save(name, data) {
   fs.writeFileSync(dbFile(name), JSON.stringify(data, null, 2));
 }
 
+// ---- really basic "email" helper ----
+// there is no mail server hooked up yet (TODO: wire up SMTP one day) so every
+// email the site sends just gets written into data/outbox as a .txt file.
+// while testing, open the newest file in there to read the "email".
+function sendMail(to, subject, body) {
+  try {
+    var dir = path.join(DATA_DIR, 'outbox');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    var fname = Date.now() + '-' + String(to).replace(/[^a-z0-9]/gi, '_') + '.txt';
+    var txt = 'To: ' + to + '\nSubject: ' + subject + '\nDate: ' + new Date().toString() + '\n\n' + body + '\n';
+    fs.writeFileSync(path.join(dir, fname), txt);
+    console.log('[mail] to ' + to + ' -> ' + subject);
+  } catch (e) {
+    console.log('[mail] could not write the outbox file: ' + e.message);
+  }
+}
+
 // ---- initial data ----
 let users = load('users', []);
 let contacts = load('contacts', []);
@@ -52,6 +70,7 @@ let bookings = load('bookings', []);
 let payments = load('payments', []);
 let pages = load('pages', null);
 let blocks = load('blocks', []); // {pageId, key, value, defaultValue, label, html}
+let resets = load('password-resets', []); // {token, email, expires}
 let settings = load('settings', {
   siteName: 'ESA Engineering',
   adminEmail: 'admin@esaengineering.com.au',
@@ -209,6 +228,51 @@ app.post('/api/auth/logout', (req, res) => {
   res.json({ message: 'Signed out', success: true });
 });
 
+// ---- password reset (the forgot password page) ----
+// step 1: they type their email, we make a token that lasts 1 hour
+app.post('/api/auth/forgot-password', (req, res) => {
+  const email = String(req.body.email || '').trim().toLowerCase();
+  if (!email) return res.status(400).json({ message: 'Please put in your email address.' });
+  const user = users.find(u => String(u.email).toLowerCase() === email);
+  // say ok even when we dont know the email so people cant use it to probe accounts
+  if (user) {
+    const token = crypto.randomBytes(20).toString('hex');
+    resets = resets.filter(r => r.email !== email); // ditch any older link
+    resets.push({ token: token, email: email, expires: Date.now() + 60 * 60 * 1000 });
+    save('password-resets', resets);
+    sendMail(email, 'Reset your ESA portal password',
+      'Hi ' + (user.fullName || user.firstName || 'there') + ',\n\n' +
+      'Someone (hopefully you) asked to reset the password on your ESA portal account.\n' +
+      'Open the link below to pick a new one. It works for 1 hour:\n\n' +
+      'reset-password.html?token=' + token + '\n\n' +
+      'If it was not you, just ignore this email and nothing changes.\n\n- ESA Engineering');
+  }
+  res.json({ message: 'If that email is in our system a reset link is on its way. While mail is not hooked up yet it lands in the data/outbox folder on the server.', success: true });
+});
+
+// step 2: the reset page posts the token back with the new password
+app.post('/api/auth/reset-password', (req, res) => {
+  const token = String(req.body.token || '').trim();
+  const password = String(req.body.password || '');
+  const rec = resets.find(r => r.token === token);
+  if (!rec) return res.status(400).json({ message: 'That reset link is not valid, please request a new one.' });
+  if (Date.now() > rec.expires) {
+    resets = resets.filter(r => r.token !== token);
+    save('password-resets', resets);
+    return res.status(400).json({ message: 'That reset link has expired, please request a new one.' });
+  }
+  if (!password || password.length < 8) return res.status(400).json({ message: 'Password needs at least 8 characters.' });
+  const user = users.find(u => String(u.email).toLowerCase() === rec.email);
+  if (!user) return res.status(400).json({ message: 'That account does not exist any more, please contact us.' });
+  user.password = bcrypt.hashSync(password, 10);
+  save('users', users);
+  resets = resets.filter(r => r.token !== token);
+  save('password-resets', resets);
+  sendMail(user.email, 'Your ESA portal password was changed',
+    'Hi ' + (user.fullName || user.firstName || 'there') + ',\n\nYour portal password was just changed.\nIf that was not you call us straight away on 0402 464 823.\n\n- ESA Engineering');
+  res.json({ message: 'Password updated, you can sign in with it now.', success: true });
+});
+
 app.post('/api/auth/create/admin', (req, res) => {
   const { fullName, email, password, phoneNumber, phone } = req.body;
   if (!fullName || !email || !password) return res.status(400).json({ message: 'Full name, email and password are required', success: false });
@@ -329,6 +393,11 @@ app.patch('/api/admin/payments/:id', requireAdmin, (req, res) => {
   if (req.body.status) p.status = req.body.status;
   if (req.body.amount !== undefined) p.amount = Number(req.body.amount);
   save('payments', payments);
+  // if the office marks the fee paid the booking is confirmed too
+  if (p.status === 'completed' && p.bookingId) {
+    const b = bookings.find(x=>x.id===p.bookingId);
+    if (b) { b.status = 'confirmed'; save('bookings', bookings); }
+  }
   res.json({ payment: p, message: 'Payment updated' });
 });
 
@@ -583,10 +652,19 @@ app.post('/api/bookings', (req, res) => {
   const id = bookings.length ? Math.max(...bookings.map(b=>b.id))+1 : 1;
   const booking = {
     id, fullName: finalName, name: finalName, email: finalEmail, phone: phone||'', service: service||serviceName||'General Inquiry', serviceName: service||serviceName||'General Inquiry',
-    notes: notes||description||message||'', description: notes||description||message||'', bookingDate: new Date().toISOString().slice(0,10), status: 'pending', createdAt: new Date().toISOString(), fee: 50
+    notes: notes||description||message||'', description: notes||description||message||'',
+    // if they picked a preferred date on the form use that, otherwise today
+    bookingDate: (req.body.preferredDate || new Date().toISOString().slice(0,10)),
+    status: 'pending', createdAt: new Date().toISOString(), fee: 50
   };
   bookings.push(booking);
   save('bookings', bookings);
+  sendMail(finalEmail, 'We got your booking - ' + booking.serviceName,
+    'Hi ' + finalName + ',\n\nThanks for booking ' + booking.serviceName + ' with ESA Engineering.\n' +
+    'Your booking reference is #' + id + ' and the consultation fee is $' + booking.fee + '.\n' +
+    'The next step is the payment page (payment.html?booking=' + id + ') where you can log your bank transfer.\n\n- ESA Engineering');
+  sendMail(settings.adminEmail, 'New booking #' + id + ' - ' + booking.serviceName,
+    finalName + ' (' + finalEmail + ', ' + (phone || 'no phone') + ') booked ' + booking.serviceName + '.\nNotes: ' + (notes || '-'));
   const payId = payments.length ? Math.max(...payments.map(p=>p.id))+1 : 1;
   const payment = { id: payId, transactionId: `ESA-${id}-${Math.random().toString(36).substring(2,8).toUpperCase()}`, customerName: finalName, amount: CONSULTATION_FEE, status: 'incomplete', paymentDate: null, bookingId: id };
   payments.push(payment);
@@ -597,7 +675,7 @@ app.get('/api/bookings/:id', (req, res) => {
   const b = bookings.find(x=>String(x.id)===req.params.id);
   if (!b) return res.status(404).json({ message: 'Booking not found' });
   const p = payments.find(x=>x.bookingId===b.id);
-  res.json({ booking: { id: b.id, name: b.fullName, email: b.email, phone: b.phone, service: b.serviceName, notes: b.description, status: b.status, fee: b.fee||CONSULTATION_FEE, createdAt: b.createdAt }, payment: p ? { id: p.id, reference: p.transactionId, status: p.status, amount: p.amount } : null });
+  res.json({ booking: { id: b.id, name: b.fullName, email: b.email, phone: b.phone, service: b.serviceName, notes: b.description, status: b.status, fee: b.fee||CONSULTATION_FEE, createdAt: b.createdAt, bookingDate: b.bookingDate }, payment: p ? { id: p.id, reference: p.transactionId, status: p.status, amount: p.amount } : null });
 });
 app.get('/api/bookings', (req, res) => res.json({ bookings }));
 
@@ -610,21 +688,31 @@ app.post('/api/enquiries', (req, res) => {
   const contact = { id, fullName: finalName, name: finalName, email: finalEmail, serviceName: type||serviceName||subject||'General Inquiry', description: message||description||'', status: 'new', reply: null, createdAt: new Date().toISOString() };
   contacts.push(contact);
   save('contacts', contacts);
+  sendMail(finalEmail, 'We got your enquiry - ' + contact.serviceName,
+    'Hi ' + finalName + ',\n\nThanks for getting in touch about ' + contact.serviceName + '.\nOne of our engineers will reply within 1 business day.\n\n- ESA Engineering');
+  sendMail(settings.adminEmail, 'New enquiry #' + id + ' - ' + contact.serviceName,
+    finalName + ' (' + finalEmail + ') wrote: ' + (contact.description || '-'));
   res.json({ message: "Thanks - we've received your request and will be in touch shortly.", success: true, enquiry: { id } });
 });
 
 // ---- PAYMENTS ----
+// we dont take cards on the website (no payment gateway yet, TODO: stripe?)
+// the customer banks the consultation fee and types in the transfer reference
+// from their bank receipt. The office then ticks it off once it hits the bank.
 app.post('/api/payments/:id/confirm', (req, res) => {
   const p = payments.find(x=>String(x.id)===req.params.id);
   if (!p) return res.status(404).json({ message: 'Payment not found' });
-  const { cardNumber } = req.body;
-  if (!cardNumber || String(cardNumber).replace(/\s+/g,'').length < 12) return res.status(400).json({ message: 'Invalid card number' });
-  p.status = 'completed';
+  if (p.status === 'completed') return res.json({ message: 'This fee is already paid, thanks!', reference: p.transactionId, status: 'completed', success: true });
+  const ref = String(req.body.transferReference || '').trim();
+  if (!ref) return res.status(400).json({ message: 'Please put in the transfer reference from your bank receipt.' });
+  p.status = 'pending'; // waiting on the office to see it in the bank feed
+  p.transferReference = ref;
+  p.paidDate = String(req.body.paidDate || '').slice(0, 10) || new Date().toISOString().slice(0, 10);
   p.paymentDate = new Date().toISOString();
   save('payments', payments);
-  const b = bookings.find(x=>x.id===p.bookingId);
-  if (b) { b.status='confirmed'; save('bookings', bookings); }
-  res.json({ message: 'Payment confirmed', reference: p.transactionId, status: 'completed', success: true });
+  sendMail(settings.adminEmail, 'Bank transfer logged: ' + p.transactionId,
+    (p.customerName || 'A customer') + ' logged a transfer of $' + p.amount + ' with reference "' + ref + '" on ' + p.paidDate + '.\nPlease check the bank feed and mark it paid in the admin payments page.');
+  res.json({ message: 'Thanks! We logged your transfer and will confirm once it clears, usually within 1 business day.', reference: p.transactionId, status: 'pending', success: true });
 });
 app.get('/api/payments/:id', (req, res) => {
   const p = payments.find(x=>String(x.id)===req.params.id);

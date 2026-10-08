@@ -3,6 +3,7 @@ package com.esaengineering.api;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 import com.esaengineering.model.Role;
@@ -116,6 +117,42 @@ public class ApiAuthService {
      * for its guard. role is lower-cased on purpose: the guard tests
      * user.role !== 'admin'.
      */
+    // ---- password reset ----
+    // tokens just live in memory here. if the server restarts pending resets
+    // disappear, which is fine, the person just requests a new link
+    private final Map<String, String> resetEmailByToken = new ConcurrentHashMap<>();
+    private final Map<String, Long> resetExpiryByToken = new ConcurrentHashMap<>();
+
+    /** Returns a token for the email, or null when we dont know that email. */
+    public String startPasswordReset(String email) {
+        Optional<User> user = findByEmail(email);
+        if (!user.isPresent()) return null;
+        String token = PasswordHasher.randomToken();
+        resetEmailByToken.put(token, user.get().getEmail());
+        resetExpiryByToken.put(token, System.currentTimeMillis() + 60L * 60L * 1000L); // 1 hour
+        return token;
+    }
+
+    /** Swaps the password in when the token is real and not expired yet. */
+    public void finishPasswordReset(String token, String newPassword) {
+        String email = resetEmailByToken.get(token);
+        Long expiry = resetExpiryByToken.get(token);
+        if (email == null) throw ApiException.badRequest("That reset link is not valid, please request a new one.");
+        if (expiry == null || System.currentTimeMillis() > expiry) {
+            resetEmailByToken.remove(token);
+            resetExpiryByToken.remove(token);
+            throw ApiException.badRequest("That reset link has expired, please request a new one.");
+        }
+        if (newPassword == null || newPassword.length() < 8) {
+            throw ApiException.badRequest("Password needs at least 8 characters.");
+        }
+        User user = findByEmail(email).orElseThrow(() -> ApiException.badRequest("That account does not exist any more, please contact us."));
+        user.setPassword(PasswordHasher.hash(newPassword));
+        userRepository.save(user);
+        resetEmailByToken.remove(token);
+        resetExpiryByToken.remove(token);
+    }
+
     public Map<String, Object> toAuthUser(User user) {
         String fullName = user.getFullName() == null ? "" : user.getFullName();
         String firstName = fullName.isEmpty() ? user.getEmail() : fullName.split(" ")[0];

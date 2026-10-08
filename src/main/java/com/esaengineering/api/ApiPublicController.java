@@ -63,7 +63,13 @@ public class ApiPublicController {
         b.setServiceName(service != null ? service : "General Inquiry");
         b.setDescription(notes != null ? notes : "");
         b.setAbnNumber("");
-        b.setBookingDate(LocalDate.now());
+        // if they picked a preferred date on the booking form use that one
+        String preferred = text(body, "preferredDate");
+        if (preferred != null && preferred.length() >= 10) {
+            b.setBookingDate(LocalDate.parse(preferred.substring(0, 10)));
+        } else {
+            b.setBookingDate(LocalDate.now());
+        }
         b.setStatus("pending");
         b = bookingRepo.save(b);
 
@@ -109,6 +115,7 @@ public class ApiPublicController {
         bookingMap.put("status", b.getStatus());
         bookingMap.put("fee", paymentOpt.map(Payment::getAmount).orElse(consultationFee));
         bookingMap.put("createdAt", b.getCreatedAt());
+        bookingMap.put("bookingDate", b.getBookingDate() != null ? b.getBookingDate().toString() : null);
 
         Map<String, Object> resp = new LinkedHashMap<>();
         resp.put("booking", bookingMap);
@@ -179,27 +186,22 @@ public class ApiPublicController {
     @PostMapping("/payments/{id}/confirm")
     public Map<String, Object> confirmPayment(@PathVariable Long id, @RequestBody Map<String, Object> body) {
         Payment p = paymentRepo.findById(id).orElseThrow(() -> ApiException.notFound("Payment not found"));
-        // Simulate validation
-        String cardNumber = text(body, "cardNumber");
-        if (cardNumber == null || cardNumber.replaceAll("\\s+", "").length() < 12) {
-            throw ApiException.badRequest("Invalid card number");
+        if ("completed".equals(p.getStatus())) {
+            return Map.of("message", "This fee is already paid, thanks!",
+                    "reference", p.getTransactionId(), "status", "completed", "success", true);
         }
-        p.setStatus("completed");
+        // no card gateway on the site yet: customer banks the fee and tells us
+        // the transfer reference, the office ticks it off once it hits the bank
+        String ref = text(body, "transferReference");
+        if (ref == null) throw ApiException.badRequest("Please put in the transfer reference from your bank receipt.");
+        p.setStatus("pending");
         p.setPaymentDate(LocalDateTime.now());
         paymentRepo.save(p);
-
-        // Also update booking status if linked
-        if (p.getBookingId() != null) {
-            bookingRepo.findByBookingId(p.getBookingId()).ifPresent(b -> {
-                b.setStatus("confirmed");
-                bookingRepo.save(b);
-            });
-        }
-
+        System.out.println("[mail] bank transfer logged: " + p.getTransactionId() + " ref " + ref);
         return Map.of(
-                "message", "Payment confirmed",
+                "message", "Thanks! We logged your transfer and will confirm once it clears, usually within 1 business day.",
                 "reference", p.getTransactionId(),
-                "status", "completed",
+                "status", "pending",
                 "success", true
         );
     }

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- TODO: swap esaengineering.example.com for the real domain once the site is hosted -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://esaengineering.example.com/index.html</loc></url>
+  <url><loc>https://esaengineering.example.com/about.html</loc></url>
+  <url><loc>https://esaengineering.example.com/projects.html</loc></url>
+  <url><loc>https://esaengineering.example.com/services.html</loc></url>
+  <url><loc>https://esaengineering.example.com/commissioning.html</loc></url>
+  <url><loc>https://esaengineering.example.com/appraisals.html</loc></url>
+  <url><loc>https://esaengineering.example.com/optimisation.html</loc></url>
+  <url><loc>https://esaengineering.example.com/waste-management.html</loc></url>
+  <url><loc>https://esaengineering.example.com/dangerous-goods.html</loc></url>
+  <url><loc>https://esaengineering.example.com/team.html</loc></url>
+  <url><loc>https://esaengineering.example.com/contact.html</loc></url>
+  <url><loc>https://esaengineering.example.com/booking.html</loc></url>
+  <url><loc>https://esaengineering.example.com/safety-standards.html</loc></url>
+  <url><loc>https://esaengineering.example.com/privacy-policy.html</loc></url>
+</urlset>

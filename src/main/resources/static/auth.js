@@ -75,11 +75,16 @@ async function signin(email, password) {
 /* ----------------------------- passwords / misc ---------------------------- */
 
 async function requestPasswordReset(email) {
-  throw new Error("Password reset is not wired up yet - contact engsa@live.com.au");
+  if (!email) throw new Error("Email is required");
+  // server always answers ok (so nobody can probe for accounts), the mail
+  // goes to the inbox or to data/outbox while SMTP is not hooked up
+  return api("/forgot-password", { method: "POST", body: JSON.stringify({ email: email }) });
 }
 
 async function resetPassword(token, password) {
-  throw new Error("Password reset is not wired up yet - contact engsa@live.com.au");
+  if (!token) throw new Error("That reset link is missing its token, please request a new one");
+  if (!password) throw new Error("Password is required");
+  return api("/reset-password", { method: "POST", body: JSON.stringify({ token: token, password: password }) });
 }
 
 async function createAdminAccount(data) {

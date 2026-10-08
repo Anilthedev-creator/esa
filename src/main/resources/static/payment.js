@@ -31,6 +31,9 @@ document.addEventListener("DOMContentLoaded", function () {
     .then(function (data) {
       bookedEmail = data.booking.email || "";
       renderSummary(data.booking);
+      if (data.payment && data.payment.reference) {
+        document.getElementById("payReference").textContent = data.payment.reference;
+      }
 
       // if it is already paid just show the success card
       if (data.payment && data.payment.status === "completed") {
@@ -44,7 +47,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       document.getElementById("feeAmount").textContent = "$" + data.booking.fee;
-      document.getElementById("payBtn").textContent = "Pay $" + data.booking.fee + " consultation fee";
+      document.getElementById("payBtn").textContent = "I've banked the $" + data.booking.fee + " fee";
 
       form.addEventListener("submit", function (e) {
         e.preventDefault();
@@ -76,11 +79,17 @@ function clearError() {
 
 function renderSummary(b) {
   var when = new Date(b.createdAt).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
-  document.getElementById("summaryRows").innerHTML =
+  var rows =
     row("Name", b.name) +
     row("Service", b.service) +
     row("Phone", b.phone) +
     row("Booked on", when);
+  // show the preferred date they picked on the booking form if there is one
+  if (b.bookingDate) {
+    var pref = new Date(b.bookingDate + "T00:00:00").toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
+    rows += row("Preferred date", pref);
+  }
+  document.getElementById("summaryRows").innerHTML = rows;
 }
 
 function row(label, value) {
@@ -114,6 +123,16 @@ function showPaid(reference) {
         "(<strong>" + esc(bookedEmail || "") + "</strong>) so this booking appears.</p>");
 }
 
+// same as showPaid but for "we logged it, waiting for the bank"
+function showPending(reference) {
+  document.getElementById("paymentCard").style.display = "none";
+  var pending = document.getElementById("pendingCard");
+  pending.style.display = "block";
+  if (reference) {
+    document.getElementById("pendingRef").textContent = "Payment reference: " + reference;
+  }
+}
+
 function pay(payment) {
   if (!payment) return;
   clearError();
@@ -122,15 +141,15 @@ function pay(payment) {
   btn.disabled = true;
   btn.textContent = "Processing payment...";
 
+  var ref = document.getElementById("transferReference").value.trim();
+  var paidDate = document.getElementById("paidDate").value;
+  if (!ref) { showError("Please put in the transfer reference from your bank receipt."); btn.disabled = false; btn.textContent = "I've banked the fee"; return; }
+  if (!paidDate) { showError("Please put in the date you banked the transfer."); btn.disabled = false; btn.textContent = "I've banked the fee"; return; }
+
   fetch("/api/payments/" + payment.id + "/confirm", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      cardNumber: document.getElementById("cardNumber").value,
-      cardName: document.getElementById("cardName").value,
-      expiry: document.getElementById("cardExpiry").value,
-      cvc: document.getElementById("cardCvc").value
-    })
+    body: JSON.stringify({ transferReference: ref, paidDate: paidDate })
   })
     .then(function (res) {
       return res.json().then(function (data) {
@@ -141,14 +160,19 @@ function pay(payment) {
       if (!result.ok) {
         showError(result.data.message || "The payment could not be processed. Please try again.");
         btn.disabled = false;
-        btn.textContent = "Pay consultation fee";
+        btn.textContent = "I've banked the fee";
         return;
       }
-      showPaid(result.data.reference);
+      // pending = transfer logged, waiting on the office to see it in the bank
+      if (result.data.status === "pending") {
+        showPending(result.data.reference);
+      } else {
+        showPaid(result.data.reference);
+      }
     })
     .catch(function () {
       showError("Could not reach the server. Please try again.");
       btn.disabled = false;
-      btn.textContent = "Pay consultation fee";
+      btn.textContent = "I've banked the fee";
     });
 }

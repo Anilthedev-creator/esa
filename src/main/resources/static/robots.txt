@@ -1,0 +1,17 @@
+# esa engineering robots
+User-agent: *
+Allow: /
+# keep the admin + portal stuff out of search results
+Disallow: /dashboard.html
+Disallow: /customers.html
+Disallow: /enquiries.html
+Disallow: /bookings.html
+Disallow: /payments.html
+Disallow: /settings.html
+Disallow: /content.html
+Disallow: /accountAdmin.html
+Disallow: /aboutPageAdmin.html
+Disallow: /portal.html
+Disallow: /data/
+
+Sitemap: /sitemap.xml

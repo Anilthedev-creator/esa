@@ -304,6 +304,14 @@ public class AdminDataService {
             } catch (Exception ignored) {}
         }
         paymentRepository.save(p);
+        // when the office marks the fee completed the booking is confirmed too,
+        // same as the node server does it
+        if ("completed".equals(p.getStatus()) && p.getBookingId() != null) {
+            bookingRepository.findByBookingId(p.getBookingId()).ifPresent(b -> {
+                b.setStatus("confirmed");
+                bookingRepository.save(b);
+            });
+        }
         return paymentById(id);
     }
 
