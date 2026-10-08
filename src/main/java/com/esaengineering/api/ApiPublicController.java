@@ -64,6 +64,7 @@ public class ApiPublicController {
         b.setDescription(notes != null ? notes : "");
         b.setAbnNumber("");
         // if they picked a preferred date on the booking form use that one
+        b.setPreferredSlot(text(body, "preferredSlot"));
         String preferred = text(body, "preferredDate");
         if (preferred != null && preferred.length() >= 10) {
             b.setBookingDate(LocalDate.parse(preferred.substring(0, 10)));
@@ -159,6 +160,23 @@ public class ApiPublicController {
         if (message == null) message = "";
 
         if (name == null || email == null) throw ApiException.badRequest("Name and email are required");
+
+        // attachment arrives as base64 from the contact form (no multipart,
+        // keeps the json body simple). saved into data/uploads like server.js
+        String attachName = text(body, "attachmentName");
+        String attachData = text(body, "attachmentData");
+        if (attachName != null && attachData != null) {
+            try {
+                java.nio.file.Path dir = java.nio.file.Paths.get("data", "uploads");
+                java.nio.file.Files.createDirectories(dir);
+                String safe = attachName.replaceAll("[^a-zA-Z0-9._-]", "_");
+                java.nio.file.Path file = dir.resolve(System.currentTimeMillis() + "-" + safe);
+                java.nio.file.Files.write(file, java.util.Base64.getDecoder().decode(attachData));
+                message = message + "\n[attachment saved as " + file.getFileName() + "]";
+            } catch (Exception e) {
+                System.out.println("[upload] could not save attachment: " + e.getMessage());
+            }
+        }
 
         Contact c = new Contact();
         c.setFullName(name);

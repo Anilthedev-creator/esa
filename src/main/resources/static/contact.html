@@ -91,12 +91,62 @@
                             <option>Plant Commissioning</option>
                             <option>Utility Appraisal</option>
                             <option>Production Optimisation</option>
+                            <option>Waste Management</option>
+                            <option>Dangerous Goods</option>
                             <option>General Inquiry</option>
                         </select>
+                    </div>
+
+                    <!-- extra questions per service, shown/hidden by the script
+                         at the bottom of this page -->
+                    <div class="wizard-extra" data-for="Plant Commissioning" style="display:none">
+                        <div class="form-group">
+                            <label>Plant / facility type</label>
+                            <input type="text" class="form-control" data-label="Plant type" placeholder="e.g. food processing, minerals, water">
+                        </div>
+                        <div class="form-group">
+                            <label>Target start</label>
+                            <input type="text" class="form-control" data-label="Target start" placeholder="e.g. next month, Q3">
+                        </div>
+                    </div>
+                    <div class="wizard-extra" data-for="Utility Appraisal" style="display:none">
+                        <div class="form-group">
+                            <label>Approx. annual utility spend</label>
+                            <input type="text" class="form-control" data-label="Utility spend" placeholder="e.g. $400k">
+                        </div>
+                    </div>
+                    <div class="wizard-extra" data-for="Production Optimisation" style="display:none">
+                        <div class="form-group">
+                            <label>How many production lines?</label>
+                            <input type="text" class="form-control" data-label="Lines" placeholder="e.g. 3">
+                        </div>
+                        <div class="form-group">
+                            <label>Main bottleneck today</label>
+                            <input type="text" class="form-control" data-label="Bottleneck" placeholder="e.g. packing station downtime">
+                        </div>
+                    </div>
+                    <div class="wizard-extra" data-for="Waste Management" style="display:none">
+                        <div class="form-group">
+                            <label>Waste stream</label>
+                            <input type="text" class="form-control" data-label="Waste stream" placeholder="e.g. liquid trade waste, scrap metal">
+                        </div>
+                    </div>
+                    <div class="wizard-extra" data-for="Dangerous Goods" style="display:none">
+                        <div class="form-group">
+                            <label>Chemical class &amp; storage volume</label>
+                            <input type="text" class="form-control" data-label="Chemicals" placeholder="e.g. class 3, 40kL">
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>Message</label>
                         <textarea id="message" name="message" class="form-control" rows="5" placeholder="How can our engineering team help?"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Attach specs or site plans (optional, max 4MB)</label>
+                        <input type="file" id="attachFile" class="form-control">
+                        <input type="hidden" name="attachmentName" id="attachmentName">
+                        <input type="hidden" name="attachmentData" id="attachmentData">
+                        <p id="attachNote" style="font-size:.8rem;color:var(--muted);margin-top:6px"></p>
                     </div>
                     <button type="submit" class="btn btn-cyan" style="width: 100%;">Submit Request</button>
                 </form>
@@ -171,6 +221,66 @@
   </div>
 </footer>
 <script src="auth.js" defer></script>
+<script>
+// contact page wizard: shows the extra questions for the picked service and
+// tacks the answers onto the message before the normal form handler runs.
+// also reads the attachment into base64 so it can ride along in the json.
+document.addEventListener('DOMContentLoaded', function () {
+  var typeSel = document.getElementById('type');
+  var extras = document.querySelectorAll('.wizard-extra');
+
+  function showExtras() {
+    extras.forEach(function (g) {
+      g.style.display = (g.getAttribute('data-for') === typeSel.value) ? 'block' : 'none';
+    });
+  }
+  if (typeSel) { typeSel.addEventListener('change', showExtras); showExtras(); }
+
+  // glue the visible extra answers onto the message on submit.
+  // this listener registers before main.js's one, so it runs first.
+  var form = document.querySelector('form[data-api="/api/enquiries"]');
+  if (form) {
+    form.addEventListener('submit', function () {
+      var bits = [];
+      extras.forEach(function (g) {
+        if (g.style.display === 'none') return;
+        g.querySelectorAll('input').forEach(function (inp) {
+          if (inp.value) bits.push((inp.getAttribute('data-label') || 'Detail') + ': ' + inp.value);
+        });
+      });
+      if (bits.length) {
+        var msg = document.getElementById('message');
+        msg.value = msg.value + (msg.value ? '\n' : '') + bits.join('\n');
+      }
+    });
+  }
+
+  // attachment -> base64 into the hidden inputs (kept under ~4MB)
+  var file = document.getElementById('attachFile');
+  if (file) {
+    file.addEventListener('change', function () {
+      var note = document.getElementById('attachNote');
+      document.getElementById('attachmentName').value = '';
+      document.getElementById('attachmentData').value = '';
+      note.textContent = '';
+      if (!file.files || !file.files[0]) return;
+      if (file.files[0].size > 4 * 1024 * 1024) {
+        note.textContent = 'That file is over 4MB, please email it to us instead.';
+        file.value = '';
+        return;
+      }
+      var reader = new FileReader();
+      reader.onload = function () {
+        var dataUrl = String(reader.result || '');
+        document.getElementById('attachmentName').value = file.files[0].name;
+        document.getElementById('attachmentData').value = dataUrl.slice(dataUrl.indexOf(',') + 1);
+        note.textContent = 'Attached: ' + file.files[0].name;
+      };
+      reader.readAsDataURL(file.files[0]);
+    });
+  }
+});
+</script>
 <script src="main.js" defer></script>
 <script src="content.js" defer></script>
 </body>

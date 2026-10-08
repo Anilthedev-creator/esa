@@ -87,6 +87,19 @@ public class PortalService {
         return out;
     }
 
+    /** Customer moves their own booking to a new date/slot while it is still open. */
+    public Map<String, Object> reschedule(String email, Long bookingId, String date, String slot) {
+        Booking b = ownBooking(email, bookingId);
+        String status = b.getStatus() == null ? "pending" : b.getStatus();
+        if ("completed".equals(status) || "cancelled".equals(status)) {
+            throw ApiException.badRequest("This booking is " + status + " so it can not be moved, please call us.");
+        }
+        if (date != null && date.length() >= 10) b.setBookingDate(java.time.LocalDate.parse(date.substring(0, 10)));
+        if (slot != null && !slot.isEmpty()) b.setPreferredSlot(slot);
+        bookingRepository.save(b);
+        return summary(b, paymentRepository.findFirstByBookingId(b.getBookingID()).orElse(null));
+    }
+
     /** One of this customer's own bookings, with its payment state. */
     public Map<String, Object> booking(String email, Long bookingId) {
         Booking booking = ownBooking(email, bookingId);
@@ -216,6 +229,7 @@ public class PortalService {
                 "service", b.getServiceName(),
                 "status", b.getStatus(),
                 "bookingDate", b.getBookingDate() == null ? null : b.getBookingDate().toString(),
+                "preferredSlot", b.getPreferredSlot(),
                 "createdAt", b.getCreatedAt() == null ? null : b.getCreatedAt().toString(),
                 "fee", amount,
                 "paymentStatus", paymentStatus,

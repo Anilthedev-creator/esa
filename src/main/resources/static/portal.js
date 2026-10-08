@@ -23,6 +23,9 @@
     bindTabs();
     bindForms();
     bindConfirm();
+    bindReschedule();
+    var exportBtn = $("exportPayments");
+    if (exportBtn) exportBtn.addEventListener("click", exportPaymentsCsv);
     updateHeaderButtons();
     personalise();
     activateFromHash();
@@ -127,7 +130,7 @@
       return "<tr>" +
         cell("#" + esc(b.bookingId) + (b.bookingDate ? "<br><small>" + esc(b.bookingDate) + "</small>" : "")) +
         cell(esc(b.service)) +
-        cell(badge(b.status)) +
+        cell(badge(b.status) + timeline(b)) +
         cell(badge(b.paymentStatus) + (b.paymentReference ? "<br><small>" + esc(b.paymentReference) + "</small>" : "")) +
         cell(fmt(money(b.fee))) +
         cell('<div class="portal-actions">' + bookingButtons(b) + "</div>") +
@@ -139,6 +142,22 @@
       : empty("You have not made a booking yet. <a href='booking.html'>Book a consultation</a>.");
   }
 
+  // little progress pills: received -> fee logged -> confirmed -> completed
+  function timeline(b) {
+    if (b.status === "cancelled") {
+      return '<div class="portal-timeline"><span class="t-dot off">Cancelled</span></div>';
+    }
+    var steps = ["Received", "Fee logged", "Confirmed", "Completed"];
+    var done = 1; // everyone gets received, they are in the list after all
+    if (b.paymentStatus === "pending" || b.paymentStatus === "completed") done = 2;
+    if (b.status === "confirmed") done = 3;
+    if (b.status === "completed") done = 4;
+    var html = steps.map(function (label, i) {
+      return '<span class="t-dot' + (i < done ? " on" : "") + '">' + label + "</span>";
+    }).join("");
+    return '<div class="portal-timeline">' + html + "</div>";
+  }
+
   function bookingButtons(b) {
     var out = "";
     if (b.canPay) {
@@ -147,10 +166,68 @@
     if (b.canCancel) {
       out += '<button class="btn-mini danger" data-cancel="' + esc(b.bookingId) + '">Cancel</button>';
     }
+    // can move it themselves while its still open
+    if (b.status === "pending" || b.status === "confirmed") {
+      out += '<button class="btn-mini" data-reschedule="' + esc(b.bookingId) + '">Reschedule</button>';
+    }
     return out || '<span style="color:var(--muted);font-size:.8rem">—</span>';
   }
 
   /* ----------------------------- enquiries ------------------------------ */
+
+  /* --------------------------- reschedule dialog ------------------------- */
+
+  var rescheduleId = null;
+
+  function openReschedule(id) {
+    rescheduleId = id;
+    var b = state.bookings.filter(function (x) { return String(x.bookingId) === String(id); })[0];
+    if (b && b.bookingDate) $("reschedDate").value = b.bookingDate;
+    if (b && b.preferredSlot) $("reschedSlot").value = b.preferredSlot;
+    $("reschedNote").className = "portal-note";
+    $("reschedBackdrop").classList.add("open");
+  }
+
+  function bindReschedule() {
+    $("reschedCancel").addEventListener("click", function () {
+      $("reschedBackdrop").classList.remove("open");
+    });
+    $("reschedSave").addEventListener("click", async function () {
+      if (!rescheduleId) return;
+      var note = noteEl($("reschedNote"));
+      note.clear();
+      try {
+        await call("/bookings/" + encodeURIComponent(rescheduleId) + "/reschedule", {
+          method: "POST",
+          body: JSON.stringify({
+            preferredDate: $("reschedDate").value,
+            preferredSlot: $("reschedSlot").value
+          })
+        });
+        $("reschedBackdrop").classList.remove("open");
+        await load();
+      } catch (e) {
+        note.err(e.message);
+      }
+    });
+  }
+
+  /* ------------------------- payments csv export ------------------------- */
+  // builds the csv in the browser, no server round trip needed
+  function exportPaymentsCsv() {
+    if (!state.payments.length) { alert("No payments to export yet."); return; }
+    var lines = ["Reference,Booking,Name,Amount,Status,Date"];
+    state.payments.forEach(function (p) {
+      lines.push([p.reference, p.bookingId || "", p.customerName, p.amount, p.status, (p.paymentDate || "").slice(0, 10)]
+        .map(function (v) { return '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"'; })
+        .join(","));
+    });
+    var blob = new Blob([lines.join("\n")], { type: "text/csv" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "esa-payments.csv";
+    a.click();
+  }
 
   function renderEnquiries() {
     var rows = state.enquiries.map(function (e) {
@@ -184,11 +261,16 @@
         cell(fmt(money(p.amount))) +
         cell(badge(p.status)) +
         cell(p.paymentDate ? esc(p.paymentDate.slice(0, 10)) : "—") +
+        cell('<div class="portal-actions">' +
+             (p.status === "pending" || p.status === "completed"
+               ? '<a class="btn-mini" href="receipt.html?payment=' + esc(p.id) + '">Receipt</a>'
+               : '<span style="color:var(--muted);font-size:.8rem">—</span>') +
+             "</div>") +
         "</tr>";
     }).join("");
 
     $("paymentsBody").innerHTML = state.payments.length
-      ? tableWrap(head(["Reference", "Booking", "Name", "Amount", "Status", "Date"]), rows)
+      ? tableWrap(head(["Reference", "Booking", "Name", "Amount", "Status", "Date", ""]), rows)
       : empty("No payments yet. A payment appears here once you pay a consultation fee.");
   }
 
@@ -320,6 +402,9 @@
 
       var cancel = e.target.closest("[data-cancel]");
       if (cancel) { askCancel(cancel.getAttribute("data-cancel")); return; }
+
+      var resched = e.target.closest("[data-reschedule]");
+      if (resched) { openReschedule(resched.getAttribute("data-reschedule")); return; }
 
       var reopen = e.target.closest("[data-reopen]");
       if (reopen) { doReopen(reopen.getAttribute("data-reopen")); return; }

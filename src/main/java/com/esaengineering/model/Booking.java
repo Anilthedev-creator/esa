@@ -36,6 +36,9 @@ public class Booking {
     @Column
     private String status = "pending"; // pending, confirmed, completed, cancelled
 
+    // time slot they asked for on the booking form, e.g. "10:00"
+    private String preferredSlot;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -74,6 +77,9 @@ public class Booking {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    public String getPreferredSlot() { return preferredSlot; }
+    public void setPreferredSlot(String preferredSlot) { this.preferredSlot = preferredSlot; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

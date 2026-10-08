@@ -184,6 +184,22 @@
 }
 .portal-empty a { color: var(--cyan); font-weight: 600; }
 
+/* --------------------- booking progress timeline ------------------------ */
+/* little pills under the status badge: received -> fee logged -> confirmed
+   -> completed, filled in as far as the booking has got */
+.portal-timeline { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+.portal-timeline .t-dot {
+  font-size: .65rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 50px;
+  background: var(--surface-alt);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.portal-timeline .t-dot.on { background: rgba(2, 132, 199, .12); color: #075985; }
+.portal-timeline .t-dot.off { background: rgba(239, 68, 68, .12); color: #991b1b; }
+
 /* -------------------------------- badges --------------------------------- */
 .portal-badge {
   display: inline-block;

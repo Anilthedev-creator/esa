@@ -88,6 +88,18 @@ public class ApiPortalController {
         return ok("booking", booking, "message", "Booking cancelled");
     }
 
+    // customer picks a new date/slot for their own booking
+    @PostMapping("/bookings/{bookingId}/reschedule")
+    public Map<String, Object> reschedule(@PathVariable Long bookingId,
+                                          @RequestBody Map<String, Object> body,
+                                          @RequestHeader(value = "Authorization", required = false) String auth) {
+        String email = portalAccess.requireCustomer(auth).getEmail();
+        Map<String, Object> booking = portalService.reschedule(email, bookingId,
+                str(body == null ? null : body.get("preferredDate")),
+                str(body == null ? null : body.get("preferredSlot")));
+        return ok("booking", booking, "message", "Booking moved, we will see you then.");
+    }
+
     /** The customer's own enquiries. */
     @GetMapping("/enquiries")
     public Map<String, Object> enquiries(@RequestHeader(value = "Authorization", required = false) String auth) {

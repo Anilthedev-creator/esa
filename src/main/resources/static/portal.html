@@ -136,8 +136,11 @@
   <!-- ---------------------------- PAYMENTS ----------------------------- -->
   <section class="portal-panel" id="panel-payments">
     <div class="portal-section">
-      <h2>My payments</h2>
-      <p class="portal-hint">Keep your payment reference for any query about a booking.</p>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:var(--s4);flex-wrap:wrap">
+        <h2 style="margin:0">My payments</h2>
+        <button class="btn-mini" id="exportPayments" type="button">Export CSV</button>
+      </div>
+      <p class="portal-hint" style="margin-top:var(--s3)">Keep your payment reference for any query about a booking.</p>
       <div id="paymentsBody"></div>
     </div>
   </section>
@@ -192,6 +195,33 @@
   </section>
 
 </main>
+
+<!-- reschedule dialog -->
+<div class="portal-modal-backdrop" id="reschedBackdrop" role="dialog" aria-modal="true" aria-labelledby="reschedTitle">
+  <div class="portal-modal">
+    <h3 id="reschedTitle">Move this booking</h3>
+    <p class="portal-hint">Pick a new day and, if you like, a time slot. We get an email straight away.</p>
+    <div class="portal-field">
+      <label for="reschedDate">New date</label>
+      <input id="reschedDate" type="date">
+    </div>
+    <div class="portal-field">
+      <label for="reschedSlot">Time slot</label>
+      <select id="reschedSlot" class="form-control">
+        <option value="">No preference</option>
+            <option>08:00</option>
+            <option>10:00</option>
+            <option>13:00</option>
+            <option>15:00</option>
+      </select>
+    </div>
+    <div id="reschedNote" class="portal-note"></div>
+    <div class="portal-modal-actions">
+      <button type="button" class="btn btn-ghost" id="reschedCancel">Keep current</button>
+      <button type="button" class="btn btn-cyan" id="reschedSave">Move booking</button>
+    </div>
+  </div>
+</div>
 
 <!-- confirm dialog -->
 <div class="portal-modal-backdrop" id="confirmBackdrop" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">

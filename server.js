@@ -540,6 +540,7 @@ const bookingSummary = (b) => {
   return {
     bookingId: b.id, name: b.fullName, service: b.serviceName, status: b.status,
     bookingDate: b.bookingDate, createdAt: b.createdAt, fee: p ? p.amount : CONSULTATION_FEE,
+    preferredSlot: b.preferredSlot || null,
     paymentStatus: payStatus, paid: payStatus === 'completed',
     paymentReference: p ? p.transactionId : null,
     canCancel: (b.status === 'pending' || b.status === 'confirmed') && payStatus !== 'completed',
@@ -593,6 +594,23 @@ app.get('/api/portal/bookings/:id', requireCustomer, (req, res) => {
   const out = Object.assign(bookingSummary(b), { email: b.email, phone: b.phone, notes: b.description, payment: p ? paymentSummary(p) : null });
   res.json({ success: true, booking: out });
 });
+// customer moves their own booking to a new date/slot while its still open
+app.post('/api/portal/bookings/:id/reschedule', requireCustomer, (req, res) => {
+  const b = ownBookings(req.customerEmail).find(x => String(x.id) === req.params.id);
+  if (!b) return res.status(404).json({ message: 'Booking not found', success: false });
+  const status = b.status || 'pending';
+  if (status === 'completed' || status === 'cancelled') {
+    return res.status(400).json({ message: 'This booking is ' + status + ' so it can not be moved, please call us.', success: false });
+  }
+  if (req.body.preferredDate) b.bookingDate = String(req.body.preferredDate).slice(0, 10);
+  if (req.body.preferredSlot) b.preferredSlot = String(req.body.preferredSlot);
+  save('bookings', bookings);
+  sendMail(req.customerEmail, 'Your booking #' + b.id + ' was moved',
+    'Hi ' + b.fullName + ',\n\nYour ' + b.serviceName + ' booking is now set for ' + b.bookingDate +
+    (b.preferredSlot ? ' at ' + b.preferredSlot : '') + '.\nNeed to move it again? It is in your portal.\n\n- ESA Engineering');
+  res.json({ success: true, message: 'Booking moved, we will see you then.', booking: bookingSummary(b) });
+});
+
 app.post('/api/portal/bookings/:id/cancel', requireCustomer, (req, res) => {
   const b = ownBookings(req.customerEmail).find(x => String(x.id) === req.params.id);
   if (!b) return res.status(404).json({ message: 'Booking not found', success: false });
@@ -654,11 +672,15 @@ app.post('/api/bookings', (req, res) => {
     id, fullName: finalName, name: finalName, email: finalEmail, phone: phone||'', service: service||serviceName||'General Inquiry', serviceName: service||serviceName||'General Inquiry',
     notes: notes||description||message||'', description: notes||description||message||'',
     // if they picked a preferred date on the form use that, otherwise today
+    preferredSlot: req.body.preferredSlot || '',
     bookingDate: (req.body.preferredDate || new Date().toISOString().slice(0,10)),
     status: 'pending', createdAt: new Date().toISOString(), fee: 50
   };
   bookings.push(booking);
   save('bookings', bookings);
+  if (booking.preferredSlot) {
+    sendMail(settings.adminEmail, 'slot picked on booking #' + id, finalName + ' asked for ' + booking.bookingDate + ' at ' + booking.preferredSlot);
+  }
   sendMail(finalEmail, 'We got your booking - ' + booking.serviceName,
     'Hi ' + finalName + ',\n\nThanks for booking ' + booking.serviceName + ' with ESA Engineering.\n' +
     'Your booking reference is #' + id + ' and the consultation fee is $' + booking.fee + '.\n' +
@@ -685,7 +707,21 @@ app.post('/api/enquiries', (req, res) => {
   const finalEmail = email;
   if (!finalName || !finalEmail) return res.status(400).json({ message: 'Name and email are required', success: false });
   const id = contacts.length ? Math.max(...contacts.map(c=>c.id))+1 : 1;
-  const contact = { id, fullName: finalName, name: finalName, email: finalEmail, serviceName: type||serviceName||subject||'General Inquiry', description: message||description||'', status: 'new', reply: null, createdAt: new Date().toISOString() };
+  // attachment comes in as base64 from the contact form (no multipart needed)
+  let attachNote = '';
+  if (req.body.attachmentName && req.body.attachmentData) {
+    try {
+      const upDir = path.join(DATA_DIR, 'uploads');
+      if (!fs.existsSync(upDir)) fs.mkdirSync(upDir, { recursive: true });
+      const safe = String(req.body.attachmentName).replace(/[^a-zA-Z0-9._-]/g, '_');
+      const fname = Date.now() + '-' + safe;
+      fs.writeFileSync(path.join(upDir, fname), Buffer.from(String(req.body.attachmentData), 'base64'));
+      attachNote = '\n[attachment saved as ' + fname + ']';
+    } catch (e) {
+      console.log('[upload] could not save attachment: ' + e.message);
+    }
+  }
+  const contact = { id, fullName: finalName, name: finalName, email: finalEmail, serviceName: type||serviceName||subject||'General Inquiry', description: (message||description||'') + attachNote, status: 'new', reply: null, createdAt: new Date().toISOString() };
   contacts.push(contact);
   save('contacts', contacts);
   sendMail(finalEmail, 'We got your enquiry - ' + contact.serviceName,

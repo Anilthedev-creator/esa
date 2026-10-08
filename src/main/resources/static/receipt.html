@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Receipt | ESA Engineering</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="stylesheet" href="style.css">
+<style>
+  /* receipt page: plain and printable on purpose */
+  .receipt-sheet {
+    max-width: 640px;
+    margin: 40px auto;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 40px;
+  }
+  .receipt-sheet h1 { font-size: 1.4rem; color: var(--navy); margin: 0 0 4px; }
+  .receipt-sheet .sub { color: var(--muted); font-size: .85rem; margin: 0 0 24px; }
+  .receipt-row {
+    display: flex; justify-content: space-between; gap: 16px;
+    padding: 10px 0; border-bottom: 1px dashed var(--border);
+    font-size: .92rem;
+  }
+  .receipt-row span:first-child { color: var(--muted); }
+  .receipt-row span:last-child { font-weight: 600; color: var(--navy); text-align: right; }
+  .receipt-total { font-size: 1.1rem; }
+  .receipt-note { color: var(--muted); font-size: .8rem; margin-top: 24px; line-height: 1.6; }
+  .receipt-actions { text-align: center; margin: 20px 0 40px; }
+  @media print {
+    .receipt-actions, .main-header, .main-footer { display: none !important; }
+    .receipt-sheet { border: none; margin: 0; max-width: none; }
+    body { background: #fff; }
+  }
+</style>
+</head>
+<body>
+
+<header class="main-header">
+  <div class="top-split-bar"></div>
+  <div class="container header-wrapper">
+    <a href="index.html" class="logo">
+      <img class="logo-img" src="images/logo.png" alt="Engineering Services Australia"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
+      <span class="logo-fallback"><span class="red">ESA</span> <span class="navy">ENGINEERING</span></span>
+    </a>
+    <div class="header-actions">
+      <a href="signin.html" class="btn-pill btn-pill-red">Sign in</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="receipt-sheet" id="receiptSheet">
+    <h1>Engineering Services Australia Pty Ltd</h1>
+    <p class="sub">2212 Gundowring Road, Gundowring VIC 3691 &middot; ABN 92 108 345 384 &middot; 0402 464 823</p>
+    <h2 style="color:var(--navy);font-size:1.1rem;margin:0 0 12px">Payment receipt</h2>
+    <div id="receiptRows"><p style="color:var(--muted)">Loading...</p></div>
+    <p class="receipt-note">
+      This receipt confirms the consultation fee for the booking shown above.
+      Bank transfers are confirmed once they clear, usually within 1 business day.
+      Questions about this receipt: engsa@live.com.au quoting the reference.
+    </p>
+  </div>
+  <div class="receipt-actions no-print">
+    <button class="btn btn-navy" onclick="window.print()">Print / save as PDF</button>
+    <a href="portal.html#payments" class="btn btn-ghost">Back to my payments</a>
+  </div>
+</main>
+
+<script src="auth.js"></script>
+<script>
+// receipt page: looks up one of your own payments and prints its details.
+// the print button + your browser do the "pdf" part, no pdf library needed.
+document.addEventListener('DOMContentLoaded', function () {
+  if (typeof isLoggedIn !== 'function' || !isLoggedIn()) {
+    window.location.href = 'signin.html?next=' + encodeURIComponent('receipt.html' + window.location.search);
+    return;
+  }
+  var id = new URLSearchParams(window.location.search).get('payment');
+  var box = document.getElementById('receiptRows');
+  if (!id) { box.innerHTML = '<p style="color:var(--red)">No payment picked.</p>'; return; }
+
+  fetch('/api/portal/payments', { headers: (typeof authHeaders === 'function' ? authHeaders() : {}) })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      var p = (data.payments || []).filter(function (x) { return String(x.id) === String(id); })[0];
+      if (!p) { box.innerHTML = '<p style="color:var(--red)">We could not find that payment in your account.</p>'; return; }
+      var statusText = p.status === 'completed' ? 'PAID' : (p.status === 'pending' ? 'Transfer logged, waiting to clear' : 'Not paid yet');
+      box.innerHTML =
+        row('Reference', p.reference) +
+        row('Booking', p.bookingId ? '#' + p.bookingId : '-') +
+        row('Customer', p.customerName) +
+        row('Date', p.paymentDate ? String(p.paymentDate).slice(0, 10) : '-') +
+        row('Status', statusText) +
+        row('Amount', '$' + p.amount);
+    })
+    .catch(function () {
+      box.innerHTML = '<p style="color:var(--red)">Could not load the payment, is the server running?</p>';
+    });
+
+  function row(label, value) {
+    return '<div class="receipt-row' + (label === 'Amount' ? ' receipt-total' : '') + '"><span>' + label + '</span><span>' + value + '</span></div>';
+  }
+});
+</script>
+</body>
+</html>
