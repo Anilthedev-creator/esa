@@ -24,6 +24,9 @@
     bindForms();
     bindConfirm();
     updateHeaderButtons();
+    personalise();
+    activateFromHash();
+    window.addEventListener("hashchange", activateFromHash);
     load();
   });
 
@@ -210,8 +213,37 @@
         var panels = document.querySelectorAll(".portal-panel");
         panels.forEach(function (p) { p.classList.remove("active"); });
         $("panel-" + tab.getAttribute("data-tab")).classList.add("active");
+        // keep the URL shareable/bookmarkable (#bookings, #payments ...)
+        if (window.history && history.replaceState) {
+          history.replaceState(null, "", "#" + tab.getAttribute("data-tab"));
+        }
       });
     });
+  }
+
+  /* Greet the signed-in customer and show their initials in the hero. */
+  function personalise() {
+    var user = (typeof getUser === "function") ? getUser() : null;
+    var greet = $("portalGreeting");
+    if (greet && user && user.firstName) {
+      greet.textContent = "Welcome back, " + user.firstName + ".";
+    }
+    var avatar = $("portalAvatar");
+    if (avatar) {
+      var initials = user
+        ? (String(user.firstName || "").charAt(0) + String(user.lastName || "").charAt(0)).toUpperCase()
+        : "";
+      avatar.textContent = initials || "ESA";
+    }
+  }
+
+  /* Open the tab the URL points at, e.g. portal.html#bookings from the
+     header account menu. */
+  function activateFromHash() {
+    var hash = (window.location.hash || "").replace("#", "");
+    if (!hash) return;
+    var tab = document.querySelector('.portal-tab[data-tab="' + hash + '"]');
+    if (tab) tab.click();
   }
 
   /* -------------------------------- forms ------------------------------- */

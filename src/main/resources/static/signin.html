@@ -54,7 +54,6 @@
 
     <div class="header-actions">
       <a href="signin.html" class="btn-pill btn-pill-red">Sign in</a>
-      <a href="signup.html" class="btn-pill btn-pill-cyan">Sign up</a>
           </div>
 
   </div>
@@ -83,8 +82,8 @@
             </form>
             
             <div style="text-align: center; margin-top: 30px; border-top: 1px solid rgba(0,0,0,0.08); padding-top: 20px;">
-                <p style="font-size: 0.9rem; color: var(--muted);">New to ESA Engineering?</p>
-                <a href="signup.html" style="color: var(--red); text-decoration: none; font-weight: 700; font-size: 0.9rem; display: inline-block; margin-top: 5px;">Request a Portal Account &rarr;</a>
+                <p style="font-size: 0.9rem; color: var(--muted);">Don't have an account?</p>
+                <a href="signup.html" style="color: var(--red); text-decoration: none; font-weight: 700; font-size: 0.9rem; display: inline-block; margin-top: 5px;">Sign up &rarr;</a>
             </div>
         </div>
     </main>
@@ -113,9 +112,13 @@ document.addEventListener('DOMContentLoaded', function() {
   const next = params.get('next');
   const ADMIN_PAGES = ['dashboard.html', 'customers.html', 'enquiries.html', 'payments.html', 'settings.html', 'content.html', 'aboutPageAdmin.html', 'accountAdmin.html'];
   const PORTAL_PAGES = ['portal.html'];
+  // Any local page (with an optional query string, e.g.
+  // "booking.html?service=Waste%20Management") is a safe destination;
+  // anything else (//host, https://..., javascript:) is ignored.
+  const isLocalPage = (v) => typeof v === 'string' && /^[a-zA-Z0-9_-]+\.html(\?.*)?$/.test(v);
   const redirectTarget = (next && next.startsWith('/') && !next.startsWith('//'))
     ? next
-    : (ADMIN_PAGES.concat(PORTAL_PAGES).includes(next) ? next : null);
+    : ((ADMIN_PAGES.concat(PORTAL_PAGES).includes(next) || isLocalPage(next)) ? next : null);
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();

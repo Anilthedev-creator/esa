@@ -54,7 +54,6 @@
 
     <div class="header-actions">
       <a href="signin.html" class="btn-pill btn-pill-red">Sign in</a>
-      <a href="signup.html" class="btn-pill btn-pill-cyan">Sign up</a>
           </div>
 
   </div>
@@ -68,11 +67,15 @@
                     Engineering a zero-waste future. We redesign production flows to capture and reclaim scrap material, 
                     turning industrial byproducts back into profit centers.
                 </p>
-                <ul>
+                <ul style="list-style:none;margin-bottom:25px">
                     <li style="margin-bottom: 10px;">→ Circular Economy Integration</li>
                     <li style="margin-bottom: 10px;">→ Lean "Muda" Reduction Protocols</li>
                     <li style="margin-bottom: 10px;">→ Regulatory Compliance Audits</li>
                 </ul>
+                <div style="display:flex;gap:var(--s4);flex-wrap:wrap">
+                    <a href="booking.html?service=Waste%20Management" class="btn btn-red">Book a waste review</a>
+                    <a href="contact.html" class="btn btn-outline">Talk to an expert</a>
+                </div>
             </div>
             <div style="height: 350px; border-radius: var(--r); overflow: hidden; box-shadow: 10px 10px 0 var(--cyan);">
                 <img src="images/service-waste.jpg" alt="Scrap metal recovery claw crane at an industrial recycling facility" style="width:100%; height:100%; object-fit:cover;">
@@ -80,11 +83,9 @@
         </section>
 
         <div class="stats-bar">
-            <div class="container">
-                <div class="stat-item"><h2>30%</h2><p>Avg. Waste Reduction</p></div>
-                <div class="stat-item"><h2>ISO</h2><p>14001 Certified Flows</p></div>
-                <div class="stat-item"><h2>12mo</h2><p>Typical ROI Period</p></div>
-            </div>
+            <div class="stat-item"><h2>30%</h2><p>Avg. Waste Reduction</p></div>
+            <div class="stat-item"><h2>ISO</h2><p>14001 Certified Flows</p></div>
+            <div class="stat-item"><h2>12mo</h2><p>Typical ROI Period</p></div>
         </div>
 
         <section class="container">
@@ -97,6 +98,7 @@
         </section>
 
         <section class="container section-padding">
+            <h2 class="section-title">What We Deliver</h2>
             <div class="grid">
                 <div class="card">
                     <h4>Material Recovery</h4>
@@ -148,6 +150,7 @@
     </div>
   </div>
 </footer>
+<script src="auth.js" defer></script>
 <script src="main.js" defer></script>
 <script src="content.js" defer></script>
 </body>

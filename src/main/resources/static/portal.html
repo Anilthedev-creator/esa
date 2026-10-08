@@ -44,22 +44,30 @@
       </div>
       <a href="about.html" class="nav-link">About us</a>
       <a href="contact.html" class="nav-link">Contact</a>
-      <div class="header-actions">
-        <a href="signin.html" class="btn-pill btn-pill-red">Sign in</a>
-        <a href="signup.html" class="btn-pill btn-pill-cyan">Sign up</a>
-      </div>
     </nav>
+
+    <div class="header-actions">
+      <a href="signin.html" class="btn-pill btn-pill-red">Sign in</a>
+    </div>
 
   </div>
 </header>
 
 <section class="portal-hero">
-  <div class="container">
-    <span class="accent-label">Customer Portal</span>
-    <h1>My Portal</h1>
-    <p>Your bookings, enquiries and payments — all in one place. Pay an
-       outstanding fee, cancel an unpaid booking or reopen an enquiry
-       whenever it suits you.</p>
+  <div class="container portal-hero-row">
+    <div>
+      <span class="accent-label">Customer Portal</span>
+      <h1 id="portalGreeting">My Portal</h1>
+      <p>Your bookings, enquiries and payments — all in one place. Pay an
+         outstanding fee, cancel an unpaid booking or reopen an enquiry
+         whenever it suits you.</p>
+      <div class="portal-quick">
+        <a href="booking.html" class="btn btn-red btn-sm">New booking</a>
+        <a href="portal.html#bookings" class="btn btn-sm portal-quick-ghost">My bookings</a>
+        <a href="contact.html" class="btn btn-sm portal-quick-ghost">Contact ESA</a>
+      </div>
+    </div>
+    <div class="avatar portal-hero-avatar" id="portalAvatar" aria-hidden="true">ESA</div>
   </div>
 </section>
 

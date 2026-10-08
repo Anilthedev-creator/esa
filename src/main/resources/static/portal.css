@@ -13,10 +13,32 @@
 /* Same navy band the site uses for .stats-bar, so the portal reads as part of
    the same site rather than a separate app. */
 .portal-hero {
-  background: var(--navy);
+  background: linear-gradient(135deg, var(--navy) 0%, #16273f 55%, #0e1e36 100%);
   color: #fff;
   padding: var(--s10) 0 var(--s12);
 }
+.portal-hero-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s8);
+}
+.portal-hero-avatar {
+  width: 92px; height: 92px;
+  font-size: 1.9rem;
+  margin-bottom: 0;
+  border-color: rgba(255, 255, 255, .9);
+  outline: none;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .35);
+  flex-shrink: 0;
+}
+.portal-quick { display: flex; flex-wrap: wrap; gap: var(--s3); margin-top: var(--s5); }
+.portal-quick-ghost {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, .35);
+  color: #fff;
+}
+.portal-quick-ghost:hover { border-color: var(--cyan); color: var(--cyan); opacity: 1; }
 .portal-hero .accent-label { color: var(--cyan); }
 .portal-hero h1 {
   font-size: var(--2xl);
@@ -81,10 +103,12 @@
 .portal-card {
   background: var(--surface);
   border: 1px solid var(--border);
+  border-top: 4px solid var(--cyan);
   border-radius: var(--r);
   padding: var(--s5);
   box-shadow: var(--sh-md);
 }
+.portal-card:nth-child(even) { border-top-color: var(--red); }
 .portal-card .label {
   font-size: var(--xs);
   font-weight: 700;
@@ -295,4 +319,6 @@
   .portal-table th:nth-child(3),
   .portal-table td:nth-child(3) { display: none; }
   .portal-tabs { margin-top: calc(-1 * var(--s4)); }
+  .portal-hero-row { flex-direction: column; align-items: flex-start; gap: var(--s5); }
+  .portal-hero-avatar { width: 72px; height: 72px; font-size: 1.4rem; }
 }
