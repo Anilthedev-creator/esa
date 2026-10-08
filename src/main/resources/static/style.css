@@ -39,7 +39,7 @@
   --ease: 180ms cubic-bezier(.16, 1, .3, 1);
   --sh-md: 0 4px 15px rgba(15, 23, 42, .08);
   --sh-lg: 0 12px 32px rgba(15, 23, 42, .12);
-  --w: 1200px;
+  --w: 1440px;
 }
 
 /* reset and base styles */
@@ -111,14 +111,30 @@ a, button, [role="button"], input, textarea, select {
 .header-wrapper { display: flex; justify-content: space-between; align-items: center; }
 
 /* Logo */
-.logo { font-size: 1.4rem; font-weight: 800; letter-spacing: -.5px; text-decoration: none; text-transform: uppercase; }
+.logo { font-size: 1.7rem; font-weight: 800; letter-spacing: -.5px; text-decoration: none; text-transform: uppercase; }
 .logo .navy { color: var(--navy); }
 .logo .red  { color: var(--red); margin-left: 2px; }
-.logo-img { display: block; height: 46px; width: auto; }
+.logo-img { display: block; height: 64px; width: auto; }
 .logo-fallback { display: none; }
 @media (max-width: 640px) {
-  .logo-img { height: 34px; }
+  .logo-img { height: 46px; }
 }
+
+/* Team / leadership avatar (initials monogram) */
+.avatar {
+  width: 96px; height: 96px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 1.7rem; letter-spacing: .5px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--navy) 0%, var(--cyan) 100%);
+  box-shadow: 0 8px 20px rgba(11, 23, 42, .22);
+  border: 3px solid #fff;
+  outline: 1px solid var(--border);
+  margin-bottom: var(--s5);
+  flex-shrink: 0;
+}
+.avatar-sm { width: 72px; height: 72px; font-size: 1.3rem; }
 
 /* Nav box */
 .main-nav-box {
@@ -265,7 +281,7 @@ a, button, [role="button"], input, textarea, select {
 .card:hover, .process-card:hover { transform: translateY(-5px); box-shadow: var(--sh-lg); }
 .card-red, .process-card:nth-child(even), .appraisal-card:nth-child(even) { border-bottom-color: var(--red); }
 .card-img, .placeholder-img {
-  height: 140px;
+  height: 170px;
   background: #9fa6d2;
   border-radius: .25rem;
   display: flex; align-items: center; justify-content: center;
@@ -276,7 +292,7 @@ a, button, [role="button"], input, textarea, select {
 .card-photo {
   display: block;
   width: 100%;
-  height: 140px;
+  height: 170px;
   object-fit: cover;
   border-radius: .25rem;
   margin-bottom: var(--s4);
@@ -323,7 +339,7 @@ a, button, [role="button"], input, textarea, select {
   padding: var(--s10);
   margin-bottom: var(--s8);
   display: grid;
-  grid-template-columns: 350px 1fr;
+  grid-template-columns: 420px 1fr;
   gap: var(--s8);
   overflow: hidden;
 }
@@ -343,7 +359,7 @@ a, button, [role="button"], input, textarea, select {
 .stat-item p  { font-size: var(--xs); text-transform: uppercase; letter-spacing: .08em; color: #9ca3af; }
 
 /* project grid & filters */
-.project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--s5); margin: var(--s10) 0; }
+.project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--s6); margin: var(--s10) 0; }
 .filter-bar { display: flex; gap: var(--s3); padding: var(--s5) 0; border-top: 1px solid var(--border); flex-wrap: wrap; }
 
 /* contact */
@@ -424,7 +440,7 @@ a, button, [role="button"], input, textarea, select {
   }
 
   .logo {
-    font-size: 1.15rem;
+    font-size: 1.35rem;
   }
 
   .mobile-menu-toggle {
@@ -572,7 +588,7 @@ a, button, [role="button"], input, textarea, select {
   }
 
   .logo {
-    font-size: 1rem;
+    font-size: 1.15rem;
   }
 
   .header-actions {
@@ -622,7 +638,7 @@ a, button, [role="button"], input, textarea, select {
   }
 
   .card-img {
-    height: 120px;
+    height: 150px;
   }
 
   .featured-strip,
@@ -691,7 +707,7 @@ a, button, [role="button"], input, textarea, select {
   }
 
   .featured-strip {
-    grid-template-columns: 350px 1fr;
+    grid-template-columns: 420px 1fr;
   }
 
   .contact-section {
@@ -703,7 +719,7 @@ a, button, [role="button"], input, textarea, select {
   }
 
   .project-grid {
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   }
 }
 
