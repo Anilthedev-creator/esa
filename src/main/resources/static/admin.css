@@ -842,3 +842,35 @@ tbody tr:hover { background: #f8fafc; }
 @media (max-width: 700px) {
   .thumb-grid { grid-template-columns: repeat(3, 1fr); }
 }
+
+/* dashboard "needs attention" work queue rows */
+.alert-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid rgba(55,65,81,.14);
+  border-radius: 10px;
+  background: #fff;
+  color: #374151;
+  font-size: .88rem;
+  text-decoration: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.alert-row:hover {
+  border-color: #007fa8;
+  box-shadow: 0 2px 10px rgba(15,23,42,.08);
+}
+.alert-n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: rgba(245,158,11,.15);
+  color: #92400e;
+  font-weight: 800;
+  font-size: .8rem;
+}

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>Audit Log | ESA Admin</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="admin.css">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+</head>
+
+<body data-admin-page="auditlog">
+<a class="skip-link" href="#main-content">Skip to content</a>
+<div class="admin-layout">
+
+  <!-- SIDEBAR (same as the other admin pages) -->
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-logo">
+      <img loading="lazy" width="550" height="188" src="images/logo-white.png" alt="Engineering Services Australia">
+    </div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html"><i class="fa-solid fa-gauge-high"></i> Dashboard</a>
+      <a href="content.html"><i class="fa-solid fa-file-lines"></i> Content Management</a>
+      <a href="customers.html"><i class="fa-solid fa-users"></i> Customer Management</a>
+      <a href="bookings.html"><i class="fa-solid fa-calendar-check"></i> Bookings</a>
+      <a href="payments.html"><i class="fa-solid fa-credit-card"></i> Payments</a>
+      <a href="enquiries.html"><i class="fa-solid fa-envelope"></i> Enquiries</a>
+      <a href="caseStudies.html"><i class="fa-solid fa-folder-open"></i> Case Studies</a>
+      <a class="active" href="auditLog.html"><i class="fa-solid fa-clock-rotate-left"></i> Audit Log</a>
+      <a href="settings.html"><i class="fa-solid fa-gear"></i> Settings</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-circle">AD</div>
+      <div>
+        <p>Admin User</p>
+        <span>Administrator</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main id="main-content" class="main-content">
+
+    <header class="admin-topbar">
+      <div class="topbar-links">
+        <a href="index.html">Home</a>
+        <a href="projects.html">Projects</a>
+        <a href="services.html">Services</a>
+        <a href="contact.html">Contact</a>
+        <a href="about.html">About us</a>
+      </div>
+      <button id="adminToggle" class="admin-btn" aria-controls="sidebar" aria-expanded="false">Menu</button>
+    </header>
+
+    <section class="dashboard-wrapper">
+
+      <div class="dashboard-title">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+        <h2>Audit Log</h2>
+      </div>
+
+      <!-- who did what in the admin, newest first. read-only on purpose,
+           nothing here can be edited or deleted from the ui -->
+      <div class="dashboard-card">
+        <p class="admin-muted" style="margin-bottom:12px">
+          Every admin change is recorded here (last 500 actions). Read only - the log is not editable from the site.
+        </p>
+        <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>When</th>
+              <th>Who</th>
+              <th>Action</th>
+              <th>Detail</th>
+            </tr>
+          </thead>
+          <tbody id="auditBody">
+            <tr><td colspan="4">Loading...</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <div class="table-pager" id="auditCount" style="justify-content:flex-start"></div>
+      </div>
+
+    </section>
+  </main>
+</div>
+
+<script src="auth.js"></script>
+<script src="admin.js"></script>
+<script>
+// audit log page: just fetches and renders, no editing on purpose
+document.addEventListener('DOMContentLoaded', function () {
+  if (typeof redirectIfNotLoggedIn === 'function' && !isLoggedIn()) {
+    redirectIfNotLoggedIn('signin.html');
+    return;
+  }
+
+  function headers() {
+    var h = { 'Content-Type': 'application/json' };
+    if (typeof authHeaders === 'function') Object.assign(h, authHeaders());
+    return h;
+  }
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function fmtWhen(iso) {
+    var d = new Date(iso);
+    if (isNaN(d)) return iso || '';
+    // en-AU so it reads day/month like the rest of the site
+    return d.toLocaleString('en-AU', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+
+  function render(entries) {
+    var body = document.getElementById('auditBody');
+    if (!entries.length) {
+      body.innerHTML = '<tr><td colspan="4">Nothing logged yet - changes you make in the admin show up here.</td></tr>';
+    } else {
+      body.innerHTML = entries.map(function (e) {
+        return '<tr>' +
+          '<td style="white-space:nowrap">' + esc(fmtWhen(e.at)) + '</td>' +
+          '<td>' + esc(e.who) + '</td>' +
+          '<td><strong>' + esc(e.action) + '</strong></td>' +
+          '<td class="msg-cell" title="' + esc(e.detail) + '">' + esc(e.detail) + '</td>' +
+          '</tr>';
+      }).join('');
+    }
+    document.getElementById('auditCount').textContent = entries.length + ' entries, newest first';
+  }
+
+  fetch('/api/admin/audit', { headers: headers() })
+    .then(function (r) { return r.json(); })
+    .then(function (data) { render(data.entries || []); })
+    .catch(function () {
+      document.getElementById('auditBody').innerHTML =
+        '<tr><td colspan="4">Could not reach the server.</td></tr>';
+    });
+});
+</script>
+</body>
+</html>

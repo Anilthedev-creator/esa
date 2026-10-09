@@ -58,6 +58,10 @@
         <i class="fa-solid fa-folder-open"></i> Case Studies
       </a>
 
+      <a href="auditLog.html">
+        <i class="fa-solid fa-clock-rotate-left"></i> Audit Log
+      </a>
+
       <a href="settings.html">
         <i class="fa-solid fa-gear"></i> Settings
       </a>
@@ -160,6 +164,13 @@
           </div>
         </a>
 
+      </div>
+
+      <!-- NEEDS ATTENTION: the work queue, filled from stats.alerts by admin-data.js -->
+      <div class="dashboard-card" id="alertsCard" style="margin-bottom:20px;display:none">
+        <h3 class="section-heading"><i class="fa-solid fa-bell" style="color:var(--yellow,#f59e0b)"></i> Needs attention</h3>
+        <div class="heading-line"></div>
+        <div id="alertsList" style="display:flex;flex-direction:column;gap:8px;margin-top:12px"></div>
       </div>
 
       <!-- TABLES -->

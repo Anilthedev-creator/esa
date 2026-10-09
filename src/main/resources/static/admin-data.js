@@ -322,6 +322,36 @@
     draw();
   }
 
+  /* Export whatever is in a table to CSV. Every row is already in the DOM
+     (pagination just hides some), so this grabs the full list, not just the
+     visible page. Same trick as the portal payments export. */
+  window.exportTableCsv = function (bodyId, filename) {
+    var body = $(bodyId);
+    if (!body) return;
+    var table = body.closest('table');
+    var rows = [];
+    var heads = table.querySelectorAll('thead th');
+    rows.push(Array.prototype.map.call(heads, function (th) { return th.textContent.trim(); }));
+    body.querySelectorAll('tr').forEach(function (tr) {
+      var cells = tr.querySelectorAll('td');
+      if (!cells.length) return;
+      rows.push(Array.prototype.map.call(cells, function (td) { return td.textContent.trim(); }));
+    });
+    if (rows.length <= 1) {
+      if (window.showToast) window.showToast('Nothing to export yet.');
+      return;
+    }
+    var csv = rows.map(function (r) {
+      return r.map(function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(',');
+    }).join('\n');
+    var blob = new Blob([csv], { type: 'text/csv' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    if (window.showToast) window.showToast('CSV downloaded (' + (rows.length - 1) + ' rows).', 'ok');
+  };
+
   function bindActions(container) {
     container.querySelectorAll('[data-edit]').forEach(function (el) {
       el.addEventListener('click', function () {
@@ -559,6 +589,33 @@
     $('statActiveBookings').textContent = (stats.stats.activeBookings || 0).toLocaleString('en-AU');
     $('statPendingEnquiries').textContent = (stats.stats.pendingEnquiries || 0).toLocaleString('en-AU');
     $('statRevenue').textContent = fmtMoney(stats.stats.revenue);
+
+    // work queue: only show the card when there is actually something to do
+    var alerts = stats.alerts || {};
+    var alertsCard = $('alertsCard');
+    var alertsList = $('alertsList');
+    if (alertsCard && alertsList) {
+      var items = [];
+      if (alerts.newEnquiries) {
+        items.push({ n: alerts.newEnquiries, text: 'new ' + (alerts.newEnquiries === 1 ? 'enquiry' : 'enquiries') + ' waiting for a reply', href: 'enquiries.html' });
+      }
+      if (alerts.pendingPayments) {
+        items.push({ n: alerts.pendingPayments, text: 'payment' + (alerts.pendingPayments === 1 ? '' : 's') + ' to confirm against the bank feed', href: 'payments.html' });
+      }
+      if (alerts.bookingsNext7Days) {
+        items.push({ n: alerts.bookingsNext7Days, text: 'booking' + (alerts.bookingsNext7Days === 1 ? '' : 's') + ' in the next 7 days', href: 'bookings.html' });
+      }
+      if (items.length) {
+        alertsList.innerHTML = items.map(function (it) {
+          return '<a class="alert-row" href="' + it.href + '">' +
+            '<span class="alert-n">' + it.n + '</span> ' + it.text +
+            ' <i class="fa-solid fa-arrow-right" style="margin-left:auto"></i></a>';
+        }).join('');
+        alertsCard.style.display = '';
+      } else {
+        alertsCard.style.display = 'none';
+      }
+    }
 
     // Trend: bookings this week vs last week, from real booking rows.
     try {

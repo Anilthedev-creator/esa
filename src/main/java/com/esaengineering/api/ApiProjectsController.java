@@ -22,6 +22,10 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * Case studies: public list for the projects page plus the admin CRUD the
  * caseStudies.html page calls. Mirrors the /api/projects routes in server.js.
+ *
+ * TODO: the Node fallback also audit-logs payment/enquiry/customer/page
+ * updates. Those live in the older controllers - wire AuditLogService into
+ * them the same way when touching them next.
  */
 @CrossOrigin(origins = "*")
 @RestController
@@ -30,10 +34,12 @@ public class ApiProjectsController {
 
     private final ProjectRepository projectRepo;
     private final AdminAccess adminAccess;
+    private final AuditLogService auditLog;
 
-    public ApiProjectsController(ProjectRepository projectRepo, AdminAccess adminAccess) {
+    public ApiProjectsController(ProjectRepository projectRepo, AdminAccess adminAccess, AuditLogService auditLog) {
         this.projectRepo = projectRepo;
         this.adminAccess = adminAccess;
+        this.auditLog = auditLog;
     }
 
     /** Published case studies, newest first. */
@@ -63,6 +69,7 @@ public class ApiProjectsController {
         apply(p, body);
         p.setCreatedAt(LocalDateTime.now());
         p = projectRepo.save(p);
+        auditLog.record(auth, "case study created", p.getTitle() + " (" + p.getStatus() + ")");
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("project", p);
         out.put("message", "Case study saved");
@@ -77,6 +84,7 @@ public class ApiProjectsController {
         Project p = projectRepo.findById(id).orElseThrow(() -> ApiException.notFound("Case study not found"));
         apply(p, body);
         p = projectRepo.save(p);
+        auditLog.record(auth, "case study updated", p.getTitle() + " (" + p.getStatus() + ")");
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("project", p);
         out.put("message", "Case study updated");
@@ -88,8 +96,9 @@ public class ApiProjectsController {
     public Map<String, Object> remove(@PathVariable Long id,
                                       @RequestHeader(value = "Authorization", required = false) String auth) {
         adminAccess.requireAdmin(auth);
-        if (!projectRepo.existsById(id)) throw ApiException.notFound("Case study not found");
+        Project gone = projectRepo.findById(id).orElseThrow(() -> ApiException.notFound("Case study not found"));
         projectRepo.deleteById(id);
+        auditLog.record(auth, "case study deleted", gone.getTitle());
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("message", "Case study deleted");
         out.put("success", true);

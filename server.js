@@ -182,6 +182,26 @@ app.get('/api/health', (req, res) => res.json({ status: 'UP', backend: 'Node fal
 app.get('/api/admin/health', (req, res) => res.json({ status: 'UP', backend: 'Node fallback', timestamp: new Date().toISOString() }));
 
 // ---- AUTH API (/api/auth) ----
+// ---- simple rate limiter for the auth endpoints ----
+// stops anyone brute-forcing passwords or spamming the reset emails. its an
+// in-memory counter so it forgets on restart, which is fine at our traffic.
+// TODO: move this to redis or similar if we ever run more than one instance.
+const authHits = new Map();
+const AUTH_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const AUTH_MAX_HITS = 30; // normal humans never get near this
+app.use('/api/auth', (req, res, next) => {
+  const ip = req.ip || 'unknown';
+  const now = Date.now();
+  let hit = authHits.get(ip);
+  if (!hit || now - hit.start > AUTH_WINDOW_MS) hit = { start: now, count: 0 };
+  hit.count++;
+  authHits.set(ip, hit);
+  if (hit.count > AUTH_MAX_HITS) {
+    return res.status(429).json({ message: 'Too many attempts from here. Wait 15 minutes and try again.', success: false });
+  }
+  next();
+});
+
 app.post('/api/auth/signup', (req, res) => {
   const { firstName, lastName, fullName, companyName, email, password, phone, phoneNumber } = req.body;
   let name = fullName || ((firstName||'') + ' ' + (lastName||'')).trim();
@@ -317,8 +337,20 @@ function adminStats() {
   const recentEnquiries = contacts.slice(-5).reverse().map(c => ({
     id: c.id, name: c.fullName, preview: (c.description||'').slice(0,60), status: c.status||'new'
   }));
+  // work queue: the things that need a human to look at them
+  const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const alerts = {
+    newEnquiries: contacts.filter(c => (c.status || 'new') === 'new').length,
+    pendingPayments: payments.filter(p => (p.status || '') === 'pending').length,
+    bookingsNext7Days: bookings.filter(b => {
+      if (!b.bookingDate) return false;
+      const d = new Date(b.bookingDate);
+      return d >= new Date(now.toDateString()) && d <= nextWeek;
+    }).length
+  };
   return {
     stats: { totalUsers: users.length, activeBookings, pendingEnquiries: contacts.length, revenue },
+    alerts,
     recentRequests, recentEnquiries
   };
 }
@@ -353,6 +385,7 @@ app.patch('/api/admin/customers/:id', requireAdmin, (req, res) => {
   if (company) { u.company = company; u.companyName = company; }
   if (status) u.active = status !== 'inactive';
   save('users', users);
+  logAudit(req, 'customer updated', u.email || u.fullName || String(u.id));
   res.json({ customer: u, message: 'Customer updated' });
 });
 
@@ -373,6 +406,7 @@ app.patch('/api/admin/enquiries/:id', requireAdmin, (req, res) => {
   if (req.body.status) c.status = req.body.status;
   if (req.body.reply !== undefined) c.reply = req.body.reply;
   save('contacts', contacts);
+  logAudit(req, 'enquiry updated', '#' + c.id + (req.body.status ? ' -> ' + req.body.status : '') + (req.body.reply !== undefined ? ' (reply sent)' : ''));
   res.json({ enquiry: c, message: 'Enquiry updated' });
 });
 
@@ -398,6 +432,7 @@ app.patch('/api/admin/payments/:id', requireAdmin, (req, res) => {
     const b = bookings.find(x=>x.id===p.bookingId);
     if (b) { b.status = 'confirmed'; save('bookings', bookings); }
   }
+  logAudit(req, 'payment updated', '#' + p.id + ' -> ' + (p.status || '?'));
   res.json({ payment: p, message: 'Payment updated' });
 });
 
@@ -431,6 +466,7 @@ app.post('/api/admin/projects', requireAdmin, (req, res) => {
   const study = Object.assign({ id: id, createdAt: new Date().toISOString() }, studyFields(req.body, null));
   caseStudies.push(study);
   save('case-studies', caseStudies);
+  logAudit(req, 'case study created', study.title + ' (' + study.status + ')');
   res.json({ project: study, message: 'Case study saved', success: true });
 });
 app.patch('/api/admin/projects/:id', requireAdmin, (req, res) => {
@@ -438,12 +474,38 @@ app.patch('/api/admin/projects/:id', requireAdmin, (req, res) => {
   if (!p) return res.status(404).json({ message: 'Case study not found', success: false });
   Object.assign(p, studyFields(req.body, p));
   save('case-studies', caseStudies);
+  logAudit(req, 'case study updated', p.title + ' (' + p.status + ')');
   res.json({ project: p, message: 'Case study updated', success: true });
 });
 app.delete('/api/admin/projects/:id', requireAdmin, (req, res) => {
+  const gone = caseStudies.find(x => String(x.id) === req.params.id);
   caseStudies = caseStudies.filter(x => String(x.id) !== req.params.id);
   save('case-studies', caseStudies);
+  logAudit(req, 'case study deleted', gone ? gone.title : '#' + req.params.id);
   res.json({ message: 'Case study deleted', success: true });
+});
+
+// ---- AUDIT LOG (who did what in the admin) ----
+// every admin mutation calls logAudit so there is a paper trail. kept in a
+// json file like everything else, capped at 500 entries so it cant grow forever
+let auditLog = load('audit-log', []);
+
+function logAudit(req, action, detail) {
+  const entry = {
+    id: auditLog.length ? Math.max(...auditLog.map(a => a.id)) + 1 : 1,
+    at: new Date().toISOString(),
+    who: (req.userPayload && req.userPayload.email) || 'unknown',
+    action: action,
+    detail: detail || ''
+  };
+  auditLog.push(entry);
+  if (auditLog.length > 500) auditLog = auditLog.slice(-500);
+  save('audit-log', auditLog);
+}
+
+app.get('/api/admin/audit', requireAdmin, (req, res) => {
+  // newest first
+  res.json({ entries: auditLog.slice().reverse() });
 });
 
 // ---- PAGES CMS ----
@@ -489,6 +551,7 @@ app.post('/api/admin/pages', requireAdmin, (req, res) => {
   const page = { id, title: title.trim(), slug: finalSlug, status: 'published', updatedAt: new Date().toISOString() };
   pages.push(page);
   save('pages', pages);
+  logAudit(req, 'page created', page.title || page.slug || String(page.id));
   res.json({ page, message: 'Page created' });
 });
 app.get('/api/admin/pages/:id', requireAdmin, (req, res) => {
@@ -526,6 +589,7 @@ app.patch('/api/admin/pages/:id', requireAdmin, (req, res) => {
     page.updatedAt = new Date().toISOString();
     save('pages', pages);
   }
+  logAudit(req, 'page content updated', page.title || page.slug || String(page.id));
   res.json({ page, message: 'Page updated' });
 });
 app.put('/api/admin/pages/:id/blocks', requireAdmin, (req, res) => {
