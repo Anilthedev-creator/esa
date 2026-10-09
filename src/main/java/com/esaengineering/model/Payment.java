@@ -45,4 +45,17 @@ public class Payment {
     public void setStatus(String status) { this.status = status; }
     public Long getBookingId() { return bookingId; }
     public void setBookingId(Long bookingId) { this.bookingId = bookingId; }
+
+    /** how it was paid: "card" or "transfer" (null until its paid) */
+    @Column(length = 20)
+    private String method;
+
+    /** last 4 digits when paid by card - the full number is NEVER stored */
+    @Column(length = 4)
+    private String cardLast4;
+
+    public String getMethod() { return method; }
+    public void setMethod(String method) { this.method = method; }
+    public String getCardLast4() { return cardLast4; }
+    public void setCardLast4(String cardLast4) { this.cardLast4 = cardLast4; }
 }

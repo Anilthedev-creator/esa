@@ -93,12 +93,16 @@ document.addEventListener('DOMContentLoaded', function () {
       var p = (data.payments || []).filter(function (x) { return String(x.id) === String(id); })[0];
       if (!p) { box.innerHTML = '<p class="red-text">We could not find that payment in your account.</p>'; return; }
       var statusText = p.status === 'completed' ? 'PAID' : (p.status === 'pending' ? 'Transfer logged, waiting to clear' : 'Not paid yet');
+      // how it was paid, when we know (card payments keep the last 4 digits)
+      var paidBy = (p.method === 'card' && p.cardLast4) ? 'Card ending ' + p.cardLast4
+        : (p.method === 'transfer' || p.status === 'pending') ? 'Bank transfer' : '-';
       box.innerHTML =
         row('Reference', p.reference) +
         row('Booking', p.bookingId ? '#' + p.bookingId : '-') +
         row('Customer', p.customerName) +
         row('Date', p.paymentDate ? String(p.paymentDate).slice(0, 10) : '-') +
         row('Status', statusText) +
+        row('Paid by', paidBy) +
         row('Amount', '$' + p.amount);
     })
     .catch(function () {

@@ -248,8 +248,12 @@
     if (p.status !== 'completed') {
       actions += ' <button class="admin-btn-secondary" data-mark-paid="' + p.id + '" style="margin-left:6px">Mark paid</button>';
     }
+    // how it was paid: card shows the last 4, transfers say so
+    var howPaid = '';
+    if (p.method === 'card' && p.cardLast4) howPaid = '<br><span class="admin-muted">card \u2022\u2022\u2022\u2022 ' + esc(p.cardLast4) + '</span>';
+    else if (p.method === 'transfer') howPaid = '<br><span class="admin-muted">bank transfer</span>';
     return '<tr>' +
-      '<td>' + esc(p.invoiceId) + '</td>' +
+      '<td>' + esc(p.invoiceId) + howPaid + '</td>' +
       '<td>' + esc(p.customerName) + '</td>' +
       '<td>' + esc(fmtMoney(p.amount)) + '</td>' +
       '<td>' + badge('payment', p.status) + '</td>' +

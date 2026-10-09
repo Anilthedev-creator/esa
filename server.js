@@ -412,7 +412,7 @@ app.patch('/api/admin/enquiries/:id', requireAdmin, (req, res) => {
 
 app.get('/api/admin/payments', requireAdmin, (req, res) => {
   const rows = [...payments].reverse().map(p => ({
-    id: p.id, invoiceId: p.transactionId, customerName: p.customerName||null, amount: p.amount, status: p.status||'completed', paidAt: p.paymentDate||null
+    id: p.id, invoiceId: p.transactionId, customerName: p.customerName||null, amount: p.amount, status: p.status||'completed', paidAt: p.paymentDate||null, method: p.method || (p.transferReference ? 'transfer' : null), cardLast4: p.cardLast4||null
   }));
   res.json({ payments: rows, total: rows.length });
 });
@@ -658,7 +658,8 @@ const bookingSummary = (b) => {
 };
 const paymentSummary = (p) => ({
   id: p.id, reference: p.transactionId, amount: p.amount, status: p.status || 'incomplete',
-  paid: (p.status || '') === 'completed', bookingId: p.bookingId, customerName: p.customerName, paymentDate: p.paymentDate
+  paid: (p.status || '') === 'completed', bookingId: p.bookingId, customerName: p.customerName, paymentDate: p.paymentDate,
+  method: p.method || (p.transferReference ? 'transfer' : null), cardLast4: p.cardLast4 || null
 });
 
 app.get('/api/portal/me', requireCustomer, (req, res) => {
@@ -806,7 +807,7 @@ app.get('/api/bookings/:id', (req, res) => {
   const b = bookings.find(x=>String(x.id)===req.params.id);
   if (!b) return res.status(404).json({ message: 'Booking not found' });
   const p = payments.find(x=>x.bookingId===b.id);
-  res.json({ booking: { id: b.id, name: b.fullName, email: b.email, phone: b.phone, service: b.serviceName, notes: b.description, status: b.status, fee: b.fee||CONSULTATION_FEE, createdAt: b.createdAt, bookingDate: b.bookingDate }, payment: p ? { id: p.id, reference: p.transactionId, status: p.status, amount: p.amount } : null });
+  res.json({ booking: { id: b.id, name: b.fullName, email: b.email, phone: b.phone, service: b.serviceName, notes: b.description, status: b.status, fee: b.fee||CONSULTATION_FEE, createdAt: b.createdAt, bookingDate: b.bookingDate }, payment: p ? { id: p.id, reference: p.transactionId, status: p.status, amount: p.amount, method: p.method || (p.transferReference ? 'transfer' : null), cardLast4: p.cardLast4 || null } : null });
 });
 app.get('/api/bookings', (req, res) => res.json({ bookings }));
 
@@ -858,6 +859,66 @@ app.post('/api/payments/:id/confirm', (req, res) => {
   sendMail(settings.adminEmail, 'Bank transfer logged: ' + p.transactionId,
     (p.customerName || 'A customer') + ' logged a transfer of $' + p.amount + ' with reference "' + ref + '" on ' + p.paidDate + '.\nPlease check the bank feed and mark it paid in the admin payments page.');
   res.json({ message: 'Thanks! We logged your transfer and will confirm once it clears, usually within 1 business day.', reference: p.transactionId, status: 'pending', success: true });
+});
+
+// ---- CARD PAYMENTS ----
+// demo/sandbox card flow for the project: we validate the number properly
+// (luhn check, expiry in the future, cvv shape) and then approve it ourselves.
+// there is no real gateway behind this, so NO real money moves and we only
+// ever keep the last 4 digits - the full number is never saved anywhere.
+// TODO: swap the approve step for stripe/adyen when this goes live for real.
+function luhnOk(raw) {
+  const digits = String(raw || '').replace(/\D/g, '');
+  if (digits.length < 13 || digits.length > 19) return false;
+  let sum = 0;
+  let alt = false;
+  for (let i = digits.length - 1; i >= 0; i--) {
+    let d = Number(digits[i]);
+    if (alt) { d *= 2; if (d > 9) d -= 9; }
+    sum += d;
+    alt = !alt;
+  }
+  return sum % 10 === 0;
+}
+
+app.post('/api/payments/:id/card', (req, res) => {
+  const p = payments.find(x => String(x.id) === req.params.id);
+  if (!p) return res.status(404).json({ message: 'Payment not found' });
+  if (p.status === 'completed') {
+    return res.json({ message: 'This fee is already paid, thanks!', reference: p.transactionId, status: 'completed', success: true });
+  }
+  const name = String(req.body.cardName || '').trim();
+  const number = String(req.body.cardNumber || '').replace(/\s+/g, '');
+  const expiry = String(req.body.cardExpiry || '').trim();
+  const cvv = String(req.body.cardCvv || '').trim();
+
+  if (!name) return res.status(400).json({ message: 'Please put the name as it appears on the card.' });
+  if (!luhnOk(number)) return res.status(400).json({ message: 'That card number does not look right, please check it.' });
+  const m = expiry.match(/^(0[1-9]|1[0-2])\s*\/\s*([0-9]{2})$/);
+  if (!m) return res.status(400).json({ message: 'Expiry should look like MM/YY, e.g. 08/28.' });
+  // a card is valid to the END of its expiry month
+  const endOfMonth = new Date(2000 + Number(m[2]), Number(m[1]), 0, 23, 59, 59);
+  if (endOfMonth < new Date()) return res.status(400).json({ message: 'That card has expired, please use a different one.' });
+  if (!/^[0-9]{3,4}$/.test(cvv)) return res.status(400).json({ message: 'The CVV is the 3 or 4 digit number on the back of the card.' });
+
+  // "approved" - cards settle straight away, no waiting on the bank feed
+  p.status = 'completed';
+  p.method = 'card';
+  p.cardLast4 = number.slice(-4);
+  p.paidDate = new Date().toISOString().slice(0, 10);
+  p.paymentDate = new Date().toISOString();
+  save('payments', payments);
+  // paid now = booking is confirmed now
+  if (p.bookingId) {
+    const b = bookings.find(x => x.id === p.bookingId);
+    if (b) { b.status = 'confirmed'; save('bookings', bookings); }
+  }
+  sendMail(p.customerEmail || (bookings.find(x => x.id === p.bookingId) || {}).email,
+    'Card payment approved - ' + p.transactionId,
+    'Hi ' + (p.customerName || 'there') + ',\n\nYour card payment of $' + p.amount + ' (card ending ' + p.cardLast4 + ') was approved.\nYour booking is confirmed. Reference: ' + p.transactionId + '\nYou can print a receipt from your portal.\n\n- ESA Engineering');
+  sendMail(settings.adminEmail, 'Card payment received: ' + p.transactionId,
+    (p.customerName || 'A customer') + ' paid $' + p.amount + ' by card (ending ' + p.cardLast4 + '). Booking marked confirmed.');
+  res.json({ message: 'Payment approved - your booking is confirmed.', reference: p.transactionId, status: 'completed', cardLast4: p.cardLast4, success: true });
 });
 app.get('/api/payments/:id', (req, res) => {
   const p = payments.find(x=>String(x.id)===req.params.id);

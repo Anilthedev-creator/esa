@@ -1,8 +1,8 @@
 /*
  * payment.js
  * the payment page (step 2 of the booking).
- * shows the booking summary, takes the card details,
- * and confirms the booking once the consultation fee is paid.
+ * shows the booking summary and takes the fee either by card (sandbox mode,
+ * settles instantly) or by bank transfer (logged, confirmed when it clears).
  */
 
 /** Email on the booking, so the paid card can name the address to sign in with. */
@@ -37,7 +37,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       // if it is already paid just show the success card
       if (data.payment && data.payment.status === "completed") {
-        showPaid(data.payment.reference);
+        showPaid(data.payment.reference, methodText(data.payment));
         return;
       }
       if (data.booking.status === "cancelled") {
@@ -48,10 +48,17 @@ document.addEventListener("DOMContentLoaded", function () {
 
       document.getElementById("feeAmount").textContent = "$" + data.booking.fee;
       document.getElementById("payBtn").textContent = "I've banked the $" + data.booking.fee + " fee";
+      document.getElementById("cardPayBtn").textContent = "Pay $" + data.booking.fee + " by card";
 
       form.addEventListener("submit", function (e) {
         e.preventDefault();
         pay(data.payment);
+      });
+
+      setupMethodTabs();
+      setupCardInputs();
+      document.getElementById("cardPayBtn").addEventListener("click", function () {
+        payByCard(data.payment);
       });
     })
     .catch(function () {
@@ -98,12 +105,21 @@ function row(label, value) {
     '<span style="font-weight:600; color:var(--navy); text-align:right">' + value + '</span></div>';
 }
 
-function showPaid(reference) {
+/** "Card ending 4242" / "Bank transfer" / "" - for the success + receipt bits */
+function methodText(payment) {
+  if (!payment) return "";
+  if (payment.method === "card" && payment.cardLast4) return "Card ending " + payment.cardLast4;
+  if (payment.method === "transfer") return "Bank transfer";
+  return "";
+}
+
+function showPaid(reference, paidBy) {
   document.getElementById("paymentCard").style.display = "none";
   var paid = document.getElementById("paidCard");
   paid.style.display = "block";
   if (reference) {
-    document.getElementById("paidRef").textContent = "Payment reference: " + reference;
+    document.getElementById("paidRef").textContent =
+      "Payment reference: " + reference + (paidBy ? "  ·  Paid by " + paidBy : "");
   }
 
   // A customer who booked through the public form has no account, so the
@@ -175,4 +191,112 @@ function pay(payment) {
       btn.disabled = false;
       btn.textContent = "I've banked the fee";
     });
+}
+
+
+/* ------------------------- card payments (sandbox) ------------------------- */
+
+// tabs: card pane vs transfer pane, only one visible at a time
+function setupMethodTabs() {
+  var tabCard = document.getElementById("tabCard");
+  var tabTransfer = document.getElementById("tabTransfer");
+  var cardPane = document.getElementById("cardPane");
+  var transferPane = document.getElementById("transferPane");
+  function select(which) {
+    var card = which === "card";
+    tabCard.classList.toggle("active", card);
+    tabTransfer.classList.toggle("active", !card);
+    tabCard.setAttribute("aria-selected", card ? "true" : "false");
+    tabTransfer.setAttribute("aria-selected", card ? "false" : "true");
+    cardPane.style.display = card ? "" : "none";
+    transferPane.style.display = card ? "none" : "";
+    clearError();
+  }
+  tabCard.addEventListener("click", function () { select("card"); });
+  tabTransfer.addEventListener("click", function () { select("transfer"); });
+}
+
+// nice-to-type inputs: spaces in the card number, auto slash in the expiry,
+// digits only in both. purely cosmetic, the server checks the real rules.
+function setupCardInputs() {
+  var num = document.getElementById("cardNumber");
+  num.addEventListener("input", function () {
+    var digits = num.value.replace(/\D/g, "").slice(0, 19);
+    num.value = digits.replace(/(.{4})/g, "$1 ").trim();
+  });
+  var exp = document.getElementById("cardExpiry");
+  exp.addEventListener("input", function () {
+    var digits = exp.value.replace(/\D/g, "").slice(0, 4);
+    exp.value = digits.length > 2 ? digits.slice(0, 2) + "/" + digits.slice(2) : digits;
+  });
+  var cvv = document.getElementById("cardCvv");
+  cvv.addEventListener("input", function () {
+    cvv.value = cvv.value.replace(/\D/g, "").slice(0, 4);
+  });
+}
+
+// the checksum every real card number passes (same as server.js)
+function luhnOk(value) {
+  var digits = String(value || "").replace(/\D/g, "");
+  if (digits.length < 13 || digits.length > 19) return false;
+  var sum = 0;
+  var alt = false;
+  for (var i = digits.length - 1; i >= 0; i--) {
+    var d = Number(digits[i]);
+    if (alt) { d *= 2; if (d > 9) d -= 9; }
+    sum += d;
+    alt = !alt;
+  }
+  return sum % 10 === 0;
+}
+
+function payByCard(payment) {
+  if (!payment) return;
+  clearError();
+
+  var name = document.getElementById("cardName").value.trim();
+  var number = document.getElementById("cardNumber").value;
+  var expiry = document.getElementById("cardExpiry").value.trim();
+  var cvv = document.getElementById("cardCvv").value.trim();
+
+  // check the obvious stuff here first so people get instant feedback,
+  // the server checks it all again properly
+  if (!name) { showError("Please put the name as it appears on the card."); return; }
+  if (!luhnOk(number)) { showError("That card number does not look right, please check it."); return; }
+  var m = expiry.match(/^(0[1-9]|1[0-2])\/([0-9]{2})$/);
+  if (!m) { showError("Expiry should look like MM/YY, e.g. 08/28."); return; }
+  var now = new Date();
+  var endOfMonth = new Date(2000 + Number(m[2]), Number(m[1]), 0, 23, 59, 59);
+  if (endOfMonth < now) { showError("That card has expired, please use a different one."); return; }
+  if (!/^[0-9]{3,4}$/.test(cvv)) { showError("The CVV is the 3 or 4 digit number on the back of the card."); return; }
+
+  var btn = document.getElementById("cardPayBtn");
+  btn.disabled = true;
+  btn.textContent = "Processing payment...";
+
+  // tiny delay so it feels like a payment instead of a light switch
+  setTimeout(function () {
+    fetch("/api/payments/" + payment.id + "/card", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cardName: name, cardNumber: number, cardExpiry: expiry, cardCvv: cvv })
+    })
+      .then(function (res) {
+        return res.json().then(function (data) { return { ok: res.ok, data: data }; });
+      })
+      .then(function (result) {
+        if (!result.ok) {
+          showError(result.data.message || "The payment could not be processed. Please try again.");
+          btn.disabled = false;
+          btn.textContent = "Pay by card";
+          return;
+        }
+        showPaid(result.data.reference, result.data.cardLast4 ? "Card ending " + result.data.cardLast4 : "");
+      })
+      .catch(function () {
+        showError("Could not reach the server. Please try again.");
+        btn.disabled = false;
+        btn.textContent = "Pay by card";
+      });
+  }, 700);
 }

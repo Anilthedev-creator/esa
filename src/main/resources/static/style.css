@@ -1131,3 +1131,29 @@ body.booking-auth-open {
 .red-text { color: var(--red); }
 .muted-sm { color: var(--muted); font-size: var(--sm); }
 .footer-contact { margin-top: var(--s3); font-size: var(--sm); color: #9ca3af; }
+
+/* payment method tabs (card / bank transfer) on payment.html */
+.pay-methods {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.pay-method {
+  font: inherit;
+  font-size: var(--sm);
+  font-weight: 700;
+  padding: 12px 10px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  background: #fff;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all var(--ease);
+}
+.pay-method:hover { border-color: var(--cyan); color: var(--navy); }
+.pay-method.active {
+  border-color: var(--navy);
+  background: var(--navy);
+  color: #fff;
+}

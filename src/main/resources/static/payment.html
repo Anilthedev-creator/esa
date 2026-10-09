@@ -85,32 +85,77 @@
                         <p id="feeAmount" style="margin:0; font-size:1.5rem; font-weight:800; color:var(--navy);">$50</p>
                     </div>
 
-                    <div class="info-card card-border-cyan" style="margin-bottom:15px">
-                        <h4 style="color:var(--navy);margin-bottom:var(--s2)">How to pay</h4>
-                        <p style="color:var(--muted);font-size:var(--sm);line-height:1.7;margin:0">
-                            We don't take cards on this site. Please bank the fee to the
-                            <strong>Engineering Services Australia Pty Ltd</strong> account
-                            (email <a href="mailto:engsa@live.com.au" style="color:var(--cyan-text);font-weight:600">engsa@live.com.au</a>
-                            or call <strong>0402 464 823</strong> if you need the account details)
-                            and quote your reference <strong id="payReference" class="red-text">…</strong>
-                            so we can match your transfer. Then log it below.
-                        </p>
-                    </div>
-                    <div class="form-group" style="margin-bottom:15px;">
-                        <label>Transfer reference from your bank receipt</label>
-                        <input type="text" id="transferReference" class="form-control" placeholder="e.g. the receipt or transaction number" required>
-                    </div>
-                    <div class="form-group" style="margin-bottom:15px;">
-                        <label>Date you banked it</label>
-                        <input type="date" id="paidDate" class="form-control" required>
+                    <!-- pick how to pay: card settles instantly, transfer takes a day -->
+                    <div class="pay-methods" role="tablist" aria-label="Payment method">
+                        <button type="button" id="tabCard" class="pay-method active" role="tab" aria-selected="true">💳 Pay by card</button>
+                        <button type="button" id="tabTransfer" class="pay-method" role="tab" aria-selected="false">🏦 Bank transfer</button>
                     </div>
 
-                    <button type="submit" id="payBtn" class="btn btn-cyan" style="width:100%; padding:14px; margin-top:20px; color:var(--navy);">
-                        I've banked the fee
-                    </button>
-                    <p style="font-size:.78rem; color:var(--muted); text-align:center; margin-top:14px;">
-                        Your booking is confirmed once the transfer clears, usually within 1 business day.
-                    </p>
+                    <div id="cardPane">
+                        <div class="info-card card-border-cyan" style="margin-bottom:15px">
+                            <h4 style="color:var(--navy);margin-bottom:var(--s2)">Sandbox mode</h4>
+                            <p style="color:var(--muted);font-size:var(--sm);line-height:1.7;margin:0">
+                                This is a university project, so card payments run in <strong>sandbox mode</strong>:
+                                the number is validated properly (Luhn check, expiry, CVV) but
+                                <strong>no real money moves</strong> and only the last 4 digits are ever kept.
+                                Please don't enter a real card. Test card:
+                                <strong>4242 4242 4242 4242</strong>, any future expiry, any CVV.
+                            </p>
+                        </div>
+                        <div class="form-group" style="margin-bottom:15px;">
+                            <label for="cardName">Name on card</label>
+                            <input type="text" id="cardName" class="form-control" placeholder="e.g. J. Smith" autocomplete="cc-name">
+                        </div>
+                        <div class="form-group" style="margin-bottom:15px;">
+                            <label for="cardNumber">Card number</label>
+                            <input type="text" id="cardNumber" class="form-control" placeholder="4242 4242 4242 4242" inputmode="numeric" autocomplete="cc-number" maxlength="23">
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:15px;">
+                            <div class="form-group" style="margin-bottom:0">
+                                <label for="cardExpiry">Expiry</label>
+                                <input type="text" id="cardExpiry" class="form-control" placeholder="MM/YY" inputmode="numeric" autocomplete="cc-exp" maxlength="5">
+                            </div>
+                            <div class="form-group" style="margin-bottom:0">
+                                <label for="cardCvv">CVV</label>
+                                <input type="text" id="cardCvv" class="form-control" placeholder="123" inputmode="numeric" autocomplete="cc-csc" maxlength="4">
+                            </div>
+                        </div>
+                        <button type="button" id="cardPayBtn" class="btn btn-red" style="width:100%; padding:14px; margin-top:5px;">
+                            Pay $50 by card
+                        </button>
+                        <p style="font-size:.78rem; color:var(--muted); text-align:center; margin-top:14px;">
+                            Card payments are confirmed instantly - no waiting on the bank.
+                        </p>
+                    </div>
+
+                    <div id="transferPane" style="display:none">
+                        <div class="info-card card-border-cyan" style="margin-bottom:15px">
+                            <h4 style="color:var(--navy);margin-bottom:var(--s2)">How to pay by transfer</h4>
+                            <p style="color:var(--muted);font-size:var(--sm);line-height:1.7;margin:0">
+                                Bank the fee to the
+                                <strong>Engineering Services Australia Pty Ltd</strong> account
+                                (email <a href="mailto:engsa@live.com.au" style="color:var(--cyan-text);font-weight:600">engsa@live.com.au</a>
+                                or call <strong>0402 464 823</strong> if you need the account details)
+                                and quote your reference <strong id="payReference" class="red-text">…</strong>
+                                so we can match your transfer. Then log it below.
+                            </p>
+                        </div>
+                        <div class="form-group" style="margin-bottom:15px;">
+                            <label for="transferReference">Transfer reference from your bank receipt</label>
+                            <input type="text" id="transferReference" class="form-control" placeholder="e.g. the receipt or transaction number">
+                        </div>
+                        <div class="form-group" style="margin-bottom:15px;">
+                            <label for="paidDate">Date you banked it</label>
+                            <input type="date" id="paidDate" class="form-control">
+                        </div>
+
+                        <button type="submit" id="payBtn" class="btn btn-navy" style="width:100%; padding:14px; margin-top:20px;">
+                            I've banked the fee
+                        </button>
+                        <p style="font-size:.78rem; color:var(--muted); text-align:center; margin-top:14px;">
+                            Your booking is confirmed once the transfer clears, usually within 1 business day.
+                        </p>
+                    </div>
                 </form>
 
                 <div style="text-align:center; margin-top:24px; border-top:1px solid var(--border); padding-top:18px;">
