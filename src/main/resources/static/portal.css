@@ -356,3 +356,43 @@
   outline: 3px solid #007fa8;
   outline-offset: 2px;
 }
+
+/* responsive refresh: keep portal tabs and tables usable on touch screens */
+@media (max-width: 720px) {
+  .portal-table-wrap {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+  .portal-table { min-width: 680px; }
+  .portal-table th:nth-child(3),
+  .portal-table td:nth-child(3) { display: table-cell !important; }
+
+  .portal-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin-inline: calc(-1 * var(--s4));
+    padding: 0 var(--s4) var(--s2);
+    scrollbar-width: thin;
+    overscroll-behavior-x: contain;
+  }
+  .portal-tab { flex: 0 0 auto; min-height: 44px; white-space: nowrap; }
+}
+
+@media (max-width: 480px) {
+  .portal-hero { padding-block: var(--s8); }
+  .portal-hero h1 { font-size: clamp(1.5rem, 7vw, 2rem); }
+  .portal-hero-row { gap: var(--s4); }
+  .portal-quick .btn { flex: 1 1 100%; width: 100%; }
+  .portal-cards { grid-template-columns: minmax(0, 1fr); }
+  .portal-card { padding: var(--s4); }
+  .portal-modal-backdrop { padding: 12px; align-items: flex-end; }
+  .portal-modal {
+    max-height: calc(100vh - 24px);
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    padding: var(--s5);
+  }
+  .portal-modal-actions { flex-direction: column; }
+  .portal-modal-actions .btn { width: 100%; }
+}

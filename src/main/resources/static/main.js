@@ -25,8 +25,12 @@ function setupMobileMenu() {
 
   if (!toggle || !menu) return;
 
+  toggle.setAttribute("aria-controls", menu.id);
+  toggle.setAttribute("aria-expanded", "false");
+
   function openMenu() {
     toggle.classList.add("active");
+    toggle.setAttribute("aria-expanded", "true");
     menu.classList.add("active");
     document.documentElement.classList.add("no-scroll");
     document.body.classList.add("no-scroll");
@@ -34,6 +38,7 @@ function setupMobileMenu() {
 
   function closeMenu() {
     toggle.classList.remove("active");
+    toggle.setAttribute("aria-expanded", "false");
     menu.classList.remove("active");
     document.documentElement.classList.remove("no-scroll");
     document.body.classList.remove("no-scroll");
@@ -67,7 +72,7 @@ function setupMobileMenu() {
 
   // if the window gets bigger again (e.g. rotate phone) just close it
   window.addEventListener("resize", function () {
-    if (window.innerWidth > 640) closeMenu();
+    if (window.innerWidth > 1024) closeMenu();
   });
 }
 

@@ -119,3 +119,24 @@ button:hover{
   font-size: .9rem; font-weight: 700; border-radius: 0 0 8px 0; text-decoration: none;
 }
 .skip-link:focus { left: 0; }
+
+/* keep the legacy about editor usable on tablets and phones */
+.container {
+    width: min(760px, calc(100% - 2rem));
+    max-width: 760px;
+    padding: clamp(1rem, 5vw, 3.4rem);
+}
+
+.form-group > * { min-width: 0; }
+input, textarea { font-size: 16px; }
+textarea { min-height: 120px; height: auto; }
+
+@media (max-width: 640px) {
+    .container { margin: 1rem auto; }
+    h1 { font-size: clamp(1.8rem, 7vw, 2.5rem); }
+    h2 { font-size: clamp(1.25rem, 5vw, 1.75rem); margin-bottom: 1.5rem; }
+    .form-group { grid-template-columns: minmax(0, 1fr); gap: .5rem; margin-bottom: 1.25rem; }
+    label { font-size: 1rem; padding-top: 0; }
+    input, textarea { padding: 12px; }
+    button { width: 100%; height: auto; min-height: 48px; margin-top: 1.5rem; font-size: 1rem; }
+}

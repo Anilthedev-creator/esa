@@ -874,3 +874,48 @@ tbody tr:hover { background: #f8fafc; }
   font-weight: 800;
   font-size: .8rem;
 }
+
+/* responsive refresh for the admin area */
+@media (max-width: 960px) {
+  .sidebar { width: min(264px, 86vw); }
+  .main-content { min-width: 0; max-width: 100%; }
+  .admin-topbar { padding-inline: 18px; }
+}
+
+@media (max-width: 640px) {
+  .admin-topbar { height: 56px; padding-inline: 12px; gap: 10px; }
+  .topbar-links { gap: 10px; }
+  .dashboard-wrapper { padding: 16px 12px 36px; }
+  .dashboard-title { align-items: flex-start; flex-wrap: wrap; gap: 10px; }
+  .dashboard-title h2 { font-size: 1.2rem; overflow-wrap: anywhere; }
+  .dashboard-title i { width: 40px; height: 40px; flex: 0 0 40px; }
+  .stat-card { padding: 15px; gap: 11px; }
+  .stat-card h3 { font-size: 1.45rem; }
+  .dashboard-card, .chart-card { padding: 2px 12px 14px; }
+  .settings-card { padding: 16px; }
+  .card-header { align-items: flex-start; flex-wrap: wrap; gap: 8px; }
+
+  .table-scroll {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .table-scroll > table { min-width: 680px; }
+
+  .table-pager { justify-content: center; flex-wrap: wrap; }
+  .table-pager button { min-height: 40px; }
+  .admin-detail-table { table-layout: fixed; }
+  .admin-detail-table th, .admin-detail-table td { padding: 9px 7px; overflow-wrap: anywhere; }
+
+  .admin-modal-overlay { padding: 10px; align-items: flex-end; }
+  .admin-modal { max-height: calc(100vh - 20px); max-height: calc(100dvh - 20px); border-radius: 16px 16px 10px 10px; }
+  .admin-modal-head, .admin-modal-body, .admin-modal-foot { padding-inline: 16px; }
+  .admin-modal-foot { flex-wrap: wrap; gap: 8px; }
+  .admin-modal-foot button { flex: 1 1 8rem; min-height: 42px; }
+  .esa-confirm-backdrop { padding: 12px; }
+  .esa-confirm-box { width: 100%; padding: 18px; }
+  .esa-confirm-actions { flex-wrap: wrap; }
+  .esa-confirm-actions button { flex: 1 1 8rem; min-height: 42px; }
+  .thumb-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .alert-row { align-items: flex-start; flex-wrap: wrap; }
+}
