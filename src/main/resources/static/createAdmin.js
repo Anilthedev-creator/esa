@@ -8,6 +8,12 @@ document.addEventListener("DOMContentLoaded", () => {
     window.location.replace("signin.html?next=accountAdmin.html");
     return;
   }
+  let user = null;
+  try { user = JSON.parse(localStorage.getItem("user") || "null"); } catch (error) { user = null; }
+  if (!user || String(user.role || "").toLowerCase() !== "admin") {
+    window.location.replace("portal.html");
+    return;
+  }
   const form = document.getElementById("createAdminForm");
   if (form) form.addEventListener("submit", createAdmin);
 });

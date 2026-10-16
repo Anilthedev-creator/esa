@@ -60,12 +60,10 @@
   <div class="receipt-sheet" id="receiptSheet">
     <h1>Engineering Services Australia Pty Ltd</h1>
     <p class="sub">2212 Gundowring Road, Gundowring VIC 3691 &middot; ABN 92 108 345 384 &middot; 0402 464 823</p>
-    <h2 style="color:var(--navy);font-size:1.1rem;margin:0 0 12px">Payment receipt</h2>
+    <h2 id="receiptTitle" style="color:var(--navy);font-size:1.1rem;margin:0 0 12px">Payment details</h2>
     <div id="receiptRows"><p style="color:var(--muted)">Loading...</p></div>
-    <p class="receipt-note">
-      This receipt confirms the consultation fee for the booking shown above.
-      Bank transfers are confirmed once they clear, usually within 1 business day.
-      Questions about this receipt: engsa@live.com.au quoting the reference.
+    <p class="receipt-note" id="receiptNote">
+      Payment status will appear here. Questions: engsa@live.com.au quoting the reference.
     </p>
   </div>
   <div class="receipt-actions no-print">
@@ -88,11 +86,32 @@ document.addEventListener('DOMContentLoaded', function () {
   if (!id) { box.innerHTML = '<p class="red-text">No payment picked.</p>'; return; }
 
   fetch('/api/portal/payments', { headers: (typeof authHeaders === 'function' ? authHeaders() : {}) })
-    .then(function (r) { return r.json(); })
+    .then(function (r) {
+      return r.json().then(function (data) {
+        if (!r.ok) {
+          var error = new Error(data.message || 'Could not load this payment.');
+          error.status = r.status;
+          throw error;
+        }
+        return data;
+      });
+    })
     .then(function (data) {
       var p = (data.payments || []).filter(function (x) { return String(x.id) === String(id); })[0];
       if (!p) { box.innerHTML = '<p class="red-text">We could not find that payment in your account.</p>'; return; }
+      var title = document.getElementById('receiptTitle');
+      var note = document.getElementById('receiptNote');
       var statusText = p.status === 'completed' ? 'PAID' : (p.status === 'pending' ? 'Transfer logged, waiting to clear' : 'Not paid yet');
+      if (p.status === 'completed') {
+        title.textContent = 'Payment receipt';
+        note.textContent = 'This receipt confirms the consultation fee for the booking shown above. Questions: engsa@live.com.au quoting the reference.';
+      } else if (p.status === 'pending') {
+        title.textContent = 'Transfer acknowledgement';
+        note.textContent = 'This confirms that you logged a bank transfer. It is not confirmation that the funds have cleared. Please do not pay again by card while the transfer is being checked.';
+      } else {
+        title.textContent = 'Payment summary';
+        note.textContent = 'The consultation fee has not been paid or logged yet. This page is not a payment receipt.';
+      }
       // how it was paid, when we know (card payments keep the last 4 digits)
       var paidBy = (p.method === 'card' && p.cardLast4) ? 'Card ending ' + p.cardLast4
         : (p.method === 'transfer' || p.status === 'pending') ? 'Bank transfer' : '-';
@@ -105,12 +124,24 @@ document.addEventListener('DOMContentLoaded', function () {
         row('Paid by', paidBy) +
         row('Amount', '$' + p.amount);
     })
-    .catch(function () {
-      box.innerHTML = '<p class="red-text">Could not load the payment, is the server running?</p>';
+    .catch(function (error) {
+      if (error.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = 'signin.html?next=' + encodeURIComponent('receipt.html' + window.location.search);
+        return;
+      }
+      box.textContent = error.message || 'Could not load the payment.';
     });
 
   function row(label, value) {
-    return '<div class="receipt-row' + (label === 'Amount' ? ' receipt-total' : '') + '"><span>' + label + '</span><span>' + value + '</span></div>';
+    return '<div class="receipt-row' + (label === 'Amount' ? ' receipt-total' : '') + '"><span>' + esc(label) + '</span><span>' + esc(value) + '</span></div>';
+  }
+
+  function esc(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 });
 </script>

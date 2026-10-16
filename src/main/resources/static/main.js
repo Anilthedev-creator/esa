@@ -11,6 +11,7 @@ document.addEventListener("DOMContentLoaded", function () {
   setupForms();
   updateHeaderButtons();
   preselectBookingService();
+  syncBookingIdentity();
   showBookingAuthNotice();
 });
 
@@ -220,11 +221,17 @@ function onFormSubmit(e) {
 
   fetch(api, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: Object.assign(
+      { "Content-Type": "application/json" },
+      typeof authHeaders === "function" ? authHeaders() : {}
+    ),
     body: JSON.stringify(data)
   })
     .then(function (res) {
-      return res.json();
+      return res.json().then(function (result) {
+        if (!res.ok) throw new Error(result.message || "The request could not be sent.");
+        return result;
+      });
     })
     .then(function (result) {
       console.log("form submitted ok");
@@ -242,9 +249,9 @@ function onFormSubmit(e) {
       showFormNote(form, result.message || "Thanks - we've received your request and will be in touch shortly.", false);
       form.reset();
     })
-    .catch(function () {
-      // something went wrong (server not running etc)
-      showFormNote(form, "Sorry, we couldn't send your request right now. Please try again later or call us on 0402 464 823.", true);
+    .catch(function (error) {
+      // show server validation and session messages when it can tell us what went wrong
+      showFormNote(form, error.message || "Sorry, we couldn't send your request right now. Please try again later or call us on 0402 464 823.", true);
     })
     .finally(function () {
       if (btn) {
@@ -383,6 +390,22 @@ function preselectBookingService() {
       select.selectedIndex = i;
       return;
     }
+  }
+}
+
+function syncBookingIdentity() {
+  var email = document.getElementById("email");
+  var name = document.getElementById("name");
+  if (!email || typeof getUser !== "function") return;
+  var user = getUser();
+  if (!user) return;
+  if (user.email) {
+    email.value = user.email;
+    email.readOnly = true;
+    email.setAttribute("aria-readonly", "true");
+  }
+  if (name && !name.value && (user.fullName || user.name)) {
+    name.value = user.fullName || user.name;
   }
 }
 

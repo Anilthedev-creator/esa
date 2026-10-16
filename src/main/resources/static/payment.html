@@ -92,23 +92,16 @@
                     </div>
 
                     <div id="cardPane">
-                        <div class="info-card card-border-cyan" style="margin-bottom:15px">
-                            <h4 style="color:var(--navy);margin-bottom:var(--s2)">Sandbox mode</h4>
-                            <p style="color:var(--muted);font-size:var(--sm);line-height:1.7;margin:0">
-                                This is a university project, so card payments run in <strong>sandbox mode</strong>:
-                                the number is validated properly (Luhn check, expiry, CVV) but
-                                <strong>no real money moves</strong> and only the last 4 digits are ever kept.
-                                Please don't enter a real card. Test card:
-                                <strong>4242 4242 4242 4242</strong>, any future expiry, any CVV.
-                            </p>
-                        </div>
+                        <p style="color:var(--muted);font-size:.82rem;line-height:1.5;margin:0 0 14px;text-align:center">
+                            Demo card payment only — no real charge. Please don't use real card details.
+                        </p>
                         <div class="form-group" style="margin-bottom:15px;">
                             <label for="cardName">Name on card</label>
                             <input type="text" id="cardName" class="form-control" placeholder="e.g. J. Smith" autocomplete="cc-name">
                         </div>
                         <div class="form-group" style="margin-bottom:15px;">
                             <label for="cardNumber">Card number</label>
-                            <input type="text" id="cardNumber" class="form-control" placeholder="4242 4242 4242 4242" inputmode="numeric" autocomplete="cc-number" maxlength="23">
+                            <input type="text" id="cardNumber" class="form-control" placeholder="Card number" inputmode="numeric" autocomplete="cc-number" maxlength="23">
                         </div>
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:15px;">
                             <div class="form-group" style="margin-bottom:0">
@@ -166,7 +159,7 @@
             <div class="card" id="pendingCard" style="display:none; padding: 48px; text-align:center; border-bottom: 5px solid var(--yellow, #f59e0b);">
                 <div style="width:64px; height:64px; border-radius:50%; background:#fdf3d8; color:#92400e; font-size:2rem; display:flex; align-items:center; justify-content:center; margin:0 auto 20px;">&#8987;</div>
                 <h2 style="color:var(--navy); margin-bottom:10px;">Transfer logged, thanks!</h2>
-                <p style="color:var(--muted); max-width:420px; margin:0 auto 8px;">We've recorded your bank transfer. Your booking is confirmed as soon as it clears, usually within 1 business day.</p>
+                <p style="color:var(--muted); max-width:420px; margin:0 auto 8px;">We've recorded your bank transfer. Your booking is confirmed as soon as it clears, usually within 1 business day. Please don't pay again by card while this transfer is being checked.</p>
                 <p id="pendingRef" style="color:var(--muted); font-size:.85rem;"></p>
                 <div style="margin-top:24px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
                     <a href="portal.html" class="btn btn-navy">Track this booking</a>

@@ -185,8 +185,10 @@
     rescheduleId = id;
     reschedOpener = document.activeElement;
     var b = state.bookings.filter(function (x) { return String(x.bookingId) === String(id); })[0];
-    if (b && b.bookingDate) $("reschedDate").value = b.bookingDate;
-    if (b && b.preferredSlot) $("reschedSlot").value = b.preferredSlot;
+    var today = new Date().toISOString().slice(0, 10);
+    $("reschedDate").min = today;
+    $("reschedDate").value = b && b.bookingDate ? b.bookingDate : today;
+    $("reschedSlot").value = b && b.preferredSlot ? b.preferredSlot : "";
     $("reschedNote").className = "portal-note";
     $("reschedBackdrop").classList.add("open");
     $("reschedDate").focus();

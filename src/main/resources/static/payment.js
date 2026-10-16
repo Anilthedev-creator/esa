@@ -5,12 +5,16 @@
  * settles instantly) or by bank transfer (logged, confirmed when it clears).
  */
 
-/** Email on the booking, so the paid card can name the address to sign in with. */
-var bookedEmail = "";
-
 document.addEventListener("DOMContentLoaded", function () {
   var form = document.getElementById("paymentForm");
   if (!form) return;
+
+  // A booking id is not a secret. Require the signed-in account instead of
+  // treating the link itself as permission to see or pay for a booking.
+  if (typeof getToken !== "function" || !getToken()) {
+    window.location.replace("signin.html?next=" + encodeURIComponent("payment.html" + window.location.search));
+    return;
+  }
 
   // the booking id comes from the url: payment.html?booking=...
   var params = new URLSearchParams(window.location.search);
@@ -23,13 +27,18 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // load the booking details
-  fetch("/api/bookings/" + encodeURIComponent(bookingId))
+  fetch("/api/bookings/" + encodeURIComponent(bookingId), { headers: paymentHeaders() })
     .then(function (res) {
-      if (!res.ok) throw new Error("not found");
-      return res.json();
+      return res.json().then(function (data) {
+        if (!res.ok) {
+          var error = new Error(data.message || "We could not load your booking.");
+          error.status = res.status;
+          throw error;
+        }
+        return data;
+      });
     })
     .then(function (data) {
-      bookedEmail = data.booking.email || "";
       renderSummary(data.booking);
       if (data.payment && data.payment.reference) {
         document.getElementById("payReference").textContent = data.payment.reference;
@@ -38,6 +47,10 @@ document.addEventListener("DOMContentLoaded", function () {
       // if it is already paid just show the success card
       if (data.payment && data.payment.status === "completed") {
         showPaid(data.payment.reference, methodText(data.payment));
+        return;
+      }
+      if (data.payment && data.payment.status === "pending") {
+        showPending(data.payment.reference);
         return;
       }
       if (data.booking.status === "cancelled") {
@@ -52,7 +65,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       form.addEventListener("submit", function (e) {
         e.preventDefault();
-        pay(data.payment);
+        if (document.getElementById("transferPane").style.display !== "none") pay(data.payment);
       });
 
       setupMethodTabs();
@@ -61,8 +74,14 @@ document.addEventListener("DOMContentLoaded", function () {
         payByCard(data.payment);
       });
     })
-    .catch(function () {
-      showError("We could not load your booking. Please check the link and try again.");
+    .catch(function (error) {
+      if (error.status === 401) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        window.location.replace("signin.html?next=" + encodeURIComponent("payment.html" + window.location.search));
+        return;
+      }
+      showError(error.message || "We could not load your booking. Please check the link and try again.");
       form.style.display = "none";
     });
 });
@@ -72,6 +91,13 @@ function esc(s) {
   return String(s == null ? "" : s)
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+function paymentHeaders() {
+  return Object.assign(
+    { "Content-Type": "application/json" },
+    typeof authHeaders === "function" ? authHeaders() : {}
+  );
 }
 
 function showError(text) {
@@ -101,8 +127,8 @@ function renderSummary(b) {
 
 function row(label, value) {
   return '<div style="display:flex;justify-content:space-between;gap:16px;">' +
-    '<span style="color:var(--muted)">' + label + '</span>' +
-    '<span style="font-weight:600; color:var(--navy); text-align:right">' + value + '</span></div>';
+    '<span style="color:var(--muted)">' + esc(label) + '</span>' +
+    '<span style="font-weight:600; color:var(--navy); text-align:right">' + esc(value) + '</span></div>';
 }
 
 /** "Card ending 4242" / "Bank transfer" / "" - for the success + receipt bits */
@@ -122,21 +148,15 @@ function showPaid(reference, paidBy) {
       "Payment reference: " + reference + (paidBy ? "  ·  Paid by " + paidBy : "");
   }
 
-  // A customer who booked through the public form has no account, so the
-  // portal is not an option for them - offer to create one instead. Both
-  // routes let them see this booking later.
+  // A booking is linked to the signed-in account, so its portal page is the
+  // place to track the receipt or contact the team.
   var actions = document.getElementById("paidActions");
   if (!actions) return;
   var signedIn = typeof isLoggedIn === "function" && isLoggedIn();
   actions.innerHTML =
-    '<a href="portal.html" class="btn btn-navy">' +
-      (signedIn ? "View my portal" : "Track this booking") + "</a>" +
-    '<a href="index.html" class="btn">Back to home</a>' +
-    (signedIn
-      ? ""
-      : '<p style="flex-basis:100%; font-size:.8rem; color:var(--muted); margin:14px 0 0;">' +
-        "You will be asked to sign in. Use the same email you booked with " +
-        "(<strong>" + esc(bookedEmail || "") + "</strong>) so this booking appears.</p>");
+    '<a href="' + (signedIn ? "portal.html" : "signin.html?next=portal.html") + '" class="btn btn-navy">' +
+      (signedIn ? "View my portal" : "Sign in to view my portal") + "</a>" +
+    '<a href="index.html" class="btn">Back to home</a>';
 }
 
 // same as showPaid but for "we logged it, waiting for the bank"
@@ -164,7 +184,7 @@ function pay(payment) {
 
   fetch("/api/payments/" + payment.id + "/confirm", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: paymentHeaders(),
     body: JSON.stringify({ transferReference: ref, paidDate: paidDate })
   })
     .then(function (res) {
@@ -278,7 +298,7 @@ function payByCard(payment) {
   setTimeout(function () {
     fetch("/api/payments/" + payment.id + "/card", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: paymentHeaders(),
       body: JSON.stringify({ cardName: name, cardNumber: number, cardExpiry: expiry, cardCvv: cvv })
     })
       .then(function (res) {

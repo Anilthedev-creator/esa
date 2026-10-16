@@ -22,9 +22,15 @@ const PORT = process.env.PORT || 8080;
 // Consultation fee, mirrors app.booking.consultation-fee in the Spring app.
 const CONSULTATION_FEE = Number(process.env.CONSULTATION_FEE || 50);
 const STATIC_DIR = path.join(__dirname, 'src/main/resources/static');
-const DATA_DIR = path.join(__dirname, 'data');
-const JWT_SECRET = process.env.JWT_SECRET || 'esa-local-dev-secret-change-me-in-production-32chars';
+const DATA_DIR = process.env.ESA_DATA_DIR || path.join(__dirname, 'data');
+const DEMO_JWT_SECRET = 'esa-local-dev-secret-change-me-in-production-32chars';
+const JWT_SECRET = process.env.JWT_SECRET || DEMO_JWT_SECRET;
 const JWT_TTL = '12h';
+
+// the known local key is handy for the project demo, but must never be used on a real deployment
+if (process.env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || process.env.JWT_SECRET === DEMO_JWT_SECRET)) {
+  throw new Error('Set a unique JWT_SECRET before running ESA in production.');
+}
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
@@ -108,35 +114,58 @@ if (!pages) {
   save('pages', pages);
 }
 
-// ensure default admin
+// seed an easy account for local work; production has to supply its own first admin
 function ensureAdmin() {
-  const hasAdmin = users.some(u => u.role === 'ADMIN');
-  if (!hasAdmin) {
-    const hashed = bcrypt.hashSync('Admin123', 10);
-    const admin = {
-      id: 1,
-      fullName: 'ESA Administrator',
-      firstName: 'ESA',
-      lastName: 'Administrator',
-      name: 'ESA Administrator',
-      email: 'admin@esaengineering.com.au',
-      password: hashed,
-      phone: '',
-      phoneNumber: '',
-      company: 'ESA',
-      companyName: 'ESA',
-      role: 'ADMIN',
-      active: true
-    };
-    users.push(admin);
-    save('users', users);
-    console.log('');
-    console.log('=== ESA admin portal ready (Node fallback) ===');
-    console.log('    sign in : http://localhost:'+PORT+'/signin.html');
-    console.log('    email   : admin@esaengineering.com.au');
-    console.log('    password: Admin123');
-    console.log('');
+  const production = process.env.NODE_ENV === 'production';
+  if (production && users.some(u => String(u.email).toLowerCase() === 'admin@esaengineering.com.au' &&
+      (u.password === 'Admin123' || bcrypt.compareSync('Admin123', String(u.password || ''))))) {
+    throw new Error('The sample admin account is in the production data directory. Replace it before starting.');
   }
+  const hasAdmin = users.some(u => u.role === 'ADMIN');
+  if (hasAdmin) return;
+
+
+  const email = (process.env.ADMIN_EMAIL || (production ? '' : 'admin@esaengineering.com.au')).trim().toLowerCase();
+  const password = process.env.ADMIN_PASSWORD || (production ? '' : 'Admin123');
+  const fullName = process.env.ADMIN_NAME || 'ESA Administrator';
+  if (!email || !password) {
+    throw new Error('Set ADMIN_EMAIL and ADMIN_PASSWORD to create the first production admin.');
+  }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    throw new Error('Set a valid ADMIN_EMAIL before creating the first admin.');
+  }
+  if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(password)) {
+    throw new Error('ADMIN_PASSWORD must be at least 8 characters and include uppercase, lowercase and a number.');
+  }
+  if (production && email === 'admin@esaengineering.com.au' && password === 'Admin123') {
+    throw new Error('The sample admin credentials are not allowed in production.');
+  }
+
+  const hashed = bcrypt.hashSync(password, 10);
+  const parts = fullName.trim().split(/\s+/);
+  const admin = {
+    id: users.length ? Math.max(...users.map(u => Number(u.id) || 0)) + 1 : 1,
+    fullName: fullName,
+    firstName: parts[0] || 'ESA',
+    lastName: parts.slice(1).join(' '),
+    name: fullName,
+    email: email,
+    password: hashed,
+    phone: '',
+    phoneNumber: '',
+    company: 'ESA',
+    companyName: 'ESA',
+    role: 'ADMIN',
+    active: true
+  };
+  users.push(admin);
+  save('users', users);
+  console.log('');
+  console.log('=== ESA admin portal ready (Node fallback) ===');
+  console.log('    sign in : http://localhost:' + PORT + '/signin.html');
+  console.log('    email   : ' + admin.email);
+  if (!production) console.log('    password: ' + password + ' (local demo only)');
+  console.log('');
 }
 ensureAdmin();
 
@@ -293,16 +322,22 @@ app.post('/api/auth/reset-password', (req, res) => {
   res.json({ message: 'Password updated, you can sign in with it now.', success: true });
 });
 
-app.post('/api/auth/create/admin', (req, res) => {
-  const { fullName, email, password, phoneNumber, phone } = req.body;
+app.post('/api/auth/create/admin', requireAdmin, (req, res) => {
+  const body = req.body || {};
+  const fullName = String(body.fullName || '').trim();
+  const email = String(body.email || '').trim();
+  const password = String(body.password || '');
+  const phone = String(body.phone || body.phoneNumber || '').trim();
   if (!fullName || !email || !password) return res.status(400).json({ message: 'Full name, email and password are required', success: false });
-  const normEmail = email.trim().toLowerCase();
+  const normEmail = email.toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normEmail)) return res.status(400).json({ message: 'Enter a valid email address', success: false });
+  if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(password)) return res.status(400).json({ message: 'Password must be at least 8 characters and include an uppercase letter, a lowercase letter and a number', success: false });
   if (users.some(u => u.email.toLowerCase() === normEmail)) return res.status(409).json({ message: 'That email already has an account', success: false });
   const id = users.length ? Math.max(...users.map(u=>u.id))+1 : 1;
   const hashed = bcrypt.hashSync(password, 10);
   const user = {
     id, fullName, name: fullName, firstName: fullName.split(' ')[0], lastName: fullName.split(' ').slice(1).join(' '),
-    email: normEmail, password: hashed, phone: phone || phoneNumber || '', phoneNumber: phone || phoneNumber || '',
+    email: normEmail, password: hashed, phone: phone, phoneNumber: phone,
     company: 'ESA', companyName: 'ESA', role: 'ADMIN', active: true
   };
   users.push(user);
@@ -412,14 +447,14 @@ app.patch('/api/admin/enquiries/:id', requireAdmin, (req, res) => {
 
 app.get('/api/admin/payments', requireAdmin, (req, res) => {
   const rows = [...payments].reverse().map(p => ({
-    id: p.id, invoiceId: p.transactionId, customerName: p.customerName||null, amount: p.amount, status: p.status||'completed', paidAt: p.paymentDate||null, method: p.method || (p.transferReference ? 'transfer' : null), cardLast4: p.cardLast4||null
+    id: p.id, invoiceId: p.transactionId, customerName: p.customerName||null, amount: p.amount, status: p.status||'completed', paidAt: p.paymentDate||null, method: p.method || (p.transferReference ? 'transfer' : null), cardLast4: p.cardLast4||null, transferReference: p.transferReference||null, paidDate: p.paidDate||null
   }));
   res.json({ payments: rows, total: rows.length });
 });
 app.get('/api/admin/payments/:id', requireAdmin, (req, res) => {
   const p = payments.find(x=>String(x.id)===req.params.id);
   if (!p) return res.status(404).json({ message: 'Payment not found' });
-  res.json({ payment: { id: p.id, invoiceId: p.transactionId, customerName: p.customerName, amount: p.amount, status: p.status, paidAt: p.paymentDate } });
+  res.json({ payment: { id: p.id, invoiceId: p.transactionId, customerName: p.customerName, amount: p.amount, status: p.status, paidAt: p.paymentDate, method: p.method || (p.transferReference ? 'transfer' : null), cardLast4: p.cardLast4||null, transferReference: p.transferReference||null, paidDate: p.paidDate||null } });
 });
 app.patch('/api/admin/payments/:id', requireAdmin, (req, res) => {
   const p = payments.find(x=>String(x.id)===req.params.id);
@@ -486,8 +521,8 @@ app.delete('/api/admin/projects/:id', requireAdmin, (req, res) => {
 });
 
 // ---- AUDIT LOG (who did what in the admin) ----
-// every admin mutation calls logAudit so there is a paper trail. kept in a
-// json file like everything else, capped at 500 entries so it cant grow forever
+// selected admin changes call logAudit so there is a basic activity trail.
+// kept in a json file like everything else, capped at 500 entries
 let auditLog = load('audit-log', []);
 
 function logAudit(req, action, detail) {
@@ -637,14 +672,27 @@ app.get('/api/content', (req, res) => {
 // accepts a customer identity from the request body or the query string, so a
 // signed-in customer can only reach their own rows. A row belonging to someone
 // else answers 404, not 403, so guessing ids reveals nothing.
-const ownBookings = (email) => bookings.filter(b => b.email === email);
-const ownEnquiries = (email) => contacts.filter(c => c.email === email);
+const ownBookings = (email) => bookings.filter(b => String(b.email || '').trim().toLowerCase() === String(email || '').trim().toLowerCase());
+const ownEnquiries = (email) => contacts.filter(c => String(c.email || '').trim().toLowerCase() === String(email || '').trim().toLowerCase());
 const ownPayments = (email) => {
-  const ids = new Set(ownBookings(email).map(b => b.id));
-  return payments.filter(p => ids.has(p.bookingId));
+  const ids = new Set(ownBookings(email).map(b => String(b.id)));
+  return payments.filter(p => ids.has(String(p.bookingId)));
 };
+function paymentBooking(p) {
+  return p ? bookings.find(b => String(b.id) === String(p.bookingId)) || null : null;
+}
+function paymentBelongsTo(email, p) {
+  const b = paymentBooking(p);
+  return !!b && String(b.email || '').trim().toLowerCase() === String(email || '').trim().toLowerCase();
+}
+function isDateOnly(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) return false;
+  const d = new Date(String(value) + 'T00:00:00Z');
+  return !isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
+}
+const allowedSlots = ['', '08:00', '10:00', '13:00', '15:00'];
 const bookingSummary = (b) => {
-  const p = payments.find(x => x.bookingId === b.id) || null;
+  const p = payments.find(x => String(x.bookingId) === String(b.id)) || null;
   const payStatus = !p ? 'unpaid' : (p.status || 'incomplete');
   return {
     bookingId: b.id, name: b.fullName, service: b.serviceName, status: b.status,
@@ -652,14 +700,15 @@ const bookingSummary = (b) => {
     preferredSlot: b.preferredSlot || null,
     paymentStatus: payStatus, paid: payStatus === 'completed',
     paymentReference: p ? p.transactionId : null,
-    canCancel: (b.status === 'pending' || b.status === 'confirmed') && payStatus !== 'completed',
-    canPay: (b.status === 'pending' || b.status === 'confirmed') && payStatus !== 'completed' && payStatus !== 'cancelled'
+    // once a transfer is logged, customers must contact the office before changing the payment
+    canCancel: (b.status === 'pending' || b.status === 'confirmed') && payStatus !== 'completed' && payStatus !== 'pending',
+    canPay: (b.status === 'pending' || b.status === 'confirmed') && payStatus !== 'completed' && payStatus !== 'cancelled' && payStatus !== 'pending'
   };
 };
 const paymentSummary = (p) => ({
   id: p.id, reference: p.transactionId, amount: p.amount, status: p.status || 'incomplete',
   paid: (p.status || '') === 'completed', bookingId: p.bookingId, customerName: p.customerName, paymentDate: p.paymentDate,
-  method: p.method || (p.transferReference ? 'transfer' : null), cardLast4: p.cardLast4 || null
+  paidDate: p.paidDate || null, method: p.method || (p.transferReference ? 'transfer' : null), cardLast4: p.cardLast4 || null
 });
 
 app.get('/api/portal/me', requireCustomer, (req, res) => {
@@ -712,8 +761,17 @@ app.post('/api/portal/bookings/:id/reschedule', requireCustomer, (req, res) => {
   if (status === 'completed' || status === 'cancelled') {
     return res.status(400).json({ message: 'This booking is ' + status + ' so it can not be moved, please call us.', success: false });
   }
-  if (req.body.preferredDate) b.bookingDate = String(req.body.preferredDate).slice(0, 10);
-  if (req.body.preferredSlot) b.preferredSlot = String(req.body.preferredSlot);
+  if (req.body.preferredDate) {
+    const date = String(req.body.preferredDate).slice(0, 10);
+    const today = new Date().toISOString().slice(0, 10);
+    if (!isDateOnly(date) || date < today) return res.status(400).json({ message: 'Please choose today or a future date.' });
+    b.bookingDate = date;
+  }
+  if (req.body.preferredSlot !== undefined && req.body.preferredSlot !== null) {
+    const slot = String(req.body.preferredSlot);
+    if (!allowedSlots.includes(slot)) return res.status(400).json({ message: 'Please choose one of the available time preferences.' });
+    b.preferredSlot = slot;
+  }
   save('bookings', bookings);
   sendMail(req.customerEmail, 'Your booking #' + b.id + ' was moved',
     'Hi ' + b.fullName + ',\n\nYour ' + b.serviceName + ' booking is now set for ' + b.bookingDate +
@@ -729,6 +787,7 @@ app.post('/api/portal/bookings/:id/cancel', requireCustomer, (req, res) => {
   if (status === 'completed') return res.status(400).json({ message: 'This booking is already completed and can no longer be cancelled', success: false });
   const p = payments.find(x => x.bookingId === b.id) || null;
   if (p && p.status === 'completed') return res.status(400).json({ message: 'This booking is already paid - contact us on 0402 464 823 to arrange a refund', success: false });
+  if (p && p.status === 'pending') return res.status(400).json({ message: 'A transfer has already been logged. Please contact us on 0402 464 823 before cancelling.', success: false });
   b.status = 'cancelled';
   if (p) { p.status = 'cancelled'; }
   save('bookings', bookings); save('payments', payments);
@@ -771,20 +830,27 @@ app.put('/api/admin/settings', requireAdmin, (req, res) => {
   res.json({ settings });
 });
 
-// ---- BOOKINGS & ENQUIRIES PUBLIC ----
-app.post('/api/bookings', (req, res) => {
-  const { name, fullName, email, phone, service, serviceName, notes, description, message } = req.body;
-  const finalName = name || fullName;
-  const finalEmail = email;
-  if (!finalName || !finalEmail) return res.status(400).json({ message: 'Name and email are required', success: false });
+// ---- BOOKINGS & ENQUIRIES ----
+app.post('/api/bookings', requireCustomer, (req, res) => {
+  const { name, fullName, phone, service, serviceName, notes, description, message } = req.body || {};
+  const finalName = String(name || fullName || '').trim();
+  const finalEmail = req.customerEmail;
+  if (!finalName) return res.status(400).json({ message: 'Name is required', success: false });
+  const preferredDate = String(req.body.preferredDate || '').slice(0, 10);
+  const today = new Date().toISOString().slice(0, 10);
+  if (preferredDate && (!isDateOnly(preferredDate) || preferredDate < today)) {
+    return res.status(400).json({ message: 'Please choose today or a future preferred date.' });
+  }
+  const preferredSlot = String(req.body.preferredSlot || '');
+  if (!allowedSlots.includes(preferredSlot)) return res.status(400).json({ message: 'Please choose one of the available time preferences.' });
   const id = bookings.length ? Math.max(...bookings.map(b=>b.id))+1 : 1;
   const booking = {
     id, fullName: finalName, name: finalName, email: finalEmail, phone: phone||'', service: service||serviceName||'General Inquiry', serviceName: service||serviceName||'General Inquiry',
     notes: notes||description||message||'', description: notes||description||message||'',
     // if they picked a preferred date on the form use that, otherwise today
-    preferredSlot: req.body.preferredSlot || '',
-    bookingDate: (req.body.preferredDate || new Date().toISOString().slice(0,10)),
-    status: 'pending', createdAt: new Date().toISOString(), fee: 50
+    preferredSlot: preferredSlot,
+    bookingDate: preferredDate || today,
+    status: 'pending', createdAt: new Date().toISOString(), fee: CONSULTATION_FEE
   };
   bookings.push(booking);
   save('bookings', bookings);
@@ -794,7 +860,7 @@ app.post('/api/bookings', (req, res) => {
   sendMail(finalEmail, 'We got your booking - ' + booking.serviceName,
     'Hi ' + finalName + ',\n\nThanks for booking ' + booking.serviceName + ' with ESA Engineering.\n' +
     'Your booking reference is #' + id + ' and the consultation fee is $' + booking.fee + '.\n' +
-    'The next step is the payment page (payment.html?booking=' + id + ') where you can log your bank transfer.\n\n- ESA Engineering');
+    'The next step is the payment page (payment.html?booking=' + id + ') where you can pay by card in sandbox mode or log a bank transfer.\n\n- ESA Engineering');
   sendMail(settings.adminEmail, 'New booking #' + id + ' - ' + booking.serviceName,
     finalName + ' (' + finalEmail + ', ' + (phone || 'no phone') + ') booked ' + booking.serviceName + '.\nNotes: ' + (notes || '-'));
   const payId = payments.length ? Math.max(...payments.map(p=>p.id))+1 : 1;
@@ -803,13 +869,19 @@ app.post('/api/bookings', (req, res) => {
   save('payments', payments);
   res.json({ message: "Thanks - we've received your request and will be in touch shortly.", success: true, booking: { id: booking.id, name: booking.fullName, service: booking.serviceName, status: booking.status, fee: booking.fee }, payment: { id: payment.id, reference: payment.transactionId, status: payment.status } });
 });
-app.get('/api/bookings/:id', (req, res) => {
-  const b = bookings.find(x=>String(x.id)===req.params.id);
-  if (!b) return res.status(404).json({ message: 'Booking not found' });
-  const p = payments.find(x=>x.bookingId===b.id);
-  res.json({ booking: { id: b.id, name: b.fullName, email: b.email, phone: b.phone, service: b.serviceName, notes: b.description, status: b.status, fee: b.fee||CONSULTATION_FEE, createdAt: b.createdAt, bookingDate: b.bookingDate }, payment: p ? { id: p.id, reference: p.transactionId, status: p.status, amount: p.amount, method: p.method || (p.transferReference ? 'transfer' : null), cardLast4: p.cardLast4 || null } : null });
+app.get('/api/bookings/:id', requireCustomer, (req, res) => {
+  const b = ownBookings(req.customerEmail).find(x => String(x.id) === req.params.id);
+  if (!b) return res.status(404).json({ message: 'Booking not found', success: false });
+  const p = payments.find(x => String(x.bookingId) === String(b.id));
+  res.json({ booking: { id: b.id, name: b.fullName, email: b.email, phone: b.phone, service: b.serviceName, notes: b.description, status: b.status, fee: b.fee || CONSULTATION_FEE, createdAt: b.createdAt, bookingDate: b.bookingDate }, payment: p ? paymentSummary(p) : null });
 });
-app.get('/api/bookings', (req, res) => res.json({ bookings }));
+app.get('/api/bookings', requireAdmin, (req, res) => res.json({ bookings }));
+
+app.get('/api/enquiries/:id', requireCustomer, (req, res) => {
+  const c = ownEnquiries(req.customerEmail).find(x => String(x.id) === req.params.id);
+  if (!c) return res.status(404).json({ message: 'Enquiry not found', success: false });
+  res.json({ enquiry: { id: c.id, name: c.fullName, email: c.email, service: c.serviceName, message: c.description, status: c.status, createdAt: c.createdAt, reply: c.reply } });
+});
 
 app.post('/api/enquiries', (req, res) => {
   const { name, fullName, email, type, serviceName, subject, message, description } = req.body;
@@ -841,19 +913,24 @@ app.post('/api/enquiries', (req, res) => {
   res.json({ message: "Thanks - we've received your request and will be in touch shortly.", success: true, enquiry: { id } });
 });
 
-// ---- PAYMENTS ----
-// we dont take cards on the website (no payment gateway yet, TODO: stripe?)
-// the customer banks the consultation fee and types in the transfer reference
-// from their bank receipt. The office then ticks it off once it hits the bank.
-app.post('/api/payments/:id/confirm', (req, res) => {
-  const p = payments.find(x=>String(x.id)===req.params.id);
-  if (!p) return res.status(404).json({ message: 'Payment not found' });
+// ---- BANK TRANSFER PAYMENTS ----
+// This records a transfer for the office to verify; it does not mark the fee paid.
+app.post('/api/payments/:id/confirm', requireCustomer, (req, res) => {
+  const p = payments.find(x => String(x.id) === req.params.id);
+  if (!p || !paymentBelongsTo(req.customerEmail, p)) return res.status(404).json({ message: 'Payment not found', success: false });
+  const booking = paymentBooking(p);
+  if (booking.status === 'cancelled' || p.status === 'cancelled') return res.status(400).json({ message: 'This booking was cancelled and can no longer be paid.' });
   if (p.status === 'completed') return res.json({ message: 'This fee is already paid, thanks!', reference: p.transactionId, status: 'completed', success: true });
-  const ref = String(req.body.transferReference || '').trim();
-  if (!ref) return res.status(400).json({ message: 'Please put in the transfer reference from your bank receipt.' });
+  if (p.status === 'pending') return res.json({ message: 'This transfer is already logged and is waiting to clear.', reference: p.transactionId, status: 'pending', success: true });
+  const ref = String((req.body || {}).transferReference || '').trim();
+  if (!ref || ref.length > 120) return res.status(400).json({ message: 'Please put in a valid transfer reference from your bank receipt.' });
+  const paidDate = String((req.body || {}).paidDate || '').slice(0, 10);
+  const today = new Date().toISOString().slice(0, 10);
+  if (!isDateOnly(paidDate) || paidDate > today) return res.status(400).json({ message: 'Please choose a valid date on or before today.' });
   p.status = 'pending'; // waiting on the office to see it in the bank feed
+  p.method = 'transfer';
   p.transferReference = ref;
-  p.paidDate = String(req.body.paidDate || '').slice(0, 10) || new Date().toISOString().slice(0, 10);
+  p.paidDate = paidDate;
   p.paymentDate = new Date().toISOString();
   save('payments', payments);
   sendMail(settings.adminEmail, 'Bank transfer logged: ' + p.transactionId,
@@ -881,14 +958,19 @@ function luhnOk(raw) {
   return sum % 10 === 0;
 }
 
-app.post('/api/payments/:id/card', (req, res) => {
+app.post('/api/payments/:id/card', requireCustomer, (req, res) => {
   const p = payments.find(x => String(x.id) === req.params.id);
-  if (!p) return res.status(404).json({ message: 'Payment not found' });
+  if (!p || !paymentBelongsTo(req.customerEmail, p)) return res.status(404).json({ message: 'Payment not found', success: false });
+  const booking = paymentBooking(p);
+  if (booking.status === 'cancelled' || p.status === 'cancelled') return res.status(400).json({ message: 'This booking was cancelled and can no longer be paid.' });
   if (p.status === 'completed') {
-    return res.json({ message: 'This fee is already paid, thanks!', reference: p.transactionId, status: 'completed', success: true });
+    return res.json({ message: 'This fee is already paid, thanks!', reference: p.transactionId, status: 'completed', cardLast4: p.cardLast4, success: true });
   }
-  const name = String(req.body.cardName || '').trim();
-  const number = String(req.body.cardNumber || '').replace(/\s+/g, '');
+  if (p.status === 'pending') return res.status(409).json({ message: 'A bank transfer is already logged. Please contact us before paying by card.' });
+  const name = String((req.body || {}).cardName || '').trim();
+  const numberText = String((req.body || {}).cardNumber || '').trim();
+  if (!/^[0-9 ]+$/.test(numberText)) return res.status(400).json({ message: 'That card number does not look right, please check it.' });
+  const number = numberText.replace(/\s+/g, '');
   const expiry = String(req.body.cardExpiry || '').trim();
   const cvv = String(req.body.cardCvv || '').trim();
 
@@ -910,7 +992,7 @@ app.post('/api/payments/:id/card', (req, res) => {
   save('payments', payments);
   // paid now = booking is confirmed now
   if (p.bookingId) {
-    const b = bookings.find(x => x.id === p.bookingId);
+    const b = paymentBooking(p);
     if (b) { b.status = 'confirmed'; save('bookings', bookings); }
   }
   sendMail(p.customerEmail || (bookings.find(x => x.id === p.bookingId) || {}).email,
@@ -920,15 +1002,15 @@ app.post('/api/payments/:id/card', (req, res) => {
     (p.customerName || 'A customer') + ' paid $' + p.amount + ' by card (ending ' + p.cardLast4 + '). Booking marked confirmed.');
   res.json({ message: 'Payment approved - your booking is confirmed.', reference: p.transactionId, status: 'completed', cardLast4: p.cardLast4, success: true });
 });
-app.get('/api/payments/:id', (req, res) => {
-  const p = payments.find(x=>String(x.id)===req.params.id);
-  if (!p) return res.status(404).json({ message: 'Payment not found' });
-  res.json({ payment: p });
+app.get('/api/payments/:id', requireCustomer, (req, res) => {
+  const p = payments.find(x => String(x.id) === req.params.id);
+  if (!p || !paymentBelongsTo(req.customerEmail, p)) return res.status(404).json({ message: 'Payment not found', success: false });
+  res.json({ payment: paymentSummary(p) });
 });
 
 // ---- ABOUT (legacy) ----
 app.get('/about', (req, res) => res.json(aboutContent));
-app.put('/about', (req, res) => {
+app.put('/about', requireAdmin, (req, res) => {
   const body = req.body;
   if (body && typeof body === 'object' && !Array.isArray(body)) {
     for (const [k,v] of Object.entries(body)) if (v!=null) aboutContent[k]=v;
@@ -940,7 +1022,7 @@ app.get('/about/:field', (req, res) => {
   const val = aboutContent[req.params.field];
   res.send(val!=null ? String(val) : '');
 });
-app.put('/about/:field', (req, res) => {
+app.put('/about/:field', requireAdmin, (req, res) => {
   let val = req.body;
   if (typeof val === 'object') val = JSON.stringify(val);
   if (typeof val === 'string') {

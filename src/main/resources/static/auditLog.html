@@ -66,7 +66,7 @@
            nothing here can be edited or deleted from the ui -->
       <div class="dashboard-card">
         <p class="admin-muted" style="margin-bottom:12px">
-          Every admin change is recorded here (last 500 actions). Read only - the log is not editable from the site.
+          Recorded admin actions appear here, newest first. This is a basic activity trail, not a complete record of every change. Read only - entries cannot be edited from this page.
         </p>
         <div class="table-scroll">
         <table>
@@ -120,7 +120,7 @@ document.addEventListener('DOMContentLoaded', function () {
   function render(entries) {
     var body = document.getElementById('auditBody');
     if (!entries.length) {
-      body.innerHTML = '<tr><td colspan="4">Nothing logged yet - changes you make in the admin show up here.</td></tr>';
+      body.innerHTML = '<tr><td colspan="4">No recorded admin actions yet.</td></tr>';
     } else {
       body.innerHTML = entries.map(function (e) {
         return '<tr>' +

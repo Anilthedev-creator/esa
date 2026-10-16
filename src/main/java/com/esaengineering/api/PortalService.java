@@ -25,8 +25,8 @@ import java.util.Objects;
 /**
  * Everything the customer portal needs, scoped to a single email address.
  *
- * The portal is read-mostly with two write actions the customer owns: cancelling
- * a booking that has not been paid, and reopening an enquiry that was closed.
+ * The portal is read-mostly with a few write actions the customer owns: editing
+ * their profile, moving or cancelling an unpaid booking, and reopening an enquiry.
  * Every lookup takes the caller's email first, so a customer can only reach rows
  * they submitted - a request for someone else's booking id returns 404 rather
  * than 403, so the portal never confirms that other customers' bookings exist.
@@ -94,8 +94,24 @@ public class PortalService {
         if ("completed".equals(status) || "cancelled".equals(status)) {
             throw ApiException.badRequest("This booking is " + status + " so it can not be moved, please call us.");
         }
-        if (date != null && date.length() >= 10) b.setBookingDate(java.time.LocalDate.parse(date.substring(0, 10)));
-        if (slot != null && !slot.isEmpty()) b.setPreferredSlot(slot);
+        if (date != null && !date.isBlank()) {
+            java.time.LocalDate newDate;
+            try {
+                newDate = java.time.LocalDate.parse(date.length() >= 10 ? date.substring(0, 10) : date);
+            } catch (RuntimeException e) {
+                throw ApiException.badRequest("Please choose a valid preferred date.");
+            }
+            if (newDate.isBefore(java.time.LocalDate.now())) {
+                throw ApiException.badRequest("Please choose today or a future date.");
+            }
+            b.setBookingDate(newDate);
+        }
+        if (slot != null) {
+            if (!java.util.Set.of("", "08:00", "10:00", "13:00", "15:00").contains(slot)) {
+                throw ApiException.badRequest("Please choose one of the available time preferences.");
+            }
+            b.setPreferredSlot(slot);
+        }
         bookingRepository.save(b);
         return summary(b, paymentRepository.findFirstByBookingId(b.getBookingID()).orElse(null));
     }
@@ -136,6 +152,10 @@ public class PortalService {
         if (payment != null && "completed".equals(payment.getStatus())) {
             throw ApiException.badRequest(
                     "This booking is already paid - contact us on 0402 464 823 to arrange a refund");
+        }
+        if (payment != null && "pending".equals(payment.getStatus())) {
+            throw ApiException.badRequest(
+                    "A transfer has already been logged. Please contact us on 0402 464 823 before cancelling.");
         }
 
         booking.setStatus("cancelled");
@@ -242,14 +262,16 @@ public class PortalService {
     private static boolean canCancel(String bookingStatus, String paymentStatus) {
         String bs = bookingStatus == null ? "pending" : bookingStatus;
         return ("pending".equals(bs) || "confirmed".equals(bs))
-                && !"completed".equals(paymentStatus);
+                && !"completed".equals(paymentStatus)
+                && !"pending".equals(paymentStatus);
     }
 
     private static boolean canPay(String bookingStatus, String paymentStatus) {
         String bs = bookingStatus == null ? "pending" : bookingStatus;
         return ("pending".equals(bs) || "confirmed".equals(bs))
                 && !"completed".equals(paymentStatus)
-                && !"cancelled".equals(paymentStatus);
+                && !"cancelled".equals(paymentStatus)
+                && !"pending".equals(paymentStatus);
     }
 
     private Map<String, Object> describePayment(Payment p) {
@@ -262,7 +284,11 @@ public class PortalService {
                 "paid", "completed".equals(status),
                 "bookingId", p.getBookingId(),
                 "customerName", p.getCustomerName(),
-                "paymentDate", p.getPaymentDate() == null ? null : p.getPaymentDate().toString());
+                "paymentDate", p.getPaymentDate() == null ? null : p.getPaymentDate().toString(),
+                "paidDate", p.getPaidDate() == null ? null : p.getPaidDate().toString(),
+                "method", p.getMethod() != null ? p.getMethod()
+                        : (p.getTransferReference() != null ? "transfer" : null),
+                "cardLast4", p.getCardLast4());
     }
 
     private Map<String, Object> describe(User u) {

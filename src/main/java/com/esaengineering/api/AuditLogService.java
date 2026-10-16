@@ -9,8 +9,8 @@ import com.esaengineering.security.TokenService;
 import org.springframework.stereotype.Component;
 
 /**
- * Writes audit trail rows. Admin mutation endpoints call record(...) after a
- * successful change so there is a paper trail of who did what.
+ * Writes audit trail rows for the admin changes that currently call record(...).
+ * This is a basic activity trail; add calls as more mutation endpoints need tracking.
  *
  * The actor's email comes from the same Authorization header the endpoint
  * already checked - if we somehow cant read it we log "unknown" rather than

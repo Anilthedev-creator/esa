@@ -1,0 +1,52 @@
+$ npm test
+
+> esa-engineering@0.0.1 test
+> node --test
+
+TAP version 13
+# Subtest: Node API scopes booking and payment data and protects the sandbox card flow
+    # Subtest: sandbox card route rejects malformed card data without storing it
+    ok 1 - sandbox card route rejects malformed card data without storing it
+      ---
+      duration_ms: 5.398307
+      type: 'test'
+      ...
+    1..1
+ok 1 - Node API scopes booking and payment data and protects the sandbox card flow
+  ---
+  duration_ms: 773.753293
+  type: 'test'
+  ...
+# Subtest: Node production startup refuses demo secrets and missing admin credentials
+ok 2 - Node production startup refuses demo secrets and missing admin credentials
+  ---
+  duration_ms: 245.159316
+  type: 'test'
+  ...
+1..2
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1116.396381
+
+$ HTTP smoke checks (Node preview on :8080)
+200 /
+200 /booking.html
+200 /payment.html
+200 /receipt.html
+200 /api/health
+401 GET /api/bookings (anonymous expected 401)
+401 POST /api/bookings (anonymous expected 401)
+
+$ JavaScript syntax checks
+PASS server.js, static/test JavaScript, receipt inline script
+
+$ git diff --check
+PASS
+
+$ Spring build/test availability
+NOT RUN: Maven and Java compiler are not installed in this sandbox

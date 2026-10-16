@@ -1,6 +1,7 @@
 package com.esaengineering.model;
 
 import jakarta.persistence.*;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.math.BigDecimal;
 
@@ -50,12 +51,23 @@ public class Payment {
     @Column(length = 20)
     private String method;
 
+    /** bank receipt reference (not a card number); only kept for transfers */
+    @Column(length = 120)
+    private String transferReference;
+
+    /** the day a card was paid or a bank transfer was logged */
+    private LocalDate paidDate;
+
     /** last 4 digits when paid by card - the full number is NEVER stored */
     @Column(length = 4)
     private String cardLast4;
 
     public String getMethod() { return method; }
     public void setMethod(String method) { this.method = method; }
+    public String getTransferReference() { return transferReference; }
+    public void setTransferReference(String transferReference) { this.transferReference = transferReference; }
+    public LocalDate getPaidDate() { return paidDate; }
+    public void setPaidDate(LocalDate paidDate) { this.paidDate = paidDate; }
     public String getCardLast4() { return cardLast4; }
     public void setCardLast4(String cardLast4) { this.cardLast4 = cardLast4; }
 }

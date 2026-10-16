@@ -16,7 +16,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @CrossOrigin(origins = "*")
@@ -28,25 +30,28 @@ public class ApiPublicController {
     private final ContactRepository contactRepo;
     private final PaymentRepository paymentRepo;
     private final AdminAccess adminAccess;
+    private final PortalAccess portalAccess;
     private final BigDecimal consultationFee;
 
     public ApiPublicController(BookingRepository bookingRepo, ContactRepository contactRepo,
-                                PaymentRepository paymentRepo, AdminAccess adminAccess,
+                                PaymentRepository paymentRepo, AdminAccess adminAccess, PortalAccess portalAccess,
                                 @Value("${app.booking.consultation-fee:50}") BigDecimal consultationFee) {
         this.bookingRepo = bookingRepo;
         this.contactRepo = contactRepo;
         this.paymentRepo = paymentRepo;
         this.adminAccess = adminAccess;
+        this.portalAccess = portalAccess;
         this.consultationFee = consultationFee;
     }
 
     // ---- bookings ----
 
     @PostMapping("/bookings")
-    public Map<String, Object> createBooking(@RequestBody Map<String, Object> body) {
+    public Map<String, Object> createBooking(@RequestBody Map<String, Object> body,
+                                             @RequestHeader(value = "Authorization", required = false) String auth) {
+        String email = portalAccess.requireCustomer(auth).getEmail().trim().toLowerCase(Locale.ROOT);
         String name = text(body, "name");
         if (name == null) name = text(body, "fullName");
-        String email = text(body, "email");
         String phone = text(body, "phone");
         String service = text(body, "service");
         if (service == null) service = text(body, "serviceName");
@@ -54,7 +59,17 @@ public class ApiPublicController {
         if (notes == null) notes = text(body, "description");
         if (notes == null) notes = text(body, "message");
 
-        if (name == null || email == null) throw ApiException.badRequest("Name and email are required");
+        if (name == null) throw ApiException.badRequest("Name is required");
+        String slot = text(body, "preferredSlot");
+        if (slot == null) slot = "";
+        if (!allowedSlots().contains(slot)) throw ApiException.badRequest("Please choose one of the available time preferences.");
+        String preferred = text(body, "preferredDate");
+        LocalDate bookingDate = LocalDate.now();
+        if (preferred != null) {
+            bookingDate = parseDate(preferred.length() >= 10 ? preferred.substring(0, 10) : preferred,
+                    "Please choose a valid preferred date.");
+            if (bookingDate.isBefore(LocalDate.now())) throw ApiException.badRequest("Please choose today or a future preferred date.");
+        }
 
         Booking b = new Booking();
         b.setFullName(name);
@@ -64,13 +79,8 @@ public class ApiPublicController {
         b.setDescription(notes != null ? notes : "");
         b.setAbnNumber("");
         // if they picked a preferred date on the booking form use that one
-        b.setPreferredSlot(text(body, "preferredSlot"));
-        String preferred = text(body, "preferredDate");
-        if (preferred != null && preferred.length() >= 10) {
-            b.setBookingDate(LocalDate.parse(preferred.substring(0, 10)));
-        } else {
-            b.setBookingDate(LocalDate.now());
-        }
+        b.setPreferredSlot(slot);
+        b.setBookingDate(bookingDate);
         b.setStatus("pending");
         b = bookingRepo.save(b);
 
@@ -102,8 +112,10 @@ public class ApiPublicController {
     }
 
     @GetMapping("/bookings/{id}")
-    public Map<String, Object> getBooking(@PathVariable Long id) {
-        Booking b = bookingRepo.findByBookingId(id).orElseThrow(() -> ApiException.notFound("Booking not found"));
+    public Map<String, Object> getBooking(@PathVariable Long id,
+                                          @RequestHeader(value = "Authorization", required = false) String auth) {
+        String email = portalAccess.requireCustomer(auth).getEmail();
+        Booking b = ownBooking(id, email);
         // Was: paymentRepo.findAll().stream().filter(...) - a full table scan per request.
         Optional<Payment> paymentOpt = paymentRepo.findFirstByBookingId(b.getBookingID());
         Map<String, Object> bookingMap = new LinkedHashMap<>();
@@ -122,12 +134,7 @@ public class ApiPublicController {
         resp.put("booking", bookingMap);
         if (paymentOpt.isPresent()) {
             Payment p = paymentOpt.get();
-            resp.put("payment", Map.of(
-                    "id", p.getPaymentId(),
-                    "reference", p.getTransactionId(),
-                    "status", p.getStatus(),
-                    "amount", p.getAmount()
-            ));
+            resp.put("payment", paymentSummary(p));
         }
         return resp;
     }
@@ -194,34 +201,61 @@ public class ApiPublicController {
     }
 
     @GetMapping("/enquiries/{id}")
-    public Map<String, Object> getEnquiryPublic(@PathVariable Long id) {
-        Contact c = contactRepo.findById(id).orElseThrow(() -> ApiException.notFound("Enquiry not found"));
-        return Map.of("enquiry", c);
+    public Map<String, Object> getEnquiryPublic(@PathVariable Long id,
+                                                @RequestHeader(value = "Authorization", required = false) String auth) {
+        String email = portalAccess.requireCustomer(auth).getEmail();
+        Contact c = contactRepo.findById(id)
+                .filter(row -> sameEmail(email, row.getEmail()))
+                .orElseThrow(() -> ApiException.notFound("Enquiry not found"));
+        Map<String, Object> enquiry = new LinkedHashMap<>();
+        enquiry.put("id", c.getContactId());
+        enquiry.put("name", c.getFullName());
+        enquiry.put("email", c.getEmail());
+        enquiry.put("service", c.getServiceName());
+        enquiry.put("message", c.getDescription());
+        enquiry.put("status", c.getStatus());
+        enquiry.put("createdAt", c.getCreatedAt());
+        enquiry.put("reply", c.getReply());
+        return Map.of("enquiry", enquiry);
     }
 
-    // ---- payments confirm ----
+    // ---- payments ----
 
     @PostMapping("/payments/{id}/confirm")
-    public Map<String, Object> confirmPayment(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+    public Map<String, Object> confirmPayment(@PathVariable Long id,
+                                              @RequestBody(required = false) Map<String, Object> body,
+                                              @RequestHeader(value = "Authorization", required = false) String auth) {
+        String email = portalAccess.requireCustomer(auth).getEmail();
         Payment p = paymentRepo.findById(id).orElseThrow(() -> ApiException.notFound("Payment not found"));
-        if ("completed".equals(p.getStatus())) {
-            return Map.of("message", "This fee is already paid, thanks!",
-                    "reference", p.getTransactionId(), "status", "completed", "success", true);
+        Booking booking = bookingForPayment(p, email);
+        if ("cancelled".equals(booking.getStatus()) || "cancelled".equals(p.getStatus())) {
+            throw ApiException.badRequest("This booking was cancelled and can no longer be paid.");
         }
-        // no card gateway on the site yet: customer banks the fee and tells us
-        // the transfer reference, the office ticks it off once it hits the bank
+        if ("completed".equals(p.getStatus())) {
+            return paymentResult("This fee is already paid, thanks!", p, "completed");
+        }
+        // A logged transfer is a single outstanding payment, not permission to
+        // log another transfer or switch to card while it is clearing.
+        if ("pending".equals(p.getStatus())) {
+            return paymentResult("This transfer is already logged and is waiting to clear.", p, "pending");
+        }
         String ref = text(body, "transferReference");
-        if (ref == null) throw ApiException.badRequest("Please put in the transfer reference from your bank receipt.");
+        if (ref == null || ref.length() > 120) {
+            throw ApiException.badRequest("Please put in a valid transfer reference from your bank receipt.");
+        }
+        LocalDate paidDate = parseDate(text(body, "paidDate"), "Please choose a valid date on or before today.");
+        if (paidDate.isAfter(LocalDate.now())) {
+            throw ApiException.badRequest("Please choose a valid date on or before today.");
+        }
+
         p.setStatus("pending");
+        p.setMethod("transfer");
+        p.setTransferReference(ref);
+        p.setPaidDate(paidDate);
         p.setPaymentDate(LocalDateTime.now());
         paymentRepo.save(p);
         System.out.println("[mail] bank transfer logged: " + p.getTransactionId() + " ref " + ref);
-        return Map.of(
-                "message", "Thanks! We logged your transfer and will confirm once it clears, usually within 1 business day.",
-                "reference", p.getTransactionId(),
-                "status", "pending",
-                "success", true
-        );
+        return paymentResult("Thanks! We logged your transfer and will confirm once it clears, usually within 1 business day.", p, "pending");
     }
 
     /**
@@ -231,11 +265,22 @@ public class ApiPublicController {
      * last 4 digits are kept. TODO: stripe/adyen when this goes live.
      */
     @PostMapping("/payments/{id}/card")
-    public Map<String, Object> cardPayment(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+    public Map<String, Object> cardPayment(@PathVariable Long id,
+                                           @RequestBody Map<String, Object> body,
+                                           @RequestHeader(value = "Authorization", required = false) String auth) {
+        String email = portalAccess.requireCustomer(auth).getEmail();
         Payment p = paymentRepo.findById(id).orElseThrow(() -> ApiException.notFound("Payment not found"));
+        Booking booking = bookingForPayment(p, email);
+        if ("cancelled".equals(booking.getStatus()) || "cancelled".equals(p.getStatus())) {
+            throw ApiException.badRequest("This booking was cancelled and can no longer be paid.");
+        }
         if ("completed".equals(p.getStatus())) {
-            return Map.of("message", "This fee is already paid, thanks!",
-                    "reference", p.getTransactionId(), "status", "completed", "success", true);
+            Map<String, Object> out = paymentResult("This fee is already paid, thanks!", p, "completed");
+            out.put("cardLast4", p.getCardLast4());
+            return out;
+        }
+        if ("pending".equals(p.getStatus())) {
+            throw ApiException.conflict("A bank transfer is already logged. Please contact us before paying by card.");
         }
         String name = text(body, "cardName");
         String number = text(body, "cardNumber");
@@ -261,14 +306,11 @@ public class ApiPublicController {
         p.setStatus("completed");
         p.setMethod("card");
         p.setCardLast4(digits.substring(digits.length() - 4));
+        p.setPaidDate(LocalDate.now());
         p.setPaymentDate(LocalDateTime.now());
         paymentRepo.save(p);
-        if (p.getBookingId() != null) {
-            bookingRepo.findById(p.getBookingId()).ifPresent(b -> {
-                b.setStatus("confirmed");
-                bookingRepo.save(b);
-            });
-        }
+        booking.setStatus("confirmed");
+        bookingRepo.save(booking);
         System.out.println("[mail] card payment approved: " + p.getTransactionId()
                 + " ($" + p.getAmount() + ", card ending " + p.getCardLast4() + ")");
         return Map.of(
@@ -297,9 +339,69 @@ public class ApiPublicController {
     }
 
     @GetMapping("/payments/{id}")
-    public Map<String, Object> getPayment(@PathVariable Long id) {
+    public Map<String, Object> getPayment(@PathVariable Long id,
+                                          @RequestHeader(value = "Authorization", required = false) String auth) {
+        String email = portalAccess.requireCustomer(auth).getEmail();
         Payment p = paymentRepo.findById(id).orElseThrow(() -> ApiException.notFound("Payment not found"));
-        return Map.of("payment", p);
+        bookingForPayment(p, email);
+        return Map.of("payment", paymentSummary(p));
+    }
+
+    private Booking ownBooking(Long id, String email) {
+        return bookingRepo.findByBookingId(id)
+                .filter(booking -> sameEmail(email, booking.getEmail()))
+                .orElseThrow(() -> ApiException.notFound("Booking not found"));
+    }
+
+    private Booking bookingForPayment(Payment payment, String email) {
+        if (payment.getBookingId() == null) throw ApiException.notFound("Payment not found");
+        return bookingRepo.findByBookingId(payment.getBookingId())
+                .filter(booking -> sameEmail(email, booking.getEmail()))
+                .orElseThrow(() -> ApiException.notFound("Payment not found"));
+    }
+
+    private static boolean sameEmail(String first, String second) {
+        return first != null && second != null && first.trim().equalsIgnoreCase(second.trim());
+    }
+
+    private static Set<String> allowedSlots() {
+        return Set.of("", "08:00", "10:00", "13:00", "15:00");
+    }
+
+    private static LocalDate parseDate(String value, String message) {
+        try {
+            if (value == null || value.isBlank()) throw new IllegalArgumentException();
+            return LocalDate.parse(value);
+        } catch (RuntimeException e) {
+            throw ApiException.badRequest(message);
+        }
+    }
+
+    private static Map<String, Object> paymentSummary(Payment p) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("id", p.getPaymentId());
+        out.put("reference", p.getTransactionId());
+        out.put("amount", p.getAmount());
+        out.put("status", p.getStatus() == null ? "incomplete" : p.getStatus());
+        out.put("bookingId", p.getBookingId());
+        out.put("customerName", p.getCustomerName());
+        out.put("paymentDate", p.getPaymentDate());
+        out.put("paidDate", p.getPaidDate());
+        out.put("method", p.getMethod() != null ? p.getMethod()
+                : (p.getTransferReference() != null ? "transfer" : null));
+        out.put("cardLast4", p.getCardLast4());
+        out.put("paid", "completed".equals(p.getStatus()));
+        return out;
+    }
+
+    private static Map<String, Object> paymentResult(String message, Payment p, String status) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("message", message);
+        out.put("reference", p.getTransactionId());
+        out.put("status", status);
+        out.put("success", true);
+        if (p.getCardLast4() != null) out.put("cardLast4", p.getCardLast4());
+        return out;
     }
 
     private static String text(Map<String, Object> body, String key) {
@@ -309,4 +411,5 @@ public class ApiPublicController {
         String s = String.valueOf(v).trim();
         return s.isEmpty() ? null : s;
     }
+
 }

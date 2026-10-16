@@ -276,7 +276,12 @@ public class AdminDataService {
                     "customerName", payment.getCustomerName(),
                     "amount", payment.getAmount(),
                     "status", payment.getStatus() != null ? payment.getStatus() : (payment.getPaymentDate() != null ? "completed" : "incomplete"),
-                    "paidAt", payment.getPaymentDate()));
+                    "paidAt", payment.getPaymentDate(),
+                    "method", payment.getMethod() != null ? payment.getMethod()
+                            : (payment.getTransferReference() != null ? "transfer" : null),
+                    "cardLast4", payment.getCardLast4(),
+                    "transferReference", payment.getTransferReference(),
+                    "paidDate", payment.getPaidDate()));
         }
         return rows;
     }
@@ -290,7 +295,12 @@ public class AdminDataService {
                 "customerName", p.getCustomerName(),
                 "amount", p.getAmount(),
                 "status", p.getStatus(),
-                "paidAt", p.getPaymentDate());
+                "paidAt", p.getPaymentDate(),
+                "method", p.getMethod() != null ? p.getMethod()
+                        : (p.getTransferReference() != null ? "transfer" : null),
+                "cardLast4", p.getCardLast4(),
+                "transferReference", p.getTransferReference(),
+                "paidDate", p.getPaidDate());
     }
 
     @Transactional
