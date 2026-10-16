@@ -73,9 +73,8 @@ function setupMobileMenu() {
 
 
 /* ================= DROPDOWNS ================= */
-// "Projects" and "Services" in the nav have a little dropdown menu.
-// the css only shows them on hover which doesn't work on phones,
-// so here we also toggle them when clicked.
+// the services nav has a dropdown. the css only shows it on hover,
+// so here we also toggle it when clicked on phones.
 
 function closeDropdown(dd) {
   dd.classList.remove("open");
@@ -114,7 +113,7 @@ function setupOneDropdown(dd) {
   trigger.setAttribute("aria-haspopup", "true");
   trigger.setAttribute("aria-expanded", "false");
 
-  // check if the trigger is a real link (Projects is, Services isn't)
+  // links navigate normally; button triggers toggle their dropdown
   var href = trigger.getAttribute("href");
   var isRealLink = trigger.tagName === "A" && href && href !== "#" && href.indexOf("javascript") !== 0;
 
@@ -124,7 +123,7 @@ function setupOneDropdown(dd) {
   }
 
   trigger.addEventListener("click", function (e) {
-    // the Projects link should just go to the projects page
+    // let real navigation links follow their href
     if (isRealLink) {
       closeAllDropdowns();
       return;
