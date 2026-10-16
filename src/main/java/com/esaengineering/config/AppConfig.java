@@ -15,13 +15,17 @@ public class AppConfig {
     public TokenService tokenService(
             @Value("${app.auth.token-secret:}") String secret,
             @Value("${app.auth.token-ttl-hours:12}") long ttlHours,
-            @Value("${spring.profiles.active:}") String profiles) {
+            @Value("${spring.profiles.active:}") String profiles,
+            @Value("${app.demo-email-preview:false}") boolean demoEmailPreview) {
         String nodeEnv = System.getenv("NODE_ENV");
         boolean production = "production".equalsIgnoreCase(nodeEnv)
                 || "prod".equalsIgnoreCase(nodeEnv)
                 || hasProductionProfile(profiles);
         if (production && (secret == null || secret.isBlank() || DEMO_SECRET.equals(secret))) {
             throw new IllegalStateException("Set a unique JWT_SECRET before running ESA in production.");
+        }
+        if (production && demoEmailPreview) {
+            throw new IllegalStateException("Demo email previews must not be enabled in production.");
         }
         return new TokenService(secret, ttlHours);
     }

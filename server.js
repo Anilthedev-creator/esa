@@ -26,10 +26,24 @@ const DATA_DIR = process.env.ESA_DATA_DIR || path.join(__dirname, 'data');
 const DEMO_JWT_SECRET = 'esa-local-dev-secret-change-me-in-production-32chars';
 const JWT_SECRET = process.env.JWT_SECRET || DEMO_JWT_SECRET;
 const JWT_TTL = '12h';
+const DEMO_EMAIL_PREVIEW_ENABLED = process.env.ESA_DEMO_EMAIL_PREVIEW === 'true';
+const IS_PRODUCTION = ['production', 'prod'].includes(String(process.env.NODE_ENV || '').toLowerCase());
 
 // the known local key is handy for the project demo, but must never be used on a real deployment
-if (process.env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || process.env.JWT_SECRET === DEMO_JWT_SECRET)) {
+if (IS_PRODUCTION && (!process.env.JWT_SECRET || process.env.JWT_SECRET === DEMO_JWT_SECRET)) {
   throw new Error('Set a unique JWT_SECRET before running ESA in production.');
+}
+if (IS_PRODUCTION && DEMO_EMAIL_PREVIEW_ENABLED) {
+  throw new Error('Demo email previews must not be enabled in production.');
+}
+
+function makeDemoEmailPreview(email, subject, body, actionUrl, role) {
+  // Only customer accounts using reserved example.com emails get a demo preview.
+  if (!DEMO_EMAIL_PREVIEW_ENABLED || String(role || '').toUpperCase() !== 'CUSTOMER'
+      || !/@example\.com$/i.test(String(email || '').trim())) return null;
+  const preview = { subject: subject, body: body };
+  if (actionUrl) preview.actionUrl = actionUrl;
+  return preview;
 }
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -202,6 +216,7 @@ function requireCustomer(req, res, next) {
   const payload = verifyToken(auth);
   if (!payload || !payload.email) return res.status(401).json({ message: 'Your session has expired - please sign in again', success: false });
   req.customerEmail = payload.email;
+  req.customerRole = payload.role;
   next();
 }
 function fmtDate(iso) { if (!iso) return '—'; const d = new Date(iso); return isNaN(d) ? '—' : d.toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' }); }
@@ -284,19 +299,25 @@ app.post('/api/auth/forgot-password', (req, res) => {
   if (!email) return res.status(400).json({ message: 'Please put in your email address.' });
   const user = users.find(u => String(u.email).toLowerCase() === email);
   // say ok even when we dont know the email so people cant use it to probe accounts
+  let demoEmail = null;
   if (user) {
     const token = crypto.randomBytes(20).toString('hex');
     resets = resets.filter(r => r.email !== email); // ditch any older link
     resets.push({ token: token, email: email, expires: Date.now() + 60 * 60 * 1000 });
     save('password-resets', resets);
-    sendMail(email, 'Reset your ESA portal password',
-      'Hi ' + (user.fullName || user.firstName || 'there') + ',\n\n' +
-      'Someone (hopefully you) asked to reset the password on your ESA portal account.\n' +
+    const subject = 'Reset your ESA portal password';
+    const actionUrl = 'reset-password.html?token=' + encodeURIComponent(token);
+    const body = 'Hi ' + (user.fullName || user.firstName || 'there') + ',\n\n' +
+      'Someone asked to reset the password on your ESA portal account.\n' +
       'Open the link below to pick a new one. It works for 1 hour:\n\n' +
-      'reset-password.html?token=' + token + '\n\n' +
-      'If it was not you, just ignore this email and nothing changes.\n\n- ESA Engineering');
+      actionUrl + '\n\n' +
+      'If it was not you, just ignore this email and nothing changes.\n\n- ESA Engineering';
+    sendMail(email, subject, body);
+    demoEmail = makeDemoEmailPreview(email, subject, body, actionUrl, user.role);
   }
-  res.json({ message: 'If that email is in our system a reset link is on its way. While mail is not hooked up yet it lands in the data/outbox folder on the server.', success: true });
+  const response = { message: 'If that email is registered, reset instructions have been prepared.', success: true };
+  if (demoEmail) response.demoEmailPreview = demoEmail;
+  res.json(response);
 });
 
 // step 2: the reset page posts the token back with the new password
@@ -857,17 +878,29 @@ app.post('/api/bookings', requireCustomer, (req, res) => {
   if (booking.preferredSlot) {
     sendMail(settings.adminEmail, 'slot picked on booking #' + id, finalName + ' asked for ' + booking.bookingDate + ' at ' + booking.preferredSlot);
   }
-  sendMail(finalEmail, 'We got your booking - ' + booking.serviceName,
-    'Hi ' + finalName + ',\n\nThanks for booking ' + booking.serviceName + ' with ESA Engineering.\n' +
+  const bookingEmailSubject = 'We got your booking - ' + booking.serviceName;
+  const bookingEmailBody = 'Hi ' + finalName + ',\n\nThanks for booking ' + booking.serviceName + ' with ESA Engineering.\n' +
     'Your booking reference is #' + id + ' and the consultation fee is $' + booking.fee + '.\n' +
-    'The next step is the payment page (payment.html?booking=' + id + ') where you can pay by card in sandbox mode or log a bank transfer.\n\n- ESA Engineering');
+    'The next step is the payment page (payment.html?booking=' + id + ') where you can pay by card or log a bank transfer.\n\n- ESA Engineering';
+  sendMail(finalEmail, bookingEmailSubject, bookingEmailBody);
   sendMail(settings.adminEmail, 'New booking #' + id + ' - ' + booking.serviceName,
     finalName + ' (' + finalEmail + ', ' + (phone || 'no phone') + ') booked ' + booking.serviceName + '.\nNotes: ' + (notes || '-'));
   const payId = payments.length ? Math.max(...payments.map(p=>p.id))+1 : 1;
   const payment = { id: payId, transactionId: `ESA-${id}-${Math.random().toString(36).substring(2,8).toUpperCase()}`, customerName: finalName, amount: CONSULTATION_FEE, status: 'incomplete', paymentDate: null, bookingId: id };
   payments.push(payment);
   save('payments', payments);
-  res.json({ message: "Thanks - we've received your request and will be in touch shortly.", success: true, booking: { id: booking.id, name: booking.fullName, service: booking.serviceName, status: booking.status, fee: booking.fee }, payment: { id: payment.id, reference: payment.transactionId, status: payment.status } });
+  const response = {
+    message: "Thanks - we've received your request and will be in touch shortly.",
+    success: true,
+    booking: { id: booking.id, name: booking.fullName, service: booking.serviceName, status: booking.status, fee: booking.fee },
+    payment: { id: payment.id, reference: payment.transactionId, status: payment.status }
+  };
+  const demoEmail = makeDemoEmailPreview(finalEmail, bookingEmailSubject, bookingEmailBody, null, req.customerRole);
+  if (demoEmail) {
+    demoEmail.bookingId = booking.id;
+    response.demoEmailPreview = demoEmail;
+  }
+  res.json(response);
 });
 app.get('/api/bookings/:id', requireCustomer, (req, res) => {
   const b = ownBookings(req.customerEmail).find(x => String(x.id) === req.params.id);

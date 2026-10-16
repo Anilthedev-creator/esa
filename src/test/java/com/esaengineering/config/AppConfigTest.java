@@ -13,13 +13,20 @@ class AppConfigTest {
     void productionRefusesTheDemoSigningSecret() {
         AppConfig config = new AppConfig();
         assertThrows(IllegalStateException.class,
-                () -> config.tokenService(DEMO_SECRET, 12, "prod"));
+                () -> config.tokenService(DEMO_SECRET, 12, "prod", false));
     }
 
     @Test
     void productionAcceptsAUniqueSigningSecret() {
         AppConfig config = new AppConfig();
-        TokenService tokens = config.tokenService("different-private-secret", 12, "production");
+        TokenService tokens = config.tokenService("different-private-secret", 12, "production", false);
         assertNotNull(tokens.issue(1L, "admin@example.com", "ADMIN"));
+    }
+
+    @Test
+    void productionRefusesDemoEmailPreview() {
+        AppConfig config = new AppConfig();
+        assertThrows(IllegalStateException.class,
+                () -> config.tokenService("different-private-secret", 12, "prod", true));
     }
 }

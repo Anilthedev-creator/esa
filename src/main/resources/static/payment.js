@@ -40,6 +40,7 @@ document.addEventListener("DOMContentLoaded", function () {
     })
     .then(function (data) {
       renderSummary(data.booking);
+      showBookingEmailPreview(bookingId);
       if (data.payment && data.payment.reference) {
         document.getElementById("payReference").textContent = data.payment.reference;
       }
@@ -98,6 +99,21 @@ function paymentHeaders() {
     { "Content-Type": "application/json" },
     typeof authHeaders === "function" ? authHeaders() : {}
   );
+}
+
+function showBookingEmailPreview(bookingId) {
+  try {
+    var raw = sessionStorage.getItem("esaBookingDemoEmail");
+    if (!raw) return;
+    var email = JSON.parse(raw);
+    sessionStorage.removeItem("esaBookingDemoEmail");
+    if (String(email.bookingId) !== String(bookingId)) return;
+    document.getElementById("demoBookingEmailSubject").textContent = email.subject || "Booking received";
+    document.getElementById("demoBookingEmailBody").textContent = email.body || "";
+    document.getElementById("demoBookingEmail").style.display = "block";
+  } catch (_) {
+    // the booking/payment flow still works if session storage is blocked
+  }
 }
 
 function showError(text) {

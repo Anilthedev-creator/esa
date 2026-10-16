@@ -6,6 +6,7 @@ import com.esaengineering.model.Payment;
 import com.esaengineering.repository.BookingRepository;
 import com.esaengineering.repository.ContactRepository;
 import com.esaengineering.repository.PaymentRepository;
+import com.esaengineering.security.TokenService;
 import com.esaengineering.web.ApiException;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -32,16 +33,19 @@ public class ApiPublicController {
     private final AdminAccess adminAccess;
     private final PortalAccess portalAccess;
     private final BigDecimal consultationFee;
+    private final boolean demoEmailPreview;
 
     public ApiPublicController(BookingRepository bookingRepo, ContactRepository contactRepo,
                                 PaymentRepository paymentRepo, AdminAccess adminAccess, PortalAccess portalAccess,
-                                @Value("${app.booking.consultation-fee:50}") BigDecimal consultationFee) {
+                                @Value("${app.booking.consultation-fee:50}") BigDecimal consultationFee,
+                                @Value("${app.demo-email-preview:false}") boolean demoEmailPreview) {
         this.bookingRepo = bookingRepo;
         this.contactRepo = contactRepo;
         this.paymentRepo = paymentRepo;
         this.adminAccess = adminAccess;
         this.portalAccess = portalAccess;
         this.consultationFee = consultationFee;
+        this.demoEmailPreview = demoEmailPreview;
     }
 
     // ---- bookings ----
@@ -49,7 +53,8 @@ public class ApiPublicController {
     @PostMapping("/bookings")
     public Map<String, Object> createBooking(@RequestBody Map<String, Object> body,
                                              @RequestHeader(value = "Authorization", required = false) String auth) {
-        String email = portalAccess.requireCustomer(auth).getEmail().trim().toLowerCase(Locale.ROOT);
+        TokenService.TokenPayload identity = portalAccess.requireCustomer(auth);
+        String email = identity.getEmail().trim().toLowerCase(Locale.ROOT);
         String name = text(body, "name");
         if (name == null) name = text(body, "fullName");
         String phone = text(body, "phone");
@@ -93,6 +98,14 @@ public class ApiPublicController {
         p.setBookingId(b.getBookingID());
         p = paymentRepo.save(p);
 
+        String emailSubject = "We got your booking - " + b.getServiceName();
+        String emailBody = "Hi " + name + ",\n\nThanks for booking " + b.getServiceName() + " with ESA Engineering.\n"
+                + "Your booking reference is #" + b.getBookingID() + " and the consultation fee is $" + p.getAmount() + ".\n"
+                + "The next step is the payment page (payment.html?booking=" + b.getBookingID() + ") where you can pay by card or log a bank transfer.\n\n- ESA Engineering";
+        boolean includeDemoEmail = demoEmailPreview && "CUSTOMER".equalsIgnoreCase(identity.getRole())
+                && email.endsWith("@example.com");
+        if (includeDemoEmail) writeOutbox(email, emailSubject, emailBody);
+
         Map<String, Object> resp = new LinkedHashMap<>();
         resp.put("message", "Booking received — we'll be in touch shortly.");
         resp.put("success", true);
@@ -108,6 +121,13 @@ public class ApiPublicController {
                 "reference", p.getTransactionId(),
                 "status", p.getStatus()
         ));
+        if (includeDemoEmail) {
+            Map<String, Object> preview = new LinkedHashMap<>();
+            preview.put("subject", emailSubject);
+            preview.put("body", emailBody);
+            preview.put("bookingId", b.getBookingID());
+            resp.put("demoEmailPreview", preview);
+        }
         return resp;
     }
 
@@ -402,6 +422,19 @@ public class ApiPublicController {
         out.put("success", true);
         if (p.getCardLast4() != null) out.put("cardLast4", p.getCardLast4());
         return out;
+    }
+
+    private void writeOutbox(String to, String subject, String bodyText) {
+        try {
+            java.nio.file.Path dir = java.nio.file.Paths.get("data", "outbox");
+            java.nio.file.Files.createDirectories(dir);
+            String safeEmail = to.replaceAll("[^a-zA-Z0-9._-]", "_");
+            String filename = System.currentTimeMillis() + "-" + System.nanoTime() + "-" + safeEmail + ".txt";
+            String contents = "To: " + to + "\nSubject: " + subject + "\n\n" + bodyText + "\n";
+            java.nio.file.Files.write(dir.resolve(filename), contents.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            System.out.println("[mail] booking confirmation could not be written to demo outbox");
+        }
     }
 
     private static String text(Map<String, Object> body, String key) {

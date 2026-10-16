@@ -1,12 +1,15 @@
 package com.esaengineering.api;
 
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 
+import com.esaengineering.model.Role;
 import com.esaengineering.model.User;
 import com.esaengineering.security.TokenService;
 import com.esaengineering.web.ApiException;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,11 +35,14 @@ public class ApiAuthController {
     private final ApiAuthService authService;
     private final TokenService tokenService;
     private final AdminAccess adminAccess;
+    private final boolean demoEmailPreview;
 
-    public ApiAuthController(ApiAuthService authService, TokenService tokenService, AdminAccess adminAccess) {
+    public ApiAuthController(ApiAuthService authService, TokenService tokenService, AdminAccess adminAccess,
+                             @Value("${app.demo-email-preview:false}") boolean demoEmailPreview) {
         this.authService = authService;
         this.tokenService = tokenService;
         this.adminAccess = adminAccess;
+        this.demoEmailPreview = demoEmailPreview;
     }
 
     @PostMapping("/signup")
@@ -71,18 +77,28 @@ public class ApiAuthController {
         String email = text(body, "email");
         if (email == null) throw ApiException.badRequest("Please put in your email address.");
         String token = authService.startPasswordReset(email);
+        Map<String, Object> demoPreview = null;
         if (token != null) {
-            // no mail server wired up yet (TODO) so same trick as server.js:
-            // the "email" is written to data/outbox as a txt file
-            writeOutbox(email, "Reset your ESA portal password",
-                    "Someone asked to reset your ESA portal password.\n"
-                    + "Open reset-password.html?token=" + token + " to pick a new one.\n"
-                    + "The link works for 1 hour. If it was not you, ignore this email.");
+            String actionUrl = "reset-password.html?token=" + token;
+            String subject = "Reset your ESA portal password";
+            String bodyText = "Someone asked to reset your ESA portal password.\n"
+                    + "Open " + actionUrl + " to pick a new one.\n"
+                    + "The link works for 1 hour. If it was not you, ignore this email.";
+            writeOutbox(email, subject, bodyText);
+            User user = authService.findByEmail(email).orElse(null);
+            if (demoEmailPreview && user != null && user.getRole() == Role.CUSTOMER
+                    && email.trim().toLowerCase(Locale.ROOT).endsWith("@example.com")) {
+                demoPreview = new LinkedHashMap<>();
+                demoPreview.put("subject", subject);
+                demoPreview.put("body", bodyText);
+                demoPreview.put("actionUrl", actionUrl);
+            }
         }
-        // same answer either way so the form cant be used to probe for accounts
+        // keep the same success message so this form cannot probe for accounts
         Map<String, Object> resp = new LinkedHashMap<>();
-        resp.put("message", "If that email is in our system a reset link is on its way.");
+        resp.put("message", "If that email is registered, reset instructions have been prepared.");
         resp.put("success", true);
+        if (demoPreview != null) resp.put("demoEmailPreview", demoPreview);
         return resp;
     }
 

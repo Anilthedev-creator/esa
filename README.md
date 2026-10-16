@@ -407,6 +407,18 @@ The app starts on **http://localhost:8080**.
 - Password: `Admin123`
 - Created on first startup if no ADMIN exists (see `AdminBootstrap` and Node `ensureAdmin()`)
 
+## Demo email previews (opt-in)
+
+No email provider is configured, so the app does not send real email. To show a booking confirmation after the payment redirect, or a usable password-reset link on the forgot-password page, start either backend with `ESA_DEMO_EMAIL_PREVIEW=true` and use a customer account ending in `@example.com`:
+
+```bash
+ESA_DEMO_EMAIL_PREVIEW=true npm start
+# or
+ESA_DEMO_EMAIL_PREVIEW=true mvn spring-boot:run
+```
+
+The pages label these as demo previews; reset links still expire after one hour. The flag defaults to `false`, previews are not available to administrator accounts, and startup rejects the flag in production.
+
 ## API Endpoints (now fully implemented)
 
 | Method | Endpoint | Description |

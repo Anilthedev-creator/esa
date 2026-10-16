@@ -17,13 +17,14 @@ function freePort() {
   });
 }
 
-function startServer(port, dataDir) {
+function startServer(port, dataDir, demoEmailPreview) {
   const child = spawn(process.execPath, ['server.js'], {
     cwd: path.join(__dirname, '..'),
     env: Object.assign({}, process.env, {
       PORT: String(port),
       ESA_DATA_DIR: dataDir,
-      NODE_ENV: 'test'
+      NODE_ENV: 'test',
+      ESA_DEMO_EMAIL_PREVIEW: demoEmailPreview === false ? 'false' : 'true'
     }),
     stdio: ['ignore', 'pipe', 'pipe']
   });
@@ -117,6 +118,23 @@ test('Node API scopes booking and payment data and protects the sandbox card flo
     const bobToken = bobSignup.data.token;
     assert.ok(aliceToken);
     assert.ok(bobToken);
+
+    const resetRequest = await api(base, '/api/auth/forgot-password', {
+      method: 'POST', body: { email: 'alice@example.com' }
+    });
+    assert.equal(resetRequest.status, 200);
+    assert.ok(resetRequest.data.demoEmailPreview);
+    assert.ok(resetRequest.data.demoEmailPreview.actionUrl.startsWith('reset-password.html?token='));
+    const resetToken = new URL(resetRequest.data.demoEmailPreview.actionUrl, base).searchParams.get('token');
+    const resetResult = await api(base, '/api/auth/reset-password', {
+      method: 'POST', body: { token: resetToken, password: 'NewStrongPass9' }
+    });
+    assert.equal(resetResult.status, 200);
+    const unknownReset = await api(base, '/api/auth/forgot-password', {
+      method: 'POST', body: { email: 'missing@example.com' }
+    });
+    assert.equal(Object.hasOwn(unknownReset.data, 'demoEmailPreview'), false);
+
     const customerCreateAdmin = await api(base, '/api/auth/create/admin', {
       method: 'POST', token: aliceToken,
       body: { fullName: 'New Admin', email: 'new-admin@example.com', password: 'Password123' }
@@ -138,6 +156,8 @@ test('Node API scopes booking and payment data and protects the sandbox card flo
       }
     });
     assert.equal(transferBooking.status, 200);
+    assert.equal(transferBooking.data.demoEmailPreview.bookingId, transferBooking.data.booking.id);
+    assert.match(transferBooking.data.demoEmailPreview.subject, /We got your booking/);
     const bookingId = transferBooking.data.booking.id;
     const paymentId = transferBooking.data.payment.id;
 
@@ -250,6 +270,18 @@ test('Node API scopes booking and payment data and protects the sandbox card flo
       body: { fullName: 'New Admin', email: 'new-admin@example.com', password: 'StrongAdmin9' }
     });
     assert.equal(createdAdmin.status, 200);
+    const newAdminSignin = await api(base, '/api/auth/signin', {
+      method: 'POST', body: { email: 'new-admin@example.com', password: 'StrongAdmin9' }
+    });
+    const adminReset = await api(base, '/api/auth/forgot-password', {
+      method: 'POST', body: { email: 'new-admin@example.com' }
+    });
+    assert.equal(Object.hasOwn(adminReset.data, 'demoEmailPreview'), false);
+    const adminBooking = await api(base, '/api/bookings', {
+      method: 'POST', token: newAdminSignin.data.token,
+      body: { name: 'Demo Admin', service: 'Waste Management' }
+    });
+    assert.equal(Object.hasOwn(adminBooking.data, 'demoEmailPreview'), false);
     const adminBookings = await api(base, '/api/bookings', { token: adminSignin.data.token });
     assert.equal(adminBookings.status, 200);
     const adminPayments = await api(base, '/api/admin/payments', { token: adminSignin.data.token });
@@ -282,7 +314,38 @@ test('Node API scopes booking and payment data and protects the sandbox card flo
 });
 
 
-test('Node production startup refuses demo secrets and missing admin credentials', () => {
+test('Node keeps email previews off unless the demo flag is enabled', async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'esa-node-email-off-test-'));
+  const port = await freePort();
+  const base = 'http://127.0.0.1:' + port;
+  const { child, ready } = startServer(port, dataDir, false);
+
+  try {
+    await ready;
+    const customer = await api(base, '/api/auth/signup', {
+      method: 'POST', body: {
+        firstName: 'Demo', lastName: 'Customer', email: 'preview@example.com', password: 'DemoPass123'
+      }
+    });
+    assert.equal(customer.status, 201);
+
+    const reset = await api(base, '/api/auth/forgot-password', {
+      method: 'POST', body: { email: 'preview@example.com' }
+    });
+    assert.equal(Object.hasOwn(reset.data, 'demoEmailPreview'), false);
+
+    const booking = await api(base, '/api/bookings', {
+      method: 'POST', token: customer.data.token,
+      body: { name: 'Demo Customer', service: 'Plant Commissioning' }
+    });
+    assert.equal(Object.hasOwn(booking.data, 'demoEmailPreview'), false);
+  } finally {
+    await stopServer(child);
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('Node production startup refuses demo secrets, missing admin credentials, and email previews', () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'esa-node-prod-test-'));
   const serverPath = path.join(__dirname, '..', 'server.js');
   try {
@@ -290,7 +353,7 @@ test('Node production startup refuses demo secrets and missing admin credentials
       cwd: path.join(__dirname, '..'),
       env: Object.assign({}, process.env, {
         NODE_ENV: 'production', PORT: '0', ESA_DATA_DIR: dataDir,
-        JWT_SECRET: '', ADMIN_EMAIL: '', ADMIN_PASSWORD: ''
+        JWT_SECRET: '', ADMIN_EMAIL: '', ADMIN_PASSWORD: '', ESA_DEMO_EMAIL_PREVIEW: 'false'
       }),
       encoding: 'utf8', timeout: 5000
     });
@@ -302,12 +365,25 @@ test('Node production startup refuses demo secrets and missing admin credentials
       env: Object.assign({}, process.env, {
         NODE_ENV: 'production', PORT: '0', ESA_DATA_DIR: dataDir,
         JWT_SECRET: 'a-unique-production-secret-for-node-tests',
-        ADMIN_EMAIL: '', ADMIN_PASSWORD: ''
+        ADMIN_EMAIL: '', ADMIN_PASSWORD: '', ESA_DEMO_EMAIL_PREVIEW: 'false'
       }),
       encoding: 'utf8', timeout: 5000
     });
     assert.notEqual(noAdmin.status, 0);
     assert.match(noAdmin.stderr, /Set ADMIN_EMAIL and ADMIN_PASSWORD/);
+
+    const demoPreviewInProd = spawnSync(process.execPath, [serverPath], {
+      cwd: path.join(__dirname, '..'),
+      env: Object.assign({}, process.env, {
+        NODE_ENV: 'production', PORT: '0', ESA_DATA_DIR: dataDir,
+        JWT_SECRET: 'another-unique-production-secret-for-tests',
+        ADMIN_EMAIL: 'admin@example.com', ADMIN_PASSWORD: 'StrongAdminPass9',
+        ESA_DEMO_EMAIL_PREVIEW: 'true'
+      }),
+      encoding: 'utf8', timeout: 5000
+    });
+    assert.notEqual(demoPreviewInProd.status, 0);
+    assert.match(demoPreviewInProd.stderr, /Demo email previews must not be enabled in production/);
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
   }

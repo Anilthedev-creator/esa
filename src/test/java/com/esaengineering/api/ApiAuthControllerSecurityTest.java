@@ -16,7 +16,7 @@ class ApiAuthControllerSecurityTest {
     void creatingAnAdminNeedsAnAdminToken() {
         ApiAuthService authService = mock(ApiAuthService.class);
         TokenService tokens = new TokenService("test-token-secret-for-auth-controller", 1);
-        ApiAuthController controller = new ApiAuthController(authService, tokens, new AdminAccess(tokens));
+        ApiAuthController controller = new ApiAuthController(authService, tokens, new AdminAccess(tokens), false);
         Map<String, Object> body = Map.of(
                 "fullName", "New Admin",
                 "email", "new-admin@example.com",

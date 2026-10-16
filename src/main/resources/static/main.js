@@ -240,6 +240,12 @@ function onFormSubmit(e) {
       // page for the consultation fee. Without this the booking was created
       // but payment.html was never reachable, so no fee was ever collected.
       if (api === "/api/bookings" && result && result.booking && result.booking.id) {
+        if (result.demoEmailPreview) {
+          try {
+            result.demoEmailPreview.bookingId = result.booking.id;
+            window.sessionStorage.setItem("esaBookingDemoEmail", JSON.stringify(result.demoEmailPreview));
+          } catch (_) { /* booking redirect still works if storage is disabled */ }
+        }
         showFormNote(form, "Booking received - taking you to payment...", false);
         window.location.href =
           "payment.html?booking=" + encodeURIComponent(result.booking.id);

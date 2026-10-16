@@ -43,7 +43,7 @@ class ApiPublicControllerTest {
         PortalAccess portalAccess = new PortalAccess(tokens);
         controller = new ApiPublicController(
                 bookingRepo, contactRepo, paymentRepo, new AdminAccess(tokens), portalAccess,
-                new BigDecimal("50.00"));
+                new BigDecimal("50.00"), false);
         aliceToken = "Bearer " + tokens.issue(1L, "alice@example.com", "CUSTOMER");
         bobToken = "Bearer " + tokens.issue(2L, "bob@example.com", "CUSTOMER");
     }
