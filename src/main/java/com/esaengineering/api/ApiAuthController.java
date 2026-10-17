@@ -35,13 +35,16 @@ public class ApiAuthController {
     private final ApiAuthService authService;
     private final TokenService tokenService;
     private final AdminAccess adminAccess;
+    private final AuditLogService auditLog;
     private final boolean demoEmailPreview;
 
     public ApiAuthController(ApiAuthService authService, TokenService tokenService, AdminAccess adminAccess,
+                             AuditLogService auditLog,
                              @Value("${app.demo-email-preview:false}") boolean demoEmailPreview) {
         this.authService = authService;
         this.tokenService = tokenService;
         this.adminAccess = adminAccess;
+        this.auditLog = auditLog;
         this.demoEmailPreview = demoEmailPreview;
     }
 
@@ -158,8 +161,10 @@ public class ApiAuthController {
                                            @RequestHeader(value = "Authorization", required = false) String auth) {
         adminAccess.requireAdmin(auth);
         String phone = text(body, "phoneNumber") != null ? text(body, "phoneNumber") : text(body, "phone");
-        authService.createAdmin(text(body, "fullName"), text(body, "email"),
-                text(body, "password"), phone);
+        String fullName = text(body, "fullName");
+        String email = text(body, "email");
+        authService.createAdmin(fullName, email, text(body, "password"), phone);
+        auditLog.record(auth, "administrator created", fullName + " (" + email + ")");
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("message", "Administrator account created");

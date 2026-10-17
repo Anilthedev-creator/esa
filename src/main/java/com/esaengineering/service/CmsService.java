@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -203,12 +204,17 @@ public class CmsService {
             block.setValue(value);
             blockRepo.save(block);
         }
+        page.setUpdatedAt(LocalDateTime.now());
+        pageRepo.save(page);
     }
 
     @Transactional
     public void deleteBlockOverride(Long pageId, String key) {
+        CmsPage page = getPageOrThrow(pageId);
         Optional<CmsBlock> opt = blockRepo.findByPageIdAndKey(pageId, key);
         opt.ifPresent(blockRepo::delete);
+        page.setUpdatedAt(LocalDateTime.now());
+        pageRepo.save(page);
     }
 
     /**

@@ -381,9 +381,13 @@
         if (typeof getUser === "function" && getUser()) {
           var user = getUser();
           user.name = data.profile.fullName;
-          user.firstName = (data.profile.fullName || "").split(" ")[0];
+          var nameParts = (data.profile.fullName || "").trim().split(/\s+/);
+          user.firstName = nameParts[0] || "";
+          user.lastName = nameParts.slice(1).join(" ");
           user.phone = data.profile.phoneNumber;
+          user.phoneNumber = data.profile.phoneNumber;
           user.company = data.profile.companyName;
+          user.companyName = data.profile.companyName;
           localStorage.setItem("user", JSON.stringify(user));
           updateHeaderButtons();
         }

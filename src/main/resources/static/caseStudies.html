@@ -256,10 +256,15 @@ document.addEventListener('DOMContentLoaded', function () {
         'Delete it').then(function (yes) {
         if (!yes) return;
         fetch(API + '/' + delId, { method: 'DELETE', headers: headers() })
-          .then(function () {
+          .then(function (r) {
+            return r.json().then(function (data) { return { ok: r.ok, data: data }; });
+          })
+          .then(function (result) {
+            if (!result.ok) throw new Error(result.data.message || 'Could not delete case study.');
             if (window.showToast) window.showToast('Case study deleted.', 'ok');
             load();
-          });
+          })
+          .catch(function (error) { note(error.message || 'Could not delete case study.', true); });
       });
       return;
     }

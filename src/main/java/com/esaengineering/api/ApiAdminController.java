@@ -24,15 +24,18 @@ public class ApiAdminController {
     private final CmsService cmsService;
     private final SettingsService settingsService;
     private final AdminAccess adminAccess;
+    private final AuditLogService auditLog;
 
     public ApiAdminController(AdminDataService adminService,
                               CmsService cmsService,
                               SettingsService settingsService,
-                              AdminAccess adminAccess) {
+                              AdminAccess adminAccess,
+                              AuditLogService auditLog) {
         this.adminService = adminService;
         this.cmsService = cmsService;
         this.settingsService = settingsService;
         this.adminAccess = adminAccess;
+        this.auditLog = auditLog;
         // NOTE: no database access here. Controller beans are created while the
         // application context is still starting, i.e. before Hibernate has
         // created the tables. Seeding happens in DataInitializer instead.
@@ -64,6 +67,7 @@ public class ApiAdminController {
                                              @RequestHeader(value = "Authorization", required = false) String auth) {
         adminAccess.requireAdmin(auth);
         Map<String, Object> updated = adminService.updateCustomer(id, body);
+        auditLog.record(auth, "customer updated", "#" + id + " fields: " + fields(body));
         return Map.of("customer", updated, "message", "Customer updated");
     }
 
@@ -87,6 +91,7 @@ public class ApiAdminController {
                                             @RequestHeader(value = "Authorization", required = false) String auth) {
         adminAccess.requireAdmin(auth);
         Map<String, Object> updated = adminService.updateEnquiry(id, body);
+        auditLog.record(auth, "enquiry updated", "#" + id + " fields: " + fields(body));
         return Map.of("enquiry", updated, "message", "Enquiry updated");
     }
 
@@ -118,6 +123,7 @@ public class ApiAdminController {
                                             @RequestHeader(value = "Authorization", required = false) String auth) {
         adminAccess.requireAdmin(auth);
         Map<String, Object> updated = adminService.updatePayment(id, body);
+        auditLog.record(auth, "payment updated", "#" + id + " fields: " + fields(body));
         return Map.of("payment", updated, "message", "Payment updated");
     }
 
@@ -146,6 +152,7 @@ public class ApiAdminController {
         String title = body.get("title") != null ? body.get("title").toString() : null;
         String slug = body.get("slug") != null ? body.get("slug").toString() : null;
         CmsPage created = cmsService.createPage(title, slug);
+        auditLog.record(auth, "page created", created.getTitle() + " (" + created.getSlug() + ")");
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", created.getId());
         m.put("title", created.getTitle());
@@ -168,6 +175,7 @@ public class ApiAdminController {
         adminAccess.requireAdmin(auth);
         String status = body.get("status") != null ? body.get("status").toString() : null;
         CmsPage updated = cmsService.updatePageStatus(id, status);
+        auditLog.record(auth, "page updated", updated.getTitle() + " status: " + updated.getStatus());
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", updated.getId());
         m.put("title", updated.getTitle());
@@ -190,6 +198,7 @@ public class ApiAdminController {
             toSave.put(e.getKey(), e.getValue() != null ? e.getValue().toString() : "");
         }
         cmsService.upsertBlocks(id, toSave);
+        auditLog.record(auth, "page content updated", "page #" + id + " blocks: " + String.join(", ", toSave.keySet()));
         return Map.of("message", "Content saved", "success", true);
     }
 
@@ -199,6 +208,7 @@ public class ApiAdminController {
                                            @RequestHeader(value = "Authorization", required = false) String auth) {
         adminAccess.requireAdmin(auth);
         cmsService.deleteBlockOverride(id, key);
+        auditLog.record(auth, "page content reset", "page #" + id + " block: " + key);
         return Map.of("message", "Block reset to default", "success", true);
     }
 
@@ -218,7 +228,14 @@ public class ApiAdminController {
         for (Map.Entry<String, Object> e : body.entrySet()) {
             if (e.getValue() != null) incoming.put(e.getKey(), e.getValue().toString());
         }
-        return settingsService.updateSettings(incoming);
+        Map<String, Object> updated = settingsService.updateSettings(incoming);
+        auditLog.record(auth, "site settings updated", fields(body));
+        return updated;
+    }
+
+    private static String fields(Map<String, Object> body) {
+        if (body == null || body.isEmpty()) return "no fields";
+        return String.join(", ", body.keySet());
     }
 
     private static Map<String, Object> single(String key, List<Map<String, Object>> rows, int total) {

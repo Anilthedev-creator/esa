@@ -16,7 +16,8 @@ class ApiAuthControllerSecurityTest {
     void creatingAnAdminNeedsAnAdminToken() {
         ApiAuthService authService = mock(ApiAuthService.class);
         TokenService tokens = new TokenService("test-token-secret-for-auth-controller", 1);
-        ApiAuthController controller = new ApiAuthController(authService, tokens, new AdminAccess(tokens), false);
+        ApiAuthController controller = new ApiAuthController(authService, tokens, new AdminAccess(tokens),
+                mock(AuditLogService.class), false);
         Map<String, Object> body = Map.of(
                 "fullName", "New Admin",
                 "email", "new-admin@example.com",
@@ -28,5 +29,24 @@ class ApiAuthControllerSecurityTest {
         ApiException customerError = assertThrows(ApiException.class, () -> controller.createAdmin(body, customer));
         assertEquals(403, customerError.getStatus().value());
         verify(authService, never()).createAdmin(anyString(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void successfulAdminCreationIsAuditedWithoutThePassword() {
+        ApiAuthService authService = mock(ApiAuthService.class);
+        TokenService tokens = new TokenService("test-token-secret-for-auth-controller", 1);
+        AuditLogService auditLog = mock(AuditLogService.class);
+        ApiAuthController controller = new ApiAuthController(authService, tokens, new AdminAccess(tokens),
+                auditLog, false);
+        String auth = "Bearer " + tokens.issue(1L, "admin@example.com", "ADMIN");
+        Map<String, Object> body = Map.of(
+                "fullName", "New Admin",
+                "email", "new-admin@example.com",
+                "password", "StrongPassword9");
+
+        controller.createAdmin(body, auth);
+
+        verify(authService).createAdmin("New Admin", "new-admin@example.com", "StrongPassword9", null);
+        verify(auditLog).record(auth, "administrator created", "New Admin (new-admin@example.com)");
     }
 }

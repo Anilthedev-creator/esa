@@ -65,6 +65,11 @@ function load(name, def) {
 function save(name, data) {
   fs.writeFileSync(dbFile(name), JSON.stringify(data, null, 2));
 }
+function auditFields(body) {
+  const hidden = ['password', 'currentPassword', 'newPassword', 'cardNumber', 'cardExpiry', 'cardCvv', 'token'];
+  const fields = Object.keys(body || {}).filter(key => !hidden.includes(key));
+  return fields.length ? fields.join(', ') : 'no fields';
+}
 
 // ---- really basic "email" helper ----
 // there is no mail server hooked up yet (TODO: wire up SMTP one day) so every
@@ -363,6 +368,7 @@ app.post('/api/auth/create/admin', requireAdmin, (req, res) => {
   };
   users.push(user);
   save('users', users);
+  logAudit(req, 'administrator created', fullName + ' (' + normEmail + ')');
   res.json({ message: 'Administrator account created', success: true });
 });
 
@@ -413,6 +419,21 @@ function adminStats() {
 
 app.get('/api/admin/stats', requireAdmin, (req, res) => res.json(adminStats()));
 app.get('/admin/stats', requireAdmin, (req, res) => res.json(adminStats()));
+app.get('/api/admin/bookings', requireAdmin, (req, res) => {
+  const rows = bookings.slice().sort((a, b) => Number(b.id) - Number(a.id)).map(b => ({
+    bookingId: b.id,
+    customer: b.fullName,
+    service: b.serviceName,
+    date: b.bookingDate,
+    email: b.email,
+    phone: b.phone || '',
+    abn: b.abnNumber || b.abn || '',
+    notes: b.description || b.notes || '',
+    status: b.status || 'pending',
+    createdAt: b.createdAt || null
+  }));
+  res.json({ bookings: rows, total: rows.length });
+});
 
 app.get('/api/admin/customers', requireAdmin, (req, res) => {
   const rows = users.map(u => ({
@@ -428,21 +449,29 @@ app.get('/api/admin/customers/:id', requireAdmin, (req, res) => {
 app.patch('/api/admin/customers/:id', requireAdmin, (req, res) => {
   const u = users.find(x=>String(x.id)===req.params.id);
   if (!u) return res.status(404).json({ message: 'Customer not found' });
-  const { firstName, lastName, phone, companyName, company, status } = req.body;
-  if (firstName || lastName) {
-    const fn = firstName||'', ln = lastName||'';
-    u.fullName = (fn+' '+ln).trim() || u.fullName;
-    u.firstName = fn || u.firstName;
-    u.lastName = ln || u.lastName;
+  const { firstName, lastName, phone, companyName, company, status } = req.body || {};
+  if (firstName !== undefined || lastName !== undefined) {
+    const fn = firstName == null ? '' : String(firstName).trim();
+    const ln = lastName == null ? '' : String(lastName).trim();
+    const fullName = (fn + ' ' + ln).trim();
+    if (fullName) u.fullName = fullName;
+    u.firstName = fn;
+    u.lastName = ln;
     u.name = u.fullName;
   }
-  if (phone) { u.phone = phone; u.phoneNumber = phone; }
-  if (companyName) { u.companyName = companyName; u.company = companyName; }
-  if (company) { u.company = company; u.companyName = company; }
-  if (status) u.active = status !== 'inactive';
+  if (phone !== undefined && phone !== null) { u.phone = String(phone); u.phoneNumber = String(phone); }
+  if (companyName !== undefined && companyName !== null) { u.companyName = String(companyName); u.company = String(companyName); }
+  if (company !== undefined && company !== null) { u.company = String(company); u.companyName = String(company); }
+  if (status !== undefined && status !== null) u.active = String(status).toLowerCase() !== 'inactive';
   save('users', users);
-  logAudit(req, 'customer updated', u.email || u.fullName || String(u.id));
-  res.json({ customer: u, message: 'Customer updated' });
+  logAudit(req, 'customer updated', '#' + u.id + ' fields: ' + auditFields(req.body));
+  res.json({ customer: {
+    id: u.id, name: u.fullName, email: u.email,
+    phone: u.phone || u.phoneNumber || '',
+    company: u.company || u.companyName || '',
+    status: u.active ? 'active' : 'inactive',
+    role: String(u.role || 'customer').toLowerCase()
+  }, message: 'Customer updated' });
 });
 
 app.get('/api/admin/enquiries', requireAdmin, (req, res) => {
@@ -462,7 +491,7 @@ app.patch('/api/admin/enquiries/:id', requireAdmin, (req, res) => {
   if (req.body.status) c.status = req.body.status;
   if (req.body.reply !== undefined) c.reply = req.body.reply;
   save('contacts', contacts);
-  logAudit(req, 'enquiry updated', '#' + c.id + (req.body.status ? ' -> ' + req.body.status : '') + (req.body.reply !== undefined ? ' (reply sent)' : ''));
+  logAudit(req, 'enquiry updated', '#' + c.id + ' fields: ' + auditFields(req.body));
   res.json({ enquiry: c, message: 'Enquiry updated' });
 });
 
@@ -488,7 +517,7 @@ app.patch('/api/admin/payments/:id', requireAdmin, (req, res) => {
     const b = bookings.find(x=>x.id===p.bookingId);
     if (b) { b.status = 'confirmed'; save('bookings', bookings); }
   }
-  logAudit(req, 'payment updated', '#' + p.id + ' -> ' + (p.status || '?'));
+  logAudit(req, 'payment updated', '#' + p.id + ' fields: ' + auditFields(req.body));
   res.json({ payment: p, message: 'Payment updated' });
 });
 
@@ -530,29 +559,29 @@ app.patch('/api/admin/projects/:id', requireAdmin, (req, res) => {
   if (!p) return res.status(404).json({ message: 'Case study not found', success: false });
   Object.assign(p, studyFields(req.body, p));
   save('case-studies', caseStudies);
-  logAudit(req, 'case study updated', p.title + ' (' + p.status + ')');
+  logAudit(req, 'case study updated', p.title + ' fields: ' + auditFields(req.body));
   res.json({ project: p, message: 'Case study updated', success: true });
 });
 app.delete('/api/admin/projects/:id', requireAdmin, (req, res) => {
   const gone = caseStudies.find(x => String(x.id) === req.params.id);
+  if (!gone) return res.status(404).json({ message: 'Case study not found', success: false });
   caseStudies = caseStudies.filter(x => String(x.id) !== req.params.id);
   save('case-studies', caseStudies);
-  logAudit(req, 'case study deleted', gone ? gone.title : '#' + req.params.id);
+  logAudit(req, 'case study deleted', gone.title);
   res.json({ message: 'Case study deleted', success: true });
 });
 
 // ---- AUDIT LOG (who did what in the admin) ----
-// selected admin changes call logAudit so there is a basic activity trail.
-// kept in a json file like everything else, capped at 500 entries
+// successful admin changes are saved beside the rest of the json data, capped at 500
 let auditLog = load('audit-log', []);
 
 function logAudit(req, action, detail) {
   const entry = {
-    id: auditLog.length ? Math.max(...auditLog.map(a => a.id)) + 1 : 1,
+    id: auditLog.length ? Math.max(...auditLog.map(a => Number(a.id) || 0)) + 1 : 1,
     at: new Date().toISOString(),
     who: (req.userPayload && req.userPayload.email) || 'unknown',
     action: action,
-    detail: detail || ''
+    detail: String(detail || '').slice(0, 500)
   };
   auditLog.push(entry);
   if (auditLog.length > 500) auditLog = auditLog.slice(-500);
@@ -645,7 +674,7 @@ app.patch('/api/admin/pages/:id', requireAdmin, (req, res) => {
     page.updatedAt = new Date().toISOString();
     save('pages', pages);
   }
-  logAudit(req, 'page content updated', page.title || page.slug || String(page.id));
+  logAudit(req, 'page updated', (page.title || page.slug || String(page.id)) + ' fields: ' + auditFields(req.body));
   res.json({ page, message: 'Page updated' });
 });
 app.put('/api/admin/pages/:id/blocks', requireAdmin, (req, res) => {
@@ -667,12 +696,17 @@ app.put('/api/admin/pages/:id/blocks', requireAdmin, (req, res) => {
   page.updatedAt = new Date().toISOString();
   save('blocks', blocks);
   save('pages', pages);
+  logAudit(req, 'page content updated', page.title + ' blocks: ' + Object.keys(incoming).join(', '));
   res.json({ message: 'Content saved', success: true });
 });
 app.delete('/api/admin/pages/:id/blocks/:key', requireAdmin, (req, res) => {
-  const before = blocks.length;
+  const page = pages.find(p => String(p.id) === req.params.id);
+  if (!page) return res.status(404).json({ message: 'Page not found' });
   blocks = blocks.filter(b=> !(String(b.pageId)===req.params.id && b.key===req.params.key));
-  if (blocks.length !== before) save('blocks', blocks);
+  page.updatedAt = new Date().toISOString();
+  save('blocks', blocks);
+  save('pages', pages);
+  logAudit(req, 'page content reset', page.title + ' block: ' + req.params.key);
   res.json({ message: 'Block reset to default', success: true });
 });
 
@@ -742,9 +776,17 @@ app.put('/api/portal/profile', requireCustomer, (req, res) => {
   if (!u) return res.status(401).json({ message: 'Your session has expired - please sign in again', success: false });
   // Email and role are not editable: the whole portal is scoped by the email.
   const body = req.body || {};
-  if (body.fullName && String(body.fullName).trim()) u.fullName = String(body.fullName).trim();
+  if (body.fullName && String(body.fullName).trim()) {
+    u.fullName = String(body.fullName).trim();
+    u.name = u.fullName;
+    const nameParts = u.fullName.split(/\s+/);
+    u.firstName = nameParts[0] || '';
+    u.lastName = nameParts.slice(1).join(' ');
+  }
   u.phoneNumber = body.phoneNumber ? String(body.phoneNumber).trim() : '';
+  u.phone = u.phoneNumber;
   u.companyName = body.companyName ? String(body.companyName).trim() : '';
+  u.company = u.companyName;
   save('users', users);
   res.json({ success: true, profile: { fullName: u.fullName, email: u.email, role: u.role, phoneNumber: u.phoneNumber, companyName: u.companyName } });
 });
@@ -848,6 +890,7 @@ app.put('/api/admin/settings', requireAdmin, (req, res) => {
     if (v!=null) settings[k]=String(v);
   }
   save('settings', settings);
+  logAudit(req, 'site settings updated', 'fields: ' + auditFields(req.body));
   res.json({ settings });
 });
 
@@ -1049,13 +1092,16 @@ app.put('/about', requireAdmin, (req, res) => {
     for (const [k,v] of Object.entries(body)) if (v!=null) aboutContent[k]=v;
   }
   save('aboutContent', aboutContent);
-  res.json({ message: 'Updated' });
+  logAudit(req, 'about content updated', 'fields: ' + auditFields(body));
+  res.json({ message: 'Updated', success: true });
 });
 app.get('/about/:field', (req, res) => {
   const val = aboutContent[req.params.field];
   res.send(val!=null ? String(val) : '');
 });
 app.put('/about/:field', requireAdmin, (req, res) => {
+  const allowed = ['story', 'heading1', 'paragraph1', 'heading2', 'paragraph2', 'paragraph3', 'specialist1Name', 'specialist1Position', 'specialist1Biography', 'specialist2Name', 'specialist2Position', 'specialist2Biography'];
+  if (!allowed.includes(req.params.field)) return res.status(404).json({ message: 'About field not found' });
   let val = req.body;
   if (typeof val === 'object') val = JSON.stringify(val);
   if (typeof val === 'string') {
@@ -1064,7 +1110,8 @@ app.put('/about/:field', requireAdmin, (req, res) => {
   }
   aboutContent[req.params.field]=val;
   save('aboutContent', aboutContent);
-  res.json({ message: 'Updated' });
+  logAudit(req, 'about content updated', req.params.field);
+  res.json({ message: 'Updated', success: true });
 });
 
 // ---- STATIC FILES (must be after API) ----

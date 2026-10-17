@@ -22,10 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * Case studies: public list for the projects page plus the admin CRUD the
  * caseStudies.html page calls. Mirrors the /api/projects routes in server.js.
- *
- * TODO: the Node fallback also audit-logs payment/enquiry/customer/page
- * updates. Those live in the older controllers - wire AuditLogService into
- * them the same way when touching them next.
+ * Admin changes are written to the same audit trail as the other admin pages.
  */
 @CrossOrigin(origins = "*")
 @RestController
@@ -84,7 +81,7 @@ public class ApiProjectsController {
         Project p = projectRepo.findById(id).orElseThrow(() -> ApiException.notFound("Case study not found"));
         apply(p, body);
         p = projectRepo.save(p);
-        auditLog.record(auth, "case study updated", p.getTitle() + " (" + p.getStatus() + ")");
+        auditLog.record(auth, "case study updated", p.getTitle() + " fields: " + String.join(", ", body.keySet()));
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("project", p);
         out.put("message", "Case study updated");

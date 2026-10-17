@@ -314,6 +314,237 @@ test('Node API scopes booking and payment data and protects the sandbox card flo
 });
 
 
+test('admin edits are audited and data can be read again after a Node restart', async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'esa-node-audit-test-'));
+  let port = await freePort();
+  let base = 'http://127.0.0.1:' + port;
+  let running = startServer(port, dataDir);
+
+  try {
+    await running.ready;
+    const adminLogin = await api(base, '/api/auth/signin', {
+      method: 'POST', body: { email: 'admin@esaengineering.com.au', password: 'Admin123' }
+    });
+    assert.equal(adminLogin.status, 200);
+    const adminToken = adminLogin.data.token;
+
+    const customerSignup = await api(base, '/api/auth/signup', {
+      method: 'POST', body: {
+        firstName: 'Persisted', lastName: 'Customer', email: 'persist@example.com',
+        password: 'StrongPass9', phone: '0400000000', companyName: 'Original Co'
+      }
+    });
+    assert.equal(customerSignup.status, 201);
+    const customerToken = customerSignup.data.token;
+    const customerId = customerSignup.data.user.id;
+
+    const profileEdit = await api(base, '/api/portal/profile', {
+      method: 'PUT', token: customerToken,
+      body: { fullName: 'Saved Customer', phoneNumber: '0412345678', companyName: 'Saved Co' }
+    });
+    assert.equal(profileEdit.status, 200);
+    assert.equal(profileEdit.data.profile.companyName, 'Saved Co');
+    const savedUsersAfterProfileEdit = JSON.parse(fs.readFileSync(path.join(dataDir, 'users.json'), 'utf8'));
+    const savedProfileUser = savedUsersAfterProfileEdit.find((user) => user.id === customerId);
+    assert.equal(savedProfileUser.phone, '0412345678');
+    assert.equal(savedProfileUser.company, 'Saved Co');
+
+    const clearCustomerSignup = await api(base, '/api/auth/signup', {
+      method: 'POST', body: {
+        firstName: 'Clear', lastName: 'Customer', email: 'clear@example.com',
+        password: 'StrongPass9', phone: '0400000001', companyName: 'To be cleared'
+      }
+    });
+    assert.equal(clearCustomerSignup.status, 201);
+    const clearCustomerId = clearCustomerSignup.data.user.id;
+    const customerEdit = await api(base, '/api/admin/customers/' + clearCustomerId, {
+      method: 'PATCH', token: adminToken,
+      body: { phone: '', companyName: '', status: 'inactive' }
+    });
+    assert.equal(customerEdit.status, 200);
+    assert.equal(customerEdit.data.customer.phone, '');
+    assert.equal(customerEdit.data.customer.company, '');
+    assert.equal(Object.hasOwn(customerEdit.data.customer, 'password'), false);
+
+    const savedUsersAfterClear = JSON.parse(fs.readFileSync(path.join(dataDir, 'users.json'), 'utf8'));
+    const clearedUser = savedUsersAfterClear.find((user) => user.id === clearCustomerId);
+    assert.equal(clearedUser.phone, '');
+    assert.equal(clearedUser.companyName, '');
+
+    const booking = await api(base, '/api/bookings', {
+      method: 'POST', token: customerToken,
+      body: {
+        name: 'Saved Customer', phone: '0412345678', service: 'Waste Management',
+        notes: 'saved booking notes', preferredDate: new Date().toISOString().slice(0, 10), preferredSlot: '10:00'
+      }
+    });
+    assert.equal(booking.status, 200);
+
+    const enquiry = await api(base, '/api/enquiries', {
+      method: 'POST', body: { name: 'Saved Customer', email: 'persist@example.com', message: 'saved enquiry text' }
+    });
+    assert.equal(enquiry.status, 200);
+    const enquiryEdit = await api(base, '/api/admin/enquiries/' + enquiry.data.enquiry.id, {
+      method: 'PATCH', token: adminToken,
+      body: { status: 'resolved', reply: 'we have replied' }
+    });
+    assert.equal(enquiryEdit.status, 200);
+
+    const paymentEdit = await api(base, '/api/admin/payments/' + booking.data.payment.id, {
+      method: 'PATCH', token: adminToken,
+      body: { status: 'completed', amount: 125 }
+    });
+    assert.equal(paymentEdit.status, 200);
+
+    const pageCreate = await api(base, '/api/admin/pages', {
+      method: 'POST', token: adminToken,
+      body: { title: 'Persistence test page', slug: 'persistence-test.html' }
+    });
+    assert.equal(pageCreate.status, 200);
+    const pageId = pageCreate.data.page.id;
+    const pageEdit = await api(base, '/api/admin/pages/' + pageId, {
+      method: 'PATCH', token: adminToken, body: { status: 'draft' }
+    });
+    assert.equal(pageEdit.status, 200);
+    const blockSave = await api(base, '/api/admin/pages/' + pageId + '/blocks', {
+      method: 'PUT', token: adminToken,
+      body: { blocks: { 'audit-test': 'saved page content', 'reset-test': 'temporary page content' } }
+    });
+    assert.equal(blockSave.status, 200);
+    const blockReset = await api(base, '/api/admin/pages/' + pageId + '/blocks/reset-test', {
+      method: 'DELETE', token: adminToken
+    });
+    assert.equal(blockReset.status, 200);
+
+    const settingsEdit = await api(base, '/api/admin/settings', {
+      method: 'PUT', token: adminToken,
+      body: { siteName: 'Saved ESA name', timezone: 'Australia/Melbourne' }
+    });
+    assert.equal(settingsEdit.status, 200);
+
+    const aboutEdit = await api(base, '/about', {
+      method: 'PUT', token: adminToken,
+      body: { story: 'Saved about vision', paragraph3: 'Saved about description' }
+    });
+    assert.equal(aboutEdit.status, 200);
+    assert.equal(aboutEdit.data.success, true);
+
+    const projectCreate = await api(base, '/api/admin/projects', {
+      method: 'POST', token: adminToken,
+      body: {
+        title: 'Saved case study', category: 'water', location: 'Melbourne',
+        summary: 'Saved project summary', status: 'draft'
+      }
+    });
+    assert.equal(projectCreate.status, 200);
+    const projectEdit = await api(base, '/api/admin/projects/' + projectCreate.data.project.id, {
+      method: 'PATCH', token: adminToken,
+      body: { summary: 'Edited project summary', status: 'published' }
+    });
+    assert.equal(projectEdit.status, 200);
+    const deletedProject = await api(base, '/api/admin/projects', {
+      method: 'POST', token: adminToken,
+      body: { title: 'Temporary case study', status: 'draft' }
+    });
+    assert.equal(deletedProject.status, 200);
+    const projectDelete = await api(base, '/api/admin/projects/' + deletedProject.data.project.id, {
+      method: 'DELETE', token: adminToken
+    });
+    assert.equal(projectDelete.status, 200);
+
+    const createAdmin = await api(base, '/api/auth/create/admin', {
+      method: 'POST', token: adminToken,
+      body: { fullName: 'Another Admin', email: 'another-admin@example.com', password: 'StrongAdmin9' }
+    });
+    assert.equal(createAdmin.status, 200);
+
+    const auditBeforeRestart = await api(base, '/api/admin/audit', { token: adminToken });
+    assert.equal(auditBeforeRestart.status, 200);
+    const actions = auditBeforeRestart.data.entries.map((entry) => entry.action);
+    for (const action of [
+      'customer updated', 'enquiry updated', 'payment updated', 'page created', 'page updated',
+      'page content updated', 'page content reset', 'site settings updated', 'about content updated',
+      'case study created', 'case study updated', 'case study deleted', 'administrator created'
+    ]) assert.ok(actions.includes(action), 'missing audit entry: ' + action);
+    const auditText = JSON.stringify(auditBeforeRestart.data.entries);
+    assert.equal(auditText.includes('StrongAdmin9'), false);
+    assert.equal(auditText.includes('saved about vision'), false);
+    assert.equal(auditText.includes('saved page content'), false);
+    assert.equal(auditText.includes('we have replied'), false);
+
+    await stopServer(running.child);
+    port = await freePort();
+    base = 'http://127.0.0.1:' + port;
+    running = startServer(port, dataDir);
+    await running.ready;
+
+    const reloadedAudit = await api(base, '/api/admin/audit', { token: adminToken });
+    assert.equal(reloadedAudit.status, 200);
+    assert.deepEqual(reloadedAudit.data.entries.map((entry) => entry.action), actions);
+    assert.equal(reloadedAudit.data.entries[0].action, 'administrator created');
+    assert.equal(reloadedAudit.data.entries[0].who, 'admin@esaengineering.com.au');
+
+    const customers = await api(base, '/api/admin/customers', { token: adminToken });
+    const savedCustomer = customers.data.customers.find((user) => user.id === customerId);
+    assert.equal(savedCustomer.name, 'Saved Customer');
+    assert.equal(savedCustomer.phone, '0412345678');
+    assert.equal(savedCustomer.company, 'Saved Co');
+    assert.equal(savedCustomer.status, 'active');
+    const clearedCustomer = customers.data.customers.find((user) => user.id === clearCustomerId);
+    assert.equal(clearedCustomer.phone, '');
+    assert.equal(clearedCustomer.company, '');
+    assert.equal(clearedCustomer.status, 'inactive');
+
+    const savedProfile = await api(base, '/api/portal/me', { token: customerToken });
+    assert.equal(savedProfile.data.profile.fullName, 'Saved Customer');
+    assert.equal(savedProfile.data.profile.phoneNumber, '0412345678');
+    assert.equal(savedProfile.data.profile.companyName, 'Saved Co');
+    const authUser = await api(base, '/api/auth/me', { token: customerToken });
+    assert.equal(authUser.data.user.firstName, 'Saved');
+    assert.equal(authUser.data.user.lastName, 'Customer');
+    const savedBookings = await api(base, '/api/admin/bookings', { token: adminToken });
+    assert.equal(savedBookings.status, 200);
+    assert.equal(savedBookings.data.bookings[0].notes, 'saved booking notes');
+
+    const savedEnquiries = await api(base, '/api/admin/enquiries', { token: adminToken });
+    const savedEnquiry = savedEnquiries.data.enquiries.find((row) => row.id === enquiry.data.enquiry.id);
+    assert.equal(savedEnquiry.status, 'resolved');
+    assert.equal(savedEnquiry.reply, 'we have replied');
+
+    const savedPayments = await api(base, '/api/admin/payments', { token: adminToken });
+    const savedPayment = savedPayments.data.payments.find((row) => row.id === booking.data.payment.id);
+    assert.equal(savedPayment.amount, 125);
+    assert.equal(savedPayment.status, 'completed');
+
+    const savedPage = await api(base, '/api/admin/pages/' + pageId, { token: adminToken });
+    assert.equal(savedPage.data.page.status, 'draft');
+    assert.equal(savedPage.data.blocks.find((block) => block.key === 'audit-test').value, 'saved page content');
+    assert.equal(savedPage.data.blocks.some((block) => block.key === 'reset-test'), false);
+    const publicContent = await api(base, '/api/content?slug=persistence-test.html');
+    assert.equal(publicContent.data.blocks['audit-test'], 'saved page content');
+
+    const settings = await api(base, '/api/admin/settings', { token: adminToken });
+    assert.equal(settings.data.settings.siteName, 'Saved ESA name');
+    const about = await api(base, '/about');
+    assert.equal(about.data.story, 'Saved about vision');
+    assert.equal(about.data.paragraph3, 'Saved about description');
+
+    const projects = await api(base, '/api/admin/projects', { token: adminToken });
+    const savedProject = projects.data.projects.find((project) => project.id === projectCreate.data.project.id);
+    assert.equal(savedProject.summary, 'Edited project summary');
+    assert.equal(savedProject.status, 'published');
+    assert.equal(projects.data.projects.some((project) => project.title === 'Temporary case study'), false);
+
+    const secondAdmin = await api(base, '/api/auth/signin', {
+      method: 'POST', body: { email: 'another-admin@example.com', password: 'StrongAdmin9' }
+    });
+    assert.equal(secondAdmin.status, 200);
+  } finally {
+    await stopServer(running.child);
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
 test('Node keeps email previews off unless the demo flag is enabled', async () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'esa-node-email-off-test-'));
   const port = await freePort();

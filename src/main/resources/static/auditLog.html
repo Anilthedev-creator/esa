@@ -66,7 +66,7 @@
            nothing here can be edited or deleted from the ui -->
       <div class="dashboard-card">
         <p class="admin-muted" style="margin-bottom:12px">
-          Recorded admin actions appear here, newest first. This is a basic activity trail, not a complete record of every change. Read only - entries cannot be edited from this page.
+          Successful admin changes to accounts, customers, enquiries, payments, site pages, settings, About content, and case studies appear here, newest first. Passwords and full card numbers are never recorded. This page is read only.
         </p>
         <div class="table-scroll">
         <table>
@@ -107,7 +107,9 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function esc(s) {
-    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
   }
 
   function fmtWhen(iso) {
@@ -135,11 +137,17 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   fetch('/api/admin/audit', { headers: headers() })
-    .then(function (r) { return r.json(); })
+    .then(function (r) {
+      return r.json().then(function (data) {
+        if (!r.ok) throw new Error(data.message || 'Could not load the audit log.');
+        return data;
+      });
+    })
     .then(function (data) { render(data.entries || []); })
-    .catch(function () {
+    .catch(function (error) {
       document.getElementById('auditBody').innerHTML =
-        '<tr><td colspan="4">Could not reach the server.</td></tr>';
+        '<tr><td colspan="4">' + esc(error.message || 'Could not reach the server.') + '</td></tr>';
+      document.getElementById('auditCount').textContent = '';
     });
 });
 </script>

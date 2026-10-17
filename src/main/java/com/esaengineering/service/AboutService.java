@@ -49,6 +49,7 @@ public class AboutService {
         if (newContent.getParagraph1() != null) about.setParagraph1(newContent.getParagraph1());
         if (newContent.getHeading2() != null) about.setHeading2(newContent.getHeading2());
         if (newContent.getParagraph2() != null) about.setParagraph2(newContent.getParagraph2());
+        if (newContent.getParagraph3() != null) about.setParagraph3(newContent.getParagraph3());
         if (newContent.getSpecialist1Name() != null) about.setSpecialist1Name(newContent.getSpecialist1Name());
         if (newContent.getSpecialist1Position() != null) about.setSpecialist1Position(newContent.getSpecialist1Position());
         if (newContent.getSpecialist1Biography() != null) about.setSpecialist1Biography(newContent.getSpecialist1Biography());
