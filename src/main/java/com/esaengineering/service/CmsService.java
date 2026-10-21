@@ -273,13 +273,9 @@ public class CmsService {
 
     public boolean staticPageExists(String slug) {
         if (!isSafePageSlug(slug)) return false;
-        try {
-            PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
-            Resource resource = resolver.getResource("classpath:static/" + slug);
-            return resource.exists();
-        } catch (IOException ignored) {
-            return false;
-        }
+        PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
+        Resource resource = resolver.getResource("classpath:static/" + slug);
+        return resource.exists();
     }
 
     private boolean isSafePageSlug(String slug) {
