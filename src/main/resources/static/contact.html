@@ -138,11 +138,12 @@
                         <textarea id="message" name="message" class="form-control" rows="5" maxlength="1400" placeholder="How can our engineering team help?" required></textarea>
                     </div>
                     <div class="form-group">
-                        <label for="attachFile">Attach specs or site plans (optional, max 3MB)</label>
+                        <label for="attachFile">Attach a PDF, JPG or PNG file (optional, max 3 MB)</label>
                         <input type="file" id="attachFile" class="form-control" accept="application/pdf,image/jpeg,image/png">
                         <input type="hidden" name="attachmentName" id="attachmentName">
                         <input type="hidden" name="attachmentData" id="attachmentData">
                         <input type="hidden" name="attachmentType" id="attachmentType">
+                        <p class="xs muted mt-2" style="margin-top:6px">Supported file types: PDF, JPG and PNG. Maximum size: 3 MB.</p>
                         <p id="attachNote" class="xs muted mt-2" style="margin-top:6px"></p>
                         <!-- shows what got picked, with a remove button (contact wizard script fills it) -->
                         <p id="attachInfo" class="attach-info">
