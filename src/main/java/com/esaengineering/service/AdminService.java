@@ -1,161 +1,70 @@
 package com.esaengineering.service;
 
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
+import com.esaengineering.api.AdminDataService;
 import com.esaengineering.dto.CustomerDTO;
 import com.esaengineering.model.Booking;
-import com.esaengineering.model.Contact;
 import com.esaengineering.model.User;
 import com.esaengineering.repository.BookingRepository;
-import com.esaengineering.repository.ContactRepository;
 import com.esaengineering.repository.UserRepository;
-
 import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 @Service
 public class AdminService {
 
     private final BookingRepository bookingRepository;
-    private final ContactRepository contactRepository;
     private final UserRepository userRepository;
+    private final AdminDataService adminDataService;
 
-    public AdminService(
-            BookingRepository bookingRepository,
-            ContactRepository contactRepository,
-            UserRepository userRepository) {
-
+    public AdminService(BookingRepository bookingRepository,
+                        UserRepository userRepository,
+                        AdminDataService adminDataService) {
         this.bookingRepository = bookingRepository;
-        this.contactRepository = contactRepository;
         this.userRepository = userRepository;
+        this.adminDataService = adminDataService;
     }
 
-    /*
-     * Existing customer management method.
-     * Gets booking information and converts it into CustomerDTO.
-     *
-     * A booking has no phone or company, so those are joined from the matching
-     * User by email. Bookings whose email has no account keep them null.
-     */
+    /** Returns the booking rows used by the older admin customer page. */
     public List<CustomerDTO> getAllBookings() {
-
         List<CustomerDTO> customers = new ArrayList<>();
-
-        List<Booking> bookings = bookingRepository.findAll();
-
-        // Index the users once by lower-cased email instead of searching per booking.
-        Map<String, User> usersByEmail = new HashMap<>();
+        Map<String, User> usersByEmail = new LinkedHashMap<>();
         for (User user : userRepository.findAll()) {
             if (user.getEmail() != null) {
-                usersByEmail.putIfAbsent(user.getEmail().toLowerCase(), user);
+                usersByEmail.putIfAbsent(user.getEmail().toLowerCase(Locale.ROOT), user);
             }
         }
 
-        for (Booking booking : bookings) {
-            CustomerDTO dto = new CustomerDTO(booking);
-            User user = booking.getEmail() != null ? usersByEmail.get(booking.getEmail().toLowerCase()) : null;
+        for (Booking booking : bookingRepository.findAll()) {
+            CustomerDTO customer = new CustomerDTO(booking);
+            User user = booking.getEmail() == null ? null
+                    : usersByEmail.get(booking.getEmail().toLowerCase(Locale.ROOT));
             if (user != null) {
-                dto.setPhoneNumber(user.getPhoneNumber());
-                dto.setCompanyName(user.getCompanyName());
+                customer.setPhoneNumber(user.getPhoneNumber());
+                customer.setCompanyName(user.getCompanyName());
             }
-            customers.add(dto);
+            customers.add(customer);
         }
-
         return customers;
     }
 
-    /*
-     * Dashboard statistics.
-     */
+    /** Keeps the legacy route in step with the dashboard API and its old keys. */
     public Map<String, Object> getDashboardStats() {
-
-        List<Booking> bookings = bookingRepository.findAll();
-        List<Contact> enquiries = contactRepository.findAll();
-
-        // Total registered users
-        long totalUsers = userRepository.count();
-
-        // Active/upcoming bookings
-        long activeBookings = bookings.stream()
-                .filter(booking ->
-                        booking.getBookingDate() != null &&
-                        !booking.getBookingDate().isBefore(LocalDate.now()))
-                .count();
-
-        // Currently there is no enquiry status field in Contact.
-        // Therefore, we use the total number of enquiries.
-        long pendingEnquiries = enquiries.size();
-
-        /*
-         * Payment/revenue functionality is not implemented in the
-         * current backend, so we do not invent a revenue figure.
-         */
-        double revenue = 0.0;
-
-        // Recent service requests
-        List<Map<String, Object>> recentRequests = new ArrayList<>();
-
-        int bookingLimit = Math.min(5, bookings.size());
-
-        for (int i = bookings.size() - 1;
-             i >= bookings.size() - bookingLimit;
-             i--) {
-
-            Booking booking = bookings.get(i);
-
-            Map<String, Object> request = new HashMap<>();
-
-            request.put("customer", booking.getFullName());
-            request.put("service", booking.getServiceName());
-            request.put("date", booking.getBookingDate());
-
-            /*
-             * Booking currently has no status field.
-             * We therefore use "confirmed" as a temporary display
-             * value for existing bookings.
-             */
-            request.put("status", "confirmed");
-
-            recentRequests.add(request);
+        Map<String, Object> response = adminDataService.stats();
+        Object rawStats = response.get("stats");
+        if (rawStats instanceof Map<?, ?> currentStats) {
+            Map<String, Object> stats = new LinkedHashMap<>();
+            currentStats.forEach((key, value) -> stats.put(String.valueOf(key), value));
+            stats.put("totalUsers", stats.get("totalCustomers"));
+            stats.put("activeBookings", stats.get("upcomingBookings"));
+            stats.put("pendingEnquiries", stats.get("openEnquiries"));
+            stats.put("revenue", stats.get("paidRevenue"));
+            response.put("stats", stats);
         }
-
-        // Recent enquiries
-        List<Map<String, Object>> recentEnquiries = new ArrayList<>();
-
-        int enquiryLimit = Math.min(5, enquiries.size());
-
-        for (int i = enquiries.size() - 1;
-             i >= enquiries.size() - enquiryLimit;
-             i--) {
-
-            Contact enquiry = enquiries.get(i);
-
-            Map<String, Object> item = new HashMap<>();
-
-            item.put("id", enquiry.getContactId());
-            item.put("name", enquiry.getFullName());
-            item.put("preview", enquiry.getDescription());
-
-            recentEnquiries.add(item);
-        }
-
-        // Prepare response
-        Map<String, Object> stats = new HashMap<>();
-
-        stats.put("totalUsers", totalUsers);
-        stats.put("activeBookings", activeBookings);
-        stats.put("pendingEnquiries", pendingEnquiries);
-        stats.put("revenue", revenue);
-
-        Map<String, Object> response = new HashMap<>();
-
-        response.put("stats", stats);
-        response.put("recentRequests", recentRequests);
-        response.put("recentEnquiries", recentEnquiries);
-
         return response;
     }
 }

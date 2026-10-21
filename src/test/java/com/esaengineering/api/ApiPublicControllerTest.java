@@ -1,6 +1,7 @@
 package com.esaengineering.api;
 
 import com.esaengineering.model.Booking;
+import com.esaengineering.model.Contact;
 import com.esaengineering.model.Payment;
 import com.esaengineering.repository.BookingRepository;
 import com.esaengineering.repository.ContactRepository;
@@ -31,6 +32,7 @@ class ApiPublicControllerTest {
     @Mock BookingRepository bookingRepo;
     @Mock ContactRepository contactRepo;
     @Mock PaymentRepository paymentRepo;
+    @Mock EnquiryEmailService enquiryEmailService;
 
     private ApiPublicController controller;
     private TokenService tokens;
@@ -43,7 +45,7 @@ class ApiPublicControllerTest {
         PortalAccess portalAccess = new PortalAccess(tokens);
         controller = new ApiPublicController(
                 bookingRepo, contactRepo, paymentRepo, new AdminAccess(tokens), portalAccess,
-                new BigDecimal("50.00"), false);
+                new BigDecimal("50.00"), false, true, enquiryEmailService);
         aliceToken = "Bearer " + tokens.issue(1L, "alice@example.com", "CUSTOMER");
         bobToken = "Bearer " + tokens.issue(2L, "bob@example.com", "CUSTOMER");
     }
@@ -71,15 +73,46 @@ class ApiPublicControllerTest {
         body.put("email", "bob@example.com"); // must not override the signed-in account
         body.put("service", "Plant Commissioning");
         body.put("preferredSlot", "10:00");
-        body.put("preferredDate", LocalDate.now().plusDays(1).toString());
+        body.put("preferredDate", LocalDate.now(BookingSchedule.ZONE).plusDays(1).toString());
         Map<String, Object> response = controller.createBooking(body, aliceToken);
 
         ArgumentCaptor<Booking> saved = ArgumentCaptor.forClass(Booking.class);
         verify(bookingRepo).save(saved.capture());
         assertEquals("alice@example.com", saved.getValue().getEmail());
         assertEquals("10:00", saved.getValue().getPreferredSlot());
-        assertEquals(LocalDate.now().plusDays(1), saved.getValue().getBookingDate());
+        assertEquals(LocalDate.now(BookingSchedule.ZONE).plusDays(1), saved.getValue().getBookingDate());
         assertEquals(7L, ((Map<?, ?>) response.get("booking")).get("id"));
+    }
+
+    @Test
+    void bookingRejectsTimesOutsideTheHalfHourSchedule() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("name", "Alice Customer");
+        body.put("preferredDate", LocalDate.now(BookingSchedule.ZONE).plusDays(1).toString());
+        body.put("preferredSlot", "09:15");
+        assertEquals(400, assertThrows(ApiException.class,
+                () -> controller.createBooking(body, aliceToken)).getStatus().value());
+        verifyNoInteractions(bookingRepo, paymentRepo);
+    }
+
+    @Test
+    void enquirySendsAutomaticAcknowledgementAndTeamNoticeWhenConfigured() {
+        when(contactRepo.save(any(Contact.class))).thenAnswer(invocation -> {
+            Contact contact = invocation.getArgument(0);
+            contact.setContactId(14L);
+            return contact;
+        });
+        when(enquiryEmailService.notifyEnquiry(any(Contact.class))).thenReturn(Map.of(
+                "customerAcknowledgement", "sent",
+                "teamNotification", "sent",
+                "message", "Thanks — your enquiry is recorded. A confirmation email has been sent and the ESA team has been notified."));
+
+        Map<String, Object> response = controller.createEnquiry(Map.of(
+                "name", "Alice Customer", "email", "alice@example.com", "message", "Please call me."));
+
+        assertEquals(14L, ((Map<?, ?>) response.get("enquiry")).get("id"));
+        assertEquals("sent", ((Map<?, ?>) response.get("emailDelivery")).get("customerAcknowledgement"));
+        verify(enquiryEmailService).notifyEnquiry(any(Contact.class));
     }
 
     @Test

@@ -16,7 +16,8 @@ public class AppConfig {
             @Value("${app.auth.token-secret:}") String secret,
             @Value("${app.auth.token-ttl-hours:12}") long ttlHours,
             @Value("${spring.profiles.active:}") String profiles,
-            @Value("${app.demo-email-preview:false}") boolean demoEmailPreview) {
+            @Value("${app.demo-email-preview:false}") boolean demoEmailPreview,
+            @Value("${app.payment.demo-card-enabled:true}") boolean demoCardPaymentsEnabled) {
         String nodeEnv = System.getenv("NODE_ENV");
         boolean production = "production".equalsIgnoreCase(nodeEnv)
                 || "prod".equalsIgnoreCase(nodeEnv)
@@ -26,6 +27,9 @@ public class AppConfig {
         }
         if (production && demoEmailPreview) {
             throw new IllegalStateException("Demo email previews must not be enabled in production.");
+        }
+        if (production && demoCardPaymentsEnabled) {
+            throw new IllegalStateException("Demo card payments must not be enabled in production. Set ESA_DEMO_CARD_PAYMENTS=false.");
         }
         return new TokenService(secret, ttlHours);
     }

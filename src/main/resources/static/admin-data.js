@@ -36,6 +36,12 @@
   function fmtMoney(n) {
     return '$' + (Number(n) || 0).toLocaleString('en-AU');
   }
+  function fmtSlot(value) {
+    var match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(value || ''));
+    if (!match) return '';
+    var hour = Number(match[1]);
+    return (hour % 12 || 12) + ':' + match[2] + ' ' + (hour < 12 ? 'am' : 'pm') + ' Melbourne';
+  }
   function initials(name) {
     return String(name || 'U').trim().split(/\s+/).map(function (w) { return w[0]; }).join('').slice(0, 2).toUpperCase() || 'U';
   }
@@ -134,9 +140,9 @@
     if (document.querySelector('.admin-offline-banner')) return;
     var banner = document.createElement('div');
     banner.className = 'admin-offline-banner';
-    // Updated message: backend can be either Node (npm start) or Spring Boot (mvn spring-boot:run)
+    // The table should say it is unavailable, never show old sample rows as live data.
     banner.innerHTML =
-      '<strong>Backend offline</strong> — ' + esc(detail || 'showing static demo data') +
+      '<strong>Backend offline</strong> — ' + esc(detail || 'live data is unavailable') +
       '. Start the server (<code>npm start</code> or <code>mvn spring-boot:run</code>) and reload. ' +
       '<button onclick="location.reload()" style="margin-left:10px;padding:4px 10px;cursor:pointer">Retry</button>';
     var wrapper = document.querySelector('.dashboard-wrapper');
@@ -158,7 +164,7 @@
     },
     payment: {
       completed: { cls: 'completed-status', label: 'Completed' },
-      incomplete: { cls: 'incomplete-status', label: 'Incompleted' }
+      incomplete: { cls: 'incomplete-status', label: 'Incomplete' }
     },
     booking: {
       pending: { cls: 'pending', label: 'Pending' },
@@ -176,9 +182,11 @@
     return '<span class="status ' + s.cls + '">' + esc(s.label) + '</span>';
   }
   function actionIcons(kind, id) {
+    var label = String(kind || 'record');
+    var safeId = esc(id);
     return '<td class="action-icons">' +
-      '<i class="fa-solid fa-pen" data-edit="' + kind + ':' + id + '" title="Edit" style="cursor:pointer"></i> ' +
-      '<i class="fa-regular fa-eye" data-view="' + kind + ':' + id + '" title="View" style="cursor:pointer"></i>' +
+      '<button type="button" class="icon-action" data-edit="' + label + ':' + safeId + '" aria-label="Edit ' + label + ' ' + safeId + '" title="Edit"><i class="fa-solid fa-pen" aria-hidden="true"></i></button> ' +
+      '<button type="button" class="icon-action" data-view="' + label + ':' + safeId + '" aria-label="View ' + label + ' ' + safeId + '" title="View"><i class="fa-regular fa-eye" aria-hidden="true"></i></button>' +
       '</td>';
   }
 
@@ -227,7 +235,6 @@
       '<td>' + esc(c.email) + '</td>' +
       '<td>' + esc(c.phone || '—') + '</td>' +
       '<td>' + badge('customer', c.status) + '</td>' +
-      '<td>' + esc(fmtDate(c.lastUpdated)) + '</td>' +
       actionIcons('customer', c.id) +
       '</tr>';
   }
@@ -268,7 +275,7 @@
       '<td>' + badge('page', p.status) + '</td>' +
       '<td>' + esc(fmtDate(p.updatedAt)) + '</td>' +
       '<td class="action-icons">' +
-      '<button data-content="' + p.id + '" title="Edit content" class="content-btn">Content</button> ' +
+      '<button type="button" data-content="' + esc(p.id) + '" title="Edit content" aria-label="Edit content for ' + esc(p.title) + '" class="content-btn">Content</button> ' +
       actionIcons('page', p.id).replace(/^<td[^>]*>|<\/td>$/g, '') +
       '</td>' +
       '</tr>';
@@ -277,7 +284,7 @@
     return '<tr>' +
       '<td>' + esc(b.customer) + '</td>' +
       '<td>' + esc(b.service) + '</td>' +
-      '<td>' + esc(fmtDate(b.date)) + '</td>' +
+      '<td>' + esc(fmtDate(b.date)) + (fmtSlot(b.time) ? '<br><small>' + esc(fmtSlot(b.time)) + '</small>' : '') + '</td>' +
       '<td>' + badge('booking', b.status) + '</td>' +
       '</tr>';
   }
@@ -289,9 +296,70 @@
   /* ------------------------------ view/edit -------------------------------- */
   var STORE = { customer: null, enquiry: null, payment: null, page: null, bookings: null };
 
-  /* Client-side pagination for the big tables. Called after every render:
-     rows over pageSize get hidden and a Prev/Next pager is built under the
-     table. Small lists just show everything with no pager. */
+  var TABLE_FILTERS = {
+    customers: { body: 'customersBody', search: 'customersSearch', status: 'customersStatus', pageSize: 12 },
+    bookings: { body: 'bookingsAdminBody', search: 'bookingsSearch', status: 'bookingsStatus', pageSize: 12 },
+    payments: { body: 'paymentsBody', search: 'paymentsSearch', status: 'paymentsStatus', pageSize: 12 },
+    enquiries: { body: 'enquiriesBody', search: 'enquiriesSearch', status: 'enquiriesStatus', pageSize: 12 }
+  };
+
+  function normalizedStatus(value) {
+    return String(value || '').trim().toLowerCase().replace(/\s+/g, '-');
+  }
+
+  function filterTable(bodyId, pageSize) {
+    var config = Object.keys(TABLE_FILTERS).map(function (key) { return TABLE_FILTERS[key]; })
+      .find(function (item) { return item.body === bodyId; });
+    var body = $(bodyId);
+    if (!body) return;
+
+    var searchBox = config && $(config.search);
+    var statusBox = config && $(config.status);
+    var query = searchBox ? searchBox.value.trim().toLowerCase() : '';
+    var status = statusBox ? statusBox.value : '';
+    var rows = Array.prototype.slice.call(body.querySelectorAll('tr')).filter(function (row) {
+      return !row.hasAttribute('data-filter-empty');
+    });
+    var visibleCount = 0;
+    rows.forEach(function (row) {
+      var rowStatus = row.querySelector('.status');
+      var matchesText = !query || row.textContent.toLowerCase().indexOf(query) !== -1;
+      var matchesStatus = !status || (rowStatus && normalizedStatus(rowStatus.textContent) === status);
+      row.dataset.filterVisible = (matchesText && matchesStatus) ? 'true' : 'false';
+      if (row.dataset.filterVisible === 'true') visibleCount++;
+    });
+    var emptyRow = body.querySelector('tr[data-filter-empty]');
+    if (!visibleCount && (query || status)) {
+      if (!emptyRow) {
+        emptyRow = document.createElement('tr');
+        emptyRow.setAttribute('data-filter-empty', 'true');
+        var cell = document.createElement('td');
+        cell.colSpan = body.closest('table').querySelectorAll('thead th').length || 1;
+        cell.textContent = 'No matching results.';
+        emptyRow.appendChild(cell);
+        body.appendChild(emptyRow);
+      }
+    } else if (emptyRow) {
+      emptyRow.remove();
+    }
+    paginate(bodyId, pageSize);
+  }
+
+  function setupTableFilters() {
+    Object.keys(TABLE_FILTERS).forEach(function (key) {
+      var config = TABLE_FILTERS[key];
+      var searchBox = $(config.search);
+      var statusBox = $(config.status);
+      [searchBox, statusBox].forEach(function (control) {
+        if (!control || control.__esaBound) return;
+        control.__esaBound = true;
+        control.addEventListener('input', function () { filterTable(config.body, config.pageSize); });
+        control.addEventListener('change', function () { filterTable(config.body, config.pageSize); });
+      });
+    });
+  }
+
+  /* Client-side pagination for the big tables. Called after every render. */
   function paginate(bodyId, pageSize) {
     var body = $(bodyId);
     if (!body) return;
@@ -299,13 +367,19 @@
     var card = table.closest('.dashboard-card') || table.parentNode;
     var oldPager = document.getElementById(bodyId + 'Pager');
     if (oldPager) oldPager.remove();
-    var rows = Array.prototype.slice.call(body.querySelectorAll('tr'));
-    if (rows.length <= pageSize) {
-      rows.forEach(function (r) { r.style.display = ''; });
+    var rows = Array.prototype.slice.call(body.querySelectorAll('tr')).filter(function (row) {
+      return !row.hasAttribute('data-filter-empty');
+    });
+    var visibleRows = rows.filter(function (row) { return row.dataset.filterVisible !== 'false'; });
+    var emptyRow = body.querySelector('tr[data-filter-empty]');
+    rows.forEach(function (row) { row.style.display = 'none'; });
+    if (emptyRow) emptyRow.style.display = visibleRows.length ? 'none' : '';
+    if (visibleRows.length <= pageSize) {
+      visibleRows.forEach(function (row) { row.style.display = ''; });
       return;
     }
     var page = 0;
-    var pages = Math.ceil(rows.length / pageSize);
+    var pages = Math.ceil(visibleRows.length / pageSize);
     var pager = document.createElement('div');
     pager.className = 'table-pager';
     pager.id = bodyId + 'Pager';
@@ -314,17 +388,31 @@
       '<button type="button" class="pager-next">Next</button>';
     card.appendChild(pager);
     function draw() {
-      rows.forEach(function (r, i) {
-        r.style.display = (i >= page * pageSize && i < (page + 1) * pageSize) ? '' : 'none';
+      visibleRows.forEach(function (row, i) {
+        row.style.display = (i >= page * pageSize && i < (page + 1) * pageSize) ? '' : 'none';
       });
       pager.querySelector('.pager-info').textContent =
-        'Showing ' + (page * pageSize + 1) + '-' + Math.min((page + 1) * pageSize, rows.length) + ' of ' + rows.length;
+        'Showing ' + (page * pageSize + 1) + '-' + Math.min((page + 1) * pageSize, visibleRows.length) + ' of ' + visibleRows.length;
       pager.querySelector('.pager-prev').disabled = (page === 0);
       pager.querySelector('.pager-next').disabled = (page === pages - 1);
     }
     pager.querySelector('.pager-prev').addEventListener('click', function () { if (page > 0) { page--; draw(); } });
     pager.querySelector('.pager-next').addEventListener('click', function () { if (page < pages - 1) { page++; draw(); } });
     draw();
+  }
+
+  function refreshTable(bodyId, pageSize) {
+    var config = Object.keys(TABLE_FILTERS).map(function (key) { return TABLE_FILTERS[key]; })
+      .find(function (item) { return item.body === bodyId; });
+    if (config) filterTable(bodyId, pageSize);
+    else paginate(bodyId, pageSize);
+  }
+
+  function tableError(bodyId, columns, message) {
+    var body = $(bodyId);
+    if (!body) return;
+    body.innerHTML = '<tr><td colspan="' + columns + '">' + esc(message) + '</td></tr>';
+    paginate(bodyId, 12);
   }
 
   /* Export whatever is in a table to CSV. Every row is already in the DOM
@@ -347,7 +435,12 @@
       return;
     }
     var csv = rows.map(function (r) {
-      return r.map(function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(',');
+      return r.map(function (v) {
+        var value = String(v == null ? '' : v);
+        // Spreadsheet programs can run formulas from cells that start with these characters.
+        if (/^[\s]*[=+@\-\t\r]/.test(value)) value = "'" + value;
+        return '"' + value.replace(/"/g, '""') + '"';
+      }).join(',');
     }).join('\n');
     var blob = new Blob([csv], { type: 'text/csv' });
     var a = document.createElement('a');
@@ -402,10 +495,10 @@
     var page = data.page;
     var blocks = data.blocks || [];
     if (!blocks.length) {
-      openModal('Edit content — ' + page.title,
-        '<p class="admin-muted">This page has no editable blocks yet. ' +
-        'Mark any text in its HTML file with <code>data-cms="block-name"</code> ' +
-        '(add <code>data-cms-html</code> for blocks that keep their markup) and it will appear here.</p>');
+      var pageHelp = page.hasStaticFile
+        ? 'This HTML page has no editable text blocks yet. Add <code>data-cms="block-name"</code> to text in its static HTML file. Add <code>data-cms-html</code> only when safe markup is needed.'
+        : 'This is only a draft page record. Add a matching file named <code>' + esc(page.slug) + '</code> in the static folder before it can be shown or published.';
+      openModal('Page record — ' + page.title, '<p class="admin-muted">' + pageHelp + '</p>');
       return;
     }
 
@@ -422,9 +515,11 @@
         '</div>';
     }).join('');
 
+    var saveNote = page.status === 'published'
+      ? 'Changes go live on the public site as soon as you save.'
+      : 'This page is a draft, so changes stay hidden until it is published.';
     openModal('Edit content — ' + page.title + '  (' + page.slug + ')',
-      '<p class="admin-muted">Changes go live on the public site as soon as you save. ' +
-      'Elements you leave untouched keep their original markup.</p>' + rows,
+      '<p class="admin-muted">' + saveNote + ' Elements you leave untouched keep their original markup.</p>' + rows,
       '<span id="contentSaveStatus" style="font-size:14px;font-weight:600;align-self:center;margin-right:auto"></span>' +
       '<button class="admin-btn-secondary" data-close>Cancel</button>' +
       '<button class="admin-btn-primary" id="content-save">Save content</button>', true);
@@ -536,7 +631,7 @@
           '<label>Amount (AUD)</label><input id="edit-amount" type="number" min="0" step="0.01" class="admin-input" value="' + esc(item.amount) + '">' +
           '<label>Status</label><select id="edit-status" class="admin-input">' +
           '<option value="completed"' + (item.status === 'completed' ? ' selected' : '') + '>Completed</option>' +
-          '<option value="incomplete"' + (item.status === 'incomplete' ? ' selected' : '') + '>Incompleted</option></select>';
+          '<option value="incomplete"' + (item.status === 'incomplete' ? ' selected' : '') + '>Incomplete</option></select>';
       } else if (kind === 'page') {
         body =
           '<label>Title</label><input class="admin-input" value="' + esc(item.title) + '" disabled>' +
@@ -589,11 +684,17 @@
     var stats;
     try {
       stats = await api('/stats');
-    } catch (e) { showOffline('stats unavailable'); return; }
-    $('statTotalUsers').textContent = (stats.stats.totalUsers || 0).toLocaleString('en-AU');
-    $('statActiveBookings').textContent = (stats.stats.activeBookings || 0).toLocaleString('en-AU');
-    $('statPendingEnquiries').textContent = (stats.stats.pendingEnquiries || 0).toLocaleString('en-AU');
-    $('statRevenue').textContent = fmtMoney(stats.stats.revenue);
+    } catch (e) {
+      tableError('recentRequestsBody', 4, 'Dashboard data could not be loaded. Please try again.');
+      var recentList = $('recentEnquiriesList');
+      if (recentList) recentList.textContent = 'Dashboard data could not be loaded. Please try again.';
+      showOffline('dashboard data unavailable');
+      return;
+    }
+    $('statTotalUsers').textContent = (stats.stats.totalCustomers || 0).toLocaleString('en-AU');
+    $('statActiveBookings').textContent = (stats.stats.upcomingBookings || 0).toLocaleString('en-AU');
+    $('statPendingEnquiries').textContent = (stats.stats.openEnquiries || 0).toLocaleString('en-AU');
+    $('statRevenue').textContent = fmtMoney(stats.stats.paidRevenue);
 
     // work queue: only show the card when there is actually something to do
     var alerts = stats.alerts || {};
@@ -601,8 +702,8 @@
     var alertsList = $('alertsList');
     if (alertsCard && alertsList) {
       var items = [];
-      if (alerts.newEnquiries) {
-        items.push({ n: alerts.newEnquiries, text: 'new ' + (alerts.newEnquiries === 1 ? 'enquiry' : 'enquiries') + ' waiting for a reply', href: 'enquiries.html' });
+      if (alerts.openEnquiries) {
+        items.push({ n: alerts.openEnquiries, text: 'open ' + (alerts.openEnquiries === 1 ? 'enquiry' : 'enquiries') + ' to review', href: 'enquiries.html' });
       }
       if (alerts.pendingPayments) {
         items.push({ n: alerts.pendingPayments, text: 'payment' + (alerts.pendingPayments === 1 ? '' : 's') + ' to confirm against the bank feed', href: 'payments.html' });
@@ -626,7 +727,7 @@
     try {
       var thisWeek = stats.bookingsThisWeek || 0;
       var lastWeek = stats.bookingsLastWeek || 0;
-      var trendEl = $('statTotalUsersTrend');
+      var trendEl = $('statActiveBookingsTrend');
       if (trendEl) {
         if (lastWeek > 0) {
           var pct = Math.round(((thisWeek - lastWeek) / lastWeek) * 100);
@@ -664,10 +765,10 @@
     try {
       var data = await api('/customers');
       $('customersBody').innerHTML = data.customers.map(customerRow).join('') ||
-        '<tr><td colspan="6">No customers yet</td></tr>';
+        '<tr><td colspan="5">No customers yet</td></tr>';
       bindActions($('customersBody'));
-      paginate('customersBody', 12);
-    } catch (e) { showOffline('customer list unavailable'); }
+      refreshTable('customersBody', 12);
+    } catch (e) { tableError('customersBody', 5, 'Customer data could not be loaded. Please try again.'); showOffline('customer list unavailable'); }
   }
 
   async function renderEnquiries() {
@@ -676,8 +777,8 @@
       $('enquiriesBody').innerHTML = data.enquiries.map(enquiryRow).join('') ||
         '<tr><td colspan="6">No enquiries yet</td></tr>';
       bindActions($('enquiriesBody'));
-      paginate('enquiriesBody', 12);
-    } catch (e) { showOffline('enquiry list unavailable'); }
+      refreshTable('enquiriesBody', 12);
+    } catch (e) { tableError('enquiriesBody', 6, 'Enquiry data could not be loaded. Please try again.'); showOffline('enquiry list unavailable'); }
   }
 
   /**
@@ -696,8 +797,8 @@
       body.innerHTML = bookings.map(bookingAdminRow).join('') ||
         '<tr><td colspan="7">No bookings yet</td></tr>';
       bindActions(body);
-      paginate('bookingsAdminBody', 12);
-    } catch (e) { showOffline('booking list unavailable'); }
+      refreshTable('bookingsAdminBody', 12);
+    } catch (e) { tableError('bookingsAdminBody', 7, 'Booking data could not be loaded. Please try again.'); showOffline('booking list unavailable'); }
   }
 
   function bookingAdminRow(b) {
@@ -705,11 +806,11 @@
       '<td>#' + esc(b.bookingId) + '</td>' +
       '<td>' + esc(b.customer) + '</td>' +
       '<td>' + esc(b.service) + '</td>' +
-      '<td>' + esc(fmtDate(b.date)) + '</td>' +
+      '<td>' + esc(fmtDate(b.date)) + (fmtSlot(b.time) ? '<br><small>' + esc(fmtSlot(b.time)) + '</small>' : '') + '</td>' +
       '<td>' + esc(b.email) + '</td>' +
       '<td>' + badge('booking', b.status) + '</td>' +
       '<td class="action-icons">' +
-      '<i class="fa-regular fa-eye" data-booking-view="' + esc(b.bookingId) + '" title="View" style="cursor:pointer"></i>' +
+      '<button type="button" class="icon-action" data-booking-view="' + esc(b.bookingId) + '" aria-label="View booking ' + esc(b.bookingId) + '" title="View"><i class="fa-regular fa-eye" aria-hidden="true"></i></button>' +
       '</td>' +
       '</tr>';
   }
@@ -723,6 +824,7 @@
       'Service': { value: b.service || '—' },
       'Status': { value: b.status || '—' },
       'Booking date': { value: fmtDate(b.date) },
+      'Requested time': { value: fmtSlot(b.time) || 'Not specified' },
       'Email': { value: b.email || '—' },
       'Phone': { value: b.phone || '—' },
       'ABN': { value: b.abn || '—' },
@@ -738,8 +840,8 @@
       $('paymentsBody').innerHTML = data.payments.map(paymentRow).join('') ||
         '<tr><td colspan="6">No payments yet</td></tr>';
       bindActions($('paymentsBody'));
-      paginate('paymentsBody', 12);
-    } catch (e) { showOffline('payment list unavailable'); }
+      refreshTable('paymentsBody', 12);
+    } catch (e) { tableError('paymentsBody', 6, 'Payment data could not be loaded. Please try again.'); showOffline('payment list unavailable'); }
   }
 
   async function renderContent() {
@@ -749,7 +851,7 @@
         '<tr><td colspan="4">No pages yet</td></tr>';
       bindActions($('pagesBody'));
       paginate('pagesBody', 12);
-    } catch (e) { showOffline('page list unavailable'); }
+    } catch (e) { tableError('pagesBody', 4, 'Page data could not be loaded. Please try again.'); showOffline('page list unavailable'); }
 
     // "+ Add New Page" (bind once — refresh() re-runs this renderer)
     var addBtn = document.querySelector('.add-page-btn');
@@ -757,11 +859,12 @@
       addBtn.__esaBound = true;
       addBtn.style.cursor = 'pointer';
       addBtn.addEventListener('click', function () {
-        openModal('Add new page',
-          '<label>Page title</label><input id="new-page-title" class="admin-input" placeholder="e.g. Case Studies">' +
-          '<label>Slug (optional)</label><input id="new-page-slug" class="admin-input" placeholder="case-studies.html">',
+        openModal('Add page record',
+          '<p class="admin-muted">This saves a draft record only. Add a matching HTML file to the static folder before publishing it.</p>' +
+          '<label for="new-page-title">Page title</label><input id="new-page-title" class="admin-input" maxlength="100" placeholder="e.g. Case Studies">' +
+          '<label for="new-page-slug">Slug (optional)</label><input id="new-page-slug" class="admin-input" placeholder="case-studies.html">',
           '<button class="admin-btn-secondary" data-close>Cancel</button>' +
-          '<button class="admin-btn-primary" id="new-page-save">Create page</button>');
+          '<button class="admin-btn-primary" id="new-page-save">Create draft record</button>');
         $('new-page-save').addEventListener('click', async function () {
           try {
             await api('/pages', {
@@ -863,7 +966,10 @@
   document.addEventListener('DOMContentLoaded', async function () {
     if (!document.body.dataset.adminPage) return; // not an admin page
     var ok = await guard();
-    if (ok) refresh();
+    if (ok) {
+      setupTableFilters();
+      refresh();
+    }
   });
 
   // Rebind modal foot "Cancel" buttons (innerHTML swap loses listeners).

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>My Portal | ESA Engineering</title>
+<meta name="robots" content="noindex, nofollow">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -197,19 +198,31 @@
 <div class="portal-modal-backdrop" id="reschedBackdrop" role="dialog" aria-modal="true" aria-labelledby="reschedTitle">
   <div class="portal-modal">
     <h3 id="reschedTitle">Move this booking</h3>
-    <p class="portal-hint">Pick a new day and, if you like, a time slot. We get an email straight away.</p>
+    <p class="portal-hint">Choose another date and time. Slots run every 30 minutes from 9:00 am to 4:30 pm Melbourne time. You can reschedule until 90 minutes before the requested time. ESA will confirm the new time.</p>
     <div class="portal-field">
       <label for="reschedDate">New date</label>
-      <input id="reschedDate" type="date">
+      <input id="reschedDate" type="date" required>
     </div>
     <div class="portal-field">
-      <label for="reschedSlot">Time slot</label>
-      <select id="reschedSlot" class="form-control">
-        <option value="">No preference</option>
-            <option>08:00</option>
-            <option>10:00</option>
-            <option>13:00</option>
-            <option>15:00</option>
+      <label for="reschedSlot">New requested time</label>
+      <select id="reschedSlot" class="form-control" required>
+        <option value="">Choose a time</option>
+        <option value="09:00">9:00 am</option>
+        <option value="09:30">9:30 am</option>
+        <option value="10:00">10:00 am</option>
+        <option value="10:30">10:30 am</option>
+        <option value="11:00">11:00 am</option>
+        <option value="11:30">11:30 am</option>
+        <option value="12:00">12:00 pm</option>
+        <option value="12:30">12:30 pm</option>
+        <option value="13:00">1:00 pm</option>
+        <option value="13:30">1:30 pm</option>
+        <option value="14:00">2:00 pm</option>
+        <option value="14:30">2:30 pm</option>
+        <option value="15:00">3:00 pm</option>
+        <option value="15:30">3:30 pm</option>
+        <option value="16:00">4:00 pm</option>
+        <option value="16:30">4:30 pm</option>
       </select>
     </div>
     <div id="reschedNote" class="portal-note"></div>

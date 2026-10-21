@@ -94,11 +94,17 @@ public class CmsService {
     @Transactional
     public CmsPage createPage(String title, String slug) {
         if (title == null || title.isBlank()) throw ApiException.badRequest("Title is required");
+        if (title.trim().length() > 100) throw ApiException.badRequest("Title must be 100 characters or fewer");
         if (slug == null || slug.isBlank()) {
             slug = title.toLowerCase().replaceAll("[^a-z0-9]+", "-").replaceAll("^-|-$", "") + ".html";
+        } else {
+            slug = slug.trim().toLowerCase();
+            if (!slug.endsWith(".html")) slug += ".html";
         }
+        if (!isSafePageSlug(slug)) throw ApiException.badRequest("Use a simple page name such as case-studies.html");
         if (pageRepo.existsBySlug(slug)) throw ApiException.conflict("A page with that slug already exists");
-        CmsPage p = new CmsPage(title.trim(), slug.trim(), "published");
+        // This adds a record only; the static page file still needs to be made.
+        CmsPage p = new CmsPage(title.trim(), slug, "draft");
         return pageRepo.save(p);
     }
 
@@ -108,6 +114,9 @@ public class CmsService {
         if (status != null) {
             String s = status.toLowerCase();
             if (!s.equals("published") && !s.equals("draft")) throw ApiException.badRequest("Status must be published or draft");
+            if ("published".equals(s) && !staticPageExists(p.getSlug())) {
+                throw ApiException.badRequest("Add a matching page file in the static folder before publishing this page record.");
+            }
             p.setStatus(s);
         }
         return pageRepo.save(p);
@@ -165,6 +174,7 @@ public class CmsService {
         pageMap.put("slug", page.getSlug());
         pageMap.put("status", page.getStatus());
         pageMap.put("updatedAt", page.getUpdatedAt());
+        pageMap.put("hasStaticFile", staticPageExists(page.getSlug()));
         response.put("page", pageMap);
         response.put("blocks", resultBlocks);
         return response;
@@ -234,7 +244,8 @@ public class CmsService {
         }
         CmsPage page = pageOpt.get();
         List<Map<String, Object>> discovered = discoverBlocksForPage(page);
-        List<CmsBlock> overrides = blockRepo.findByPageId(page.getId());
+        List<CmsBlock> overrides = "published".equalsIgnoreCase(page.getStatus())
+                ? blockRepo.findByPageId(page.getId()) : List.of();
         Map<String, String> overrideMap = new HashMap<>();
         for (CmsBlock b : overrides) overrideMap.put(b.getKey(), b.getValue());
 
@@ -259,6 +270,21 @@ public class CmsService {
     }
 
     // --- discovery helpers ---
+
+    public boolean staticPageExists(String slug) {
+        if (!isSafePageSlug(slug)) return false;
+        try {
+            PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
+            Resource resource = resolver.getResource("classpath:static/" + slug);
+            return resource.exists();
+        } catch (IOException ignored) {
+            return false;
+        }
+    }
+
+    private boolean isSafePageSlug(String slug) {
+        return slug != null && slug.matches("^[a-z0-9]+(?:-[a-z0-9]+)*\\.html$");
+    }
 
     private List<Map<String, Object>> discoverBlocksForPage(CmsPage page) {
         Map<String, String> defaults = discoverDefaultsFromStaticFile(page.getSlug());
@@ -286,6 +312,7 @@ public class CmsService {
 
     private Map<String, String> discoverDefaultsFromStaticFile(String slug) {
         Map<String, String> out = new LinkedHashMap<>();
+        if (!isSafePageSlug(slug)) return out;
         try {
             PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
             Resource[] resources = resolver.getResources("classpath:static/" + slug);
@@ -323,6 +350,7 @@ public class CmsService {
 
     private Map<String, Boolean> discoverHtmlFlags(String slug) {
         Map<String, Boolean> out = new HashMap<>();
+        if (!isSafePageSlug(slug)) return out;
         try {
             PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
             Resource[] resources = resolver.getResources("classpath:static/" + slug);

@@ -1,9 +1,10 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Request Portal Access | ESA Engineering</title>
+<meta name="robots" content="noindex, nofollow">
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -65,24 +66,24 @@
                 <div id="successMessage" style="display:none; color: var(--success); margin-bottom: 15px; padding: 10px; background: rgba(16,185,129,.12); border-radius: 4px; font-size: 0.9rem;"></div>
 
                 <div class="form-group">
-                    <label>Full Name <span style="color: var(--red);">*</span></label>
-                    <input type="text" id="firstName" class="form-control" placeholder="John" required minlength="2" maxlength="100">
+                    <label for="firstName">First Name <span style="color: var(--red);">*</span></label>
+                    <input type="text" id="firstName" class="form-control" placeholder="John" autocomplete="given-name" required minlength="2" maxlength="100">
                                     </div>
                 <div class="form-group">
-                    <label>Last Name <span style="color: var(--red);">*</span></label>
-                    <input type="text" id="lastName" class="form-control" placeholder="Smith" required minlength="2" maxlength="100">
+                    <label for="lastName">Last Name <span style="color: var(--red);">*</span></label>
+                    <input type="text" id="lastName" class="form-control" placeholder="Smith" autocomplete="family-name" required minlength="2" maxlength="100">
                 </div>
                 <div class="form-group">
-                    <label>Company Name <span style="color: var(--red);">*</span></label>
-                    <input type="text" id="companyName" class="form-control" placeholder="Industrial Enterprise Pty Ltd" required minlength="2" maxlength="200">
+                    <label for="companyName">Company Name <span style="color: var(--red);">*</span></label>
+                    <input type="text" id="companyName" class="form-control" placeholder="Industrial Enterprise Pty Ltd" autocomplete="organization" required minlength="2" maxlength="200">
                 </div>
                 <div class="form-group">
-                    <label>Corporate Email <span style="color: var(--red);">*</span></label>
-                    <input type="email" id="email" class="form-control" placeholder="j.citizen@company.com.au" required>
+                    <label for="email">Corporate Email <span style="color: var(--red);">*</span></label>
+                    <input type="email" id="email" class="form-control" placeholder="j.citizen@company.com.au" autocomplete="email" maxlength="254" required>
                 </div>
                 <div class="form-group">
-                    <label>Create Password <span style="color: var(--red);">*</span></label>
-                    <input type="password" id="password" class="form-control" placeholder="Min 8 chars: uppercase, lowercase, number" required minlength="8">
+                    <label for="password">Create Password <span style="color: var(--red);">*</span></label>
+                    <input type="password" id="password" class="form-control" placeholder="Min 8 chars: uppercase, lowercase, number" autocomplete="new-password" required minlength="8" maxlength="200">
                     <small style="color: var(--muted); font-size: 0.8rem; margin-top: 4px; display: block;">Must include: uppercase, lowercase, and number</small>
                 </div>
                 <button type="submit" id="submitBtn" class="btn btn-cyan" style="width: 100%; padding: 12px; font-weight: 700; border-radius: 4px; color: var(--navy); margin-top: 10px; cursor: pointer;">Submit Request</button>
@@ -132,9 +133,9 @@ document.addEventListener('DOMContentLoaded', function() {
       const result = await signup(formData);
 
       if (result.success !== false) {
-        successDiv.textContent = 'Account created successfully! Redirecting to dashboard...';
+        successDiv.textContent = 'Account created successfully! Redirecting to your portal...';
         successDiv.style.display = 'block';
-        setTimeout(() => window.location.href = 'dashboard.html', 2000);
+        setTimeout(() => window.location.href = 'portal.html', 2000);
       }
     } catch (error) {
       errorDiv.textContent = error.message || 'An error occurred during signup';

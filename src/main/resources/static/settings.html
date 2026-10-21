@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 
   <title>Settings | ESA Admin</title>
+<meta name="robots" content="noindex, nofollow">
 
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="stylesheet" href="style.css">
@@ -117,8 +118,9 @@
       <div class="settings-card">
 
         <h1 class="settings-main-title">
-          General Setting
+          General Settings
         </h1>
+        <p class="admin-muted" style="max-width:700px;margin-bottom:20px">These values are stored for the current backend, but do not change public branding, language or time-zone behaviour. Email delivery needs SMTP settings on the server and cannot be changed here. Without them, enquiry messages are saved to the private local outbox. Real card processing is not connected.</p>
 
         <!-- FORM -->
         <form class="settings-form" id="settingsForm">
@@ -126,7 +128,7 @@
           <!-- SITE NAME -->
           <div class="form-group-settings">
 
-            <label>
+            <label for="settingsSiteName">
               Site Name
             </label>
 
@@ -141,8 +143,8 @@
           <!-- ADMIN EMAIL -->
           <div class="form-group-settings">
 
-            <label>
-              Admin Email
+            <label for="settingsAdminEmail">
+              Admin Email (Node demo outbox only)
             </label>
 
             <input
@@ -156,8 +158,8 @@
           <!-- TIME ZONE -->
           <div class="form-group-settings">
 
-            <label>
-              Time Zone
+            <label for="settingsTimezone">
+              Time Zone (saved value only)
             </label>
 
             <input
@@ -171,8 +173,8 @@
           <!-- LANGUAGE -->
           <div class="form-group-settings">
 
-            <label>
-              Language
+            <label for="settingsLanguage">
+              Language (saved value only)
             </label>
 
             <input

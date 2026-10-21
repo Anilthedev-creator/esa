@@ -3,6 +3,7 @@ package com.esaengineering.model;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Entity
 @Table(name = "bookings")
@@ -44,8 +45,8 @@ public class Booking {
 
     @PrePersist
     public void prePersist() {
-        if (createdAt == null) createdAt = LocalDateTime.now();
-        if (bookingDate == null) bookingDate = LocalDate.now();
+        if (createdAt == null) createdAt = LocalDateTime.now(ZoneId.of("Australia/Melbourne"));
+        if (bookingDate == null) bookingDate = LocalDate.now(ZoneId.of("Australia/Melbourne"));
         if (status == null) status = "pending";
     }
 

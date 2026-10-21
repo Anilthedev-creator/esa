@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 
   <title>Payments | ESA Admin</title>
+<meta name="robots" content="noindex, nofollow">
 
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="stylesheet" href="style.css">
@@ -126,9 +127,14 @@
           <div class="heading-line"></div>
         </div>
 
-        <button class="filter-btn">
-          Filter
-        </button>
+        <div class="admin-table-filters" role="search">
+          <label class="sr-only" for="paymentsSearch">Search payments</label>
+          <input id="paymentsSearch" type="search" placeholder="Search payments…" aria-label="Search payments">
+          <label class="sr-only" for="paymentsStatus">Filter payments by status</label>
+          <select id="paymentsStatus" aria-label="Filter payments by status">
+            <option value="">All statuses</option><option value="incomplete">Incomplete</option><option value="pending">Pending</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option>
+          </select>
+        </div>
 
       </div>
 
@@ -150,102 +156,7 @@
           </thead>
 
           <tbody id="paymentsBody">
-
-            <tr>
-              <td>INV-1001</td>
-              <td>John Smith</td>
-              <td>$15000</td>
-
-              <td>
-                <span class="status completed-status">
-                  Completed
-                </span>
-              </td>
-
-              <td>27 Apr 2026</td>
-
-              <td class="action-icons">
-                <i class="fa-solid fa-pen"></i>
-                <i class="fa-regular fa-eye"></i>
-              </td>
-            </tr>
-
-            <tr>
-              <td>INV-1002</td>
-              <td>Sarah Johnson</td>
-              <td>$15000</td>
-
-              <td>
-                <span class="status completed-status">
-                  Completed
-                </span>
-              </td>
-
-              <td>27 Apr 2026</td>
-
-              <td class="action-icons">
-                <i class="fa-solid fa-pen"></i>
-                <i class="fa-regular fa-eye"></i>
-              </td>
-            </tr>
-
-            <tr>
-              <td>INV-1003</td>
-              <td>Michael Brown</td>
-              <td>$15000</td>
-
-              <td>
-                <span class="status incomplete-status">
-                  Incompleted
-                </span>
-              </td>
-
-              <td>27 Apr 2026</td>
-
-              <td class="action-icons">
-                <i class="fa-solid fa-pen"></i>
-                <i class="fa-regular fa-eye"></i>
-              </td>
-            </tr>
-
-            <tr>
-              <td>INV-1004</td>
-              <td>Emily</td>
-              <td>$15000</td>
-
-              <td>
-                <span class="status completed-status">
-                  Completed
-                </span>
-              </td>
-
-              <td>27 Apr 2026</td>
-
-              <td class="action-icons">
-                <i class="fa-solid fa-pen"></i>
-                <i class="fa-regular fa-eye"></i>
-              </td>
-            </tr>
-
-            <tr>
-              <td>INV-1005</td>
-              <td>David</td>
-              <td>$15000</td>
-
-              <td>
-                <span class="status completed-status">
-                  Completed
-                </span>
-              </td>
-
-              <td>27 Apr 2026</td>
-
-              <td class="action-icons">
-                <i class="fa-solid fa-pen"></i>
-                <i class="fa-regular fa-eye"></i>
-              </td>
-            </tr>
-
+            <tr><td colspan="6">Loading payments…</td></tr>
           </tbody>
 
         </table>

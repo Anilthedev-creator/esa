@@ -1,7 +1,7 @@
-# esa engineering robots
 User-agent: *
 Allow: /
-# keep the admin + portal stuff out of search results
+Disallow: /api/
+Disallow: /data/
 Disallow: /dashboard.html
 Disallow: /customers.html
 Disallow: /enquiries.html
@@ -9,9 +9,17 @@ Disallow: /bookings.html
 Disallow: /payments.html
 Disallow: /settings.html
 Disallow: /content.html
-Disallow: /accountAdmin.html
+Disallow: /auditLog.html
+Disallow: /caseStudies.html
 Disallow: /aboutPageAdmin.html
+Disallow: /accountAdmin.html
 Disallow: /portal.html
-Disallow: /data/
+Disallow: /signin.html
+Disallow: /signup.html
+Disallow: /forgot-password.html
+Disallow: /reset-password.html
+Disallow: /booking.html
+Disallow: /payment.html
+Disallow: /receipt.html
 
-Sitemap: /sitemap.xml
+# A domain-specific sitemap is served only after PUBLIC_SITE_URL is configured.

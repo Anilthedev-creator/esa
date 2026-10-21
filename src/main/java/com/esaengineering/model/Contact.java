@@ -2,6 +2,7 @@ package com.esaengineering.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Entity
 @Table(name = "contact")
@@ -34,7 +35,7 @@ public class Contact {
 
     @PrePersist
     public void prePersist() {
-        if (createdAt == null) createdAt = LocalDateTime.now();
+        if (createdAt == null) createdAt = LocalDateTime.now(ZoneId.of("Australia/Melbourne"));
         if (status == null) status = "new";
     }
 

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 
   <title>ESA Admin Dashboard</title>
+<meta name="robots" content="noindex, nofollow">
 
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="stylesheet" href="style.css">
@@ -122,7 +123,7 @@
           </div>
 
           <div>
-            <p>Total Users</p>
+            <p>Customers</p>
             <h3 id="statTotalUsers">&mdash;</h3>
             <span id="statTotalUsersTrend"></span>
           </div>
@@ -134,7 +135,7 @@
           </div>
 
           <div>
-            <p>Active Bookings</p>
+            <p>Upcoming Bookings</p>
             <h3 id="statActiveBookings">&mdash;</h3>
             <span id="statActiveBookingsTrend"></span>
           </div>
@@ -146,7 +147,7 @@
           </div>
 
           <div>
-            <p>Pending Enquiries</p>
+            <p>Open Enquiries</p>
             <h3 id="statPendingEnquiries">&mdash;</h3>
             <span id="statPendingEnquiriesTrend"></span>
           </div>
@@ -158,7 +159,7 @@
           </div>
 
           <div>
-            <p>Revenue</p>
+            <p>Paid Revenue</p>
             <h3 id="statRevenue">&mdash;</h3>
             <span id="statRevenueTrend"></span>
           </div>
@@ -197,29 +198,8 @@
             </thead>
 
             <tbody id="recentRequestsBody">
-
-              <tr>
-                <td>John Smith</td>
-                <td>Structural Design</td>
-                <td>27 Apr 2026</td>
-                <td><span class="status pending">Pending</span></td>
-              </tr>
-
-              <tr>
-                <td>Sarah Johnson</td>
-                <td>Site Inspection</td>
-                <td>26 Apr 2026</td>
-                <td><span class="status completed">Completed</span></td>
-              </tr>
-
-              <tr>
-                <td>Michael Brown</td>
-                <td>Project Management</td>
-                <td>25 Apr 2026</td>
-                <td><span class="status pending">Pending</span></td>
-              </tr>
-
-            </tbody>
+            <tr><td colspan="4">Loading recent bookings…</td></tr>
+          </tbody>
 
           </table>
 </div>
@@ -235,11 +215,8 @@
           </div>
 
           <div id="recentEnquiriesList">
-            <div class="enquiry-item">
-              <h4>James Anderson</h4>
-              <p>I would like more information...</p>
-              <button>Reply</button>
-            </div>
+            <div class="enquiry-item"><p>Loading recent enquiries…</p></div>
+          </div>
 
             <div class="enquiry-item">
               <h4>Olivia Taylor</h4>

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="Book a consultation with ESA Engineering — project scoping and obligation-free discussions.">
   <title>Booking - Engineering</title>
+<meta name="robots" content="noindex, nofollow">
         <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="stylesheet" href="style.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -92,15 +93,15 @@
       <form class="form" action="#" method="post" data-local-submit data-api="/api/bookings" style="max-width:700px">
         <div class="form-group">
           <label for="name">Full name</label>
-          <input id="name" name="name" class="form-control" required>
+          <input id="name" name="name" class="form-control" autocomplete="name" maxlength="100" required>
         </div>
         <div class="form-group">
           <label for="email">Email</label>
-          <input id="email" name="email" class="form-control" type="email" required>
+          <input id="email" name="email" class="form-control" type="email" autocomplete="email" maxlength="254" required>
         </div>
         <div class="form-group">
           <label for="phone">Phone</label>
-          <input id="phone" name="phone" class="form-control" required>
+          <input id="phone" name="phone" class="form-control" type="tel" autocomplete="tel" maxlength="40" required>
         </div>
         <div class="form-group">
           <label for="service">Service required</label>
@@ -112,29 +113,33 @@
             <option>Dangerous Goods</option>
           </select>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--s4)">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:var(--s4)">
           <div class="form-group">
-            <label for="preferredDate">Preferred date (optional)</label>
-            <input id="preferredDate" name="preferredDate" class="form-control" type="date">
+            <label for="preferredDate">Booking date <span aria-hidden="true">*</span></label>
+            <input id="preferredDate" name="preferredDate" class="form-control" type="date" required>
           </div>
           <div class="form-group">
-            <label for="preferredSlot">Time slot (optional)</label>
-            <!-- chips are nicer to click than a dropdown. the real select is
-                 hidden underneath so the form submit code didnt need changing -->
-            <div class="slot-chips" role="group" aria-label="Preferred time slot">
-              <button type="button" class="slot-chip active" data-slot="">No preference</button>
-              <button type="button" class="slot-chip" data-slot="08:00">8:00 am</button>
-              <button type="button" class="slot-chip" data-slot="10:00">10:00 am</button>
-              <button type="button" class="slot-chip" data-slot="13:00">1:00 pm</button>
-              <button type="button" class="slot-chip" data-slot="15:00">3:00 pm</button>
-            </div>
-            <select id="preferredSlot" name="preferredSlot" class="form-control" style="display:none" tabindex="-1" aria-hidden="true">
-              <option value="">No preference</option>
-            <option>08:00</option>
-            <option>10:00</option>
-            <option>13:00</option>
-            <option>15:00</option>
+            <label for="preferredSlot">Requested time <span aria-hidden="true">*</span></label>
+            <select id="preferredSlot" name="preferredSlot" class="form-control" required>
+              <option value="">Choose a time</option>
+              <option value="09:00">9:00 am</option>
+              <option value="09:30">9:30 am</option>
+              <option value="10:00">10:00 am</option>
+              <option value="10:30">10:30 am</option>
+              <option value="11:00">11:00 am</option>
+              <option value="11:30">11:30 am</option>
+              <option value="12:00">12:00 pm</option>
+              <option value="12:30">12:30 pm</option>
+              <option value="13:00">1:00 pm</option>
+              <option value="13:30">1:30 pm</option>
+              <option value="14:00">2:00 pm</option>
+              <option value="14:30">2:30 pm</option>
+              <option value="15:00">3:00 pm</option>
+              <option value="15:30">3:30 pm</option>
+              <option value="16:00">4:00 pm</option>
+              <option value="16:30">4:30 pm</option>
             </select>
+            <small class="muted">Half-hour requests are available from 9:00 am to 4:30 pm Melbourne time. ESA will confirm the time.</small>
           </div>
         </div>
         <div class="form-group">
@@ -166,8 +171,8 @@
 
         <div class="info-card card-border-red">
           <span class="step-number">3</span>
-          <h4>We confirm your time</h4>
-          <p style="color:var(--muted)">Our team will be in touch within one business day to arrange a time that suits you.</p>
+          <h4>We review your time request</h4>
+          <p style="color:var(--muted)">The time you choose is a request, not a confirmed appointment. You can reschedule online until 90 minutes before it; after that, call ESA for help.</p>
         </div>
 
         <p class="muted-sm">
@@ -215,22 +220,6 @@
     </div>
   </div>
 </footer>
-<script>
-  // slot chips -> hidden select. kept inline because its six lines and only
-  // used on this page
-  document.addEventListener('DOMContentLoaded', function () {
-    var chips = document.querySelectorAll('.slot-chip');
-    var select = document.getElementById('preferredSlot');
-    if (!chips.length || !select) return;
-    chips.forEach(function (chip) {
-      chip.addEventListener('click', function () {
-        chips.forEach(function (c) { c.classList.remove('active'); });
-        chip.classList.add('active');
-        select.value = chip.getAttribute('data-slot');
-      });
-    });
-  });
-</script>
 <script src="auth.js" defer></script>
 <script src="main.js" defer></script>
 <script src="content.js" defer></script>

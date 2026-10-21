@@ -38,19 +38,61 @@ document.addEventListener("DOMContentLoaded", function () {
     grid.querySelectorAll("[data-skeleton]").forEach(function (sk) { sk.remove(); });
   }
 
+  function safeImageUrl(value) {
+    var fallback = "images/project-remote-site.jpg";
+    if (!value || typeof value !== "string") return fallback;
+    try {
+      var raw = value.trim();
+      if (/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(raw)) return fallback;
+      var url = new URL(raw, window.location.origin + "/");
+      if (url.origin !== window.location.origin || !/^\/images\/[A-Za-z0-9._/-]+\.(?:jpg|jpeg|png|webp)$/i.test(url.pathname)) return fallback;
+      return url.pathname;
+    } catch (_) {
+      return fallback;
+    }
+  }
+
   function buildCard(p, i) {
     var card = document.createElement("div");
     card.className = "card" + ((i % 2) ? " card-red" : "");
-    // same markup as the built-in cards so the filters work on these too
-    card.innerHTML =
-      '<img class="card-photo" src="' + (p.image || "images/project-remote-site.jpg") + '" data-cat="' + (p.category || "infra") + '" alt="' + String(p.title || "").replace(/"/g, "&quot;") + '" loading="lazy">' +
-      '<span class="accent-label">' + (LABELS[p.category] || LABELS.infra) + "</span>" +
-      '<h3 class="proj-card-title">' + String(p.title || "") + "</h3>" +
-      '<p class="proj-card-sum">' + String(p.summary || "") + "</p>" +
-      '<div class="proj-card-foot">' +
-        '<span class="proj-loc">' + String(p.location || "") + "</span>" +
-        '<span class="proj-val">' + String(p.valueLabel || "") + "</span>" +
-      "</div>";
+
+    // Use DOM fields instead of joining admin content into HTML.
+    var category = Object.prototype.hasOwnProperty.call(LABELS, p.category) ? p.category : "infra";
+    var img = document.createElement("img");
+    img.className = "card-photo";
+    img.src = safeImageUrl(p.image);
+    img.setAttribute("data-cat", category);
+    img.alt = String(p.title || "");
+    img.loading = "lazy";
+
+    var label = document.createElement("span");
+    label.className = "accent-label";
+    label.textContent = LABELS[category];
+
+    var title = document.createElement("h3");
+    title.className = "proj-card-title";
+    title.textContent = p.title || "";
+
+    var summary = document.createElement("p");
+    summary.className = "proj-card-sum";
+    summary.textContent = p.summary || "";
+
+    var foot = document.createElement("div");
+    foot.className = "proj-card-foot";
+    var location = document.createElement("span");
+    location.className = "proj-loc";
+    location.textContent = p.location || "";
+    var value = document.createElement("span");
+    value.className = "proj-val";
+    value.textContent = p.valueLabel || "";
+    foot.appendChild(location);
+    foot.appendChild(value);
+
+    card.appendChild(img);
+    card.appendChild(label);
+    card.appendChild(title);
+    card.appendChild(summary);
+    card.appendChild(foot);
     return card;
   }
 

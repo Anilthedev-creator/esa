@@ -166,9 +166,10 @@
     if (b.canCancel) {
       out += '<button class="btn-mini danger" data-cancel="' + esc(b.bookingId) + '">Cancel</button>';
     }
-    // can move it themselves while its still open
-    if (b.status === "pending" || b.status === "confirmed") {
+    if (b.canReschedule) {
       out += '<button class="btn-mini" data-reschedule="' + esc(b.bookingId) + '">Reschedule</button>';
+    } else if (b.bookingDate && ["pending", "confirmed"].indexOf(String(b.status || "pending").toLowerCase()) !== -1) {
+      out += '<span style="color:var(--muted);font-size:.8rem">Rescheduling is locked. Call ESA for help.</span>';
     }
     return out || '<span style="color:var(--muted);font-size:.8rem">—</span>';
   }
@@ -185,10 +186,13 @@
     rescheduleId = id;
     reschedOpener = document.activeElement;
     var b = state.bookings.filter(function (x) { return String(x.bookingId) === String(id); })[0];
-    var today = new Date().toISOString().slice(0, 10);
+    var today = melbourneToday();
     $("reschedDate").min = today;
     $("reschedDate").value = b && b.bookingDate ? b.bookingDate : today;
     $("reschedSlot").value = b && b.preferredSlot ? b.preferredSlot : "";
+    if (typeof updateBookingTimeSlotOptions === "function") {
+      updateBookingTimeSlotOptions($("reschedDate").value, $("reschedSlot"));
+    }
     $("reschedNote").className = "portal-note";
     $("reschedBackdrop").classList.add("open");
     $("reschedDate").focus();
@@ -201,6 +205,11 @@
 
   function bindReschedule() {
     $("reschedCancel").addEventListener("click", closeReschedule);
+    $("reschedDate").addEventListener("change", function () {
+      if (typeof updateBookingTimeSlotOptions === "function") {
+        updateBookingTimeSlotOptions($("reschedDate").value, $("reschedSlot"));
+      }
+    });
     // click on the dark part behind the dialog closes it too
     $("reschedBackdrop").addEventListener("click", function (e) {
       if (e.target === $("reschedBackdrop")) closeReschedule();
@@ -223,6 +232,10 @@
       var note = noteEl($("reschedNote"));
       note.clear();
       try {
+        if (!$("reschedDate").value || !$("reschedSlot").value) {
+          note.err("Choose a date and time before saving.");
+          return;
+        }
         await call("/bookings/" + encodeURIComponent(rescheduleId) + "/reschedule", {
           method: "POST",
           body: JSON.stringify({
@@ -231,7 +244,7 @@
           })
         });
         closeReschedule();
-        if (window.showToast) window.showToast("Booking moved - we emailed you the new details.", "ok");
+        if (window.showToast) window.showToast("Booking request updated. ESA will confirm the new time.", "ok");
         await load();
       } catch (e) {
         note.err(e.message);
@@ -528,6 +541,15 @@
   }
 
   function $(id) { return document.getElementById(id); }
+
+  function melbourneToday() {
+    var parts = new Intl.DateTimeFormat("en-AU", {
+      timeZone: "Australia/Melbourne", year: "numeric", month: "2-digit", day: "2-digit"
+    }).formatToParts(new Date());
+    var values = {};
+    parts.forEach(function (part) { values[part.type] = part.value; });
+    return values.year + "-" + values.month + "-" + values.day;
+  }
 
   function money(v) { var n = Number(v); return isFinite(n) ? n : 0; }
 

@@ -39,12 +39,18 @@ public class ApiAuthService {
 
     @Transactional
     public User register(String fullName, String companyName, String email, String password, String phone) {
+        String cleanName = require(fullName, "Full name is required");
+        String cleanCompany = orEmpty(companyName);
+        String cleanPhone = orEmpty(phone);
+        if (cleanName.length() > 100) throw ApiException.badRequest("Name must be 100 characters or fewer");
+        if (cleanCompany.length() > 200) throw ApiException.badRequest("Company name must be 200 characters or fewer");
+        if (cleanPhone.length() > 40) throw ApiException.badRequest("Phone must be 40 characters or fewer");
         User user = new User();
-        user.setFullName(require(fullName, "Full name is required"));
-        user.setCompanyName(orEmpty(companyName));
+        user.setFullName(cleanName);
+        user.setCompanyName(cleanCompany);
         user.setEmail(normaliseEmail(email));
         // signup.html has no phone field and phone_number is NOT NULL in the schema.
-        user.setPhoneNumber(orEmpty(phone));
+        user.setPhoneNumber(cleanPhone);
         user.setRole(Role.CUSTOMER);
         user.setPasswordResetRequired(false);
         user.setActive(true);
@@ -54,11 +60,15 @@ public class ApiAuthService {
 
     @Transactional
     public User createAdmin(String fullName, String email, String password, String phone) {
+        String cleanName = require(fullName, "Full name is required");
+        String cleanPhone = orEmpty(phone);
+        if (cleanName.length() > 100) throw ApiException.badRequest("Name must be 100 characters or fewer");
+        if (cleanPhone.length() > 40) throw ApiException.badRequest("Phone must be 40 characters or fewer");
         User user = new User();
-        user.setFullName(require(fullName, "Full name is required"));
+        user.setFullName(cleanName);
         user.setCompanyName("ESA");
         user.setEmail(normaliseEmail(email));
-        user.setPhoneNumber(orEmpty(phone));
+        user.setPhoneNumber(cleanPhone);
         user.setRole(Role.ADMIN);
         user.setPasswordResetRequired(false);
         user.setActive(true);
@@ -79,6 +89,9 @@ public class ApiAuthService {
         String stored = user.getPassword();
         if (!PasswordHasher.matches(password, stored, true)) {
             throw ApiException.unauthorized("Invalid email or password");
+        }
+        if (!user.isActive()) {
+            throw ApiException.unauthorized("This account is inactive. Contact ESA for help.");
         }
         if (PasswordHasher.needsUpgrade(stored)) {
             user.setPassword(PasswordHasher.hash(password));
@@ -143,9 +156,7 @@ public class ApiAuthService {
             resetExpiryByToken.remove(token);
             throw ApiException.badRequest("That reset link has expired, please request a new one.");
         }
-        if (newPassword == null || newPassword.length() < 8) {
-            throw ApiException.badRequest("Password needs at least 8 characters.");
-        }
+        requirePassword(newPassword);
         User user = findByEmail(email).orElseThrow(() -> ApiException.badRequest("That account does not exist any more, please contact us."));
         user.setPassword(PasswordHasher.hash(newPassword));
         userRepository.save(user);
@@ -182,14 +193,14 @@ public class ApiAuthService {
 
     private static String normaliseEmail(String email) {
         String value = email == null ? "" : email.trim().toLowerCase();
-        if (!EMAIL.matcher(value).matches()) {
+        if (value.length() > 254 || !EMAIL.matcher(value).matches()) {
             throw ApiException.badRequest("Enter a valid email address");
         }
         return value;
     }
 
     private static String requirePassword(String password) {
-        if (password == null || !PASSWORD.matcher(password).matches()) {
+        if (password == null || password.length() > 200 || !PASSWORD.matcher(password).matches()) {
             throw ApiException.badRequest("Password must be at least 8 characters and include an uppercase letter, a lowercase letter and a number");
         }
         return password;

@@ -1,140 +1,46 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Information Manager</title>
-
-    <link rel="icon" type="image/svg+xml" href="favicon.svg">
-<link rel="stylesheet" href="informationManagementAboutPage.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <title>About Page Content | ESA Admin</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="admin.css">
 </head>
-
 <body>
-<a class="skip-link" href="#main-content">Skip to content</a>
-<div class="container" id="main-content">
-
-    <h1>Information Manager</h1>
-    <h2>About Page</h2>
-
-    <div class="form-group">
-        <label>Vision</label>
-        <div>
-            <textarea id="story"></textarea>
-            <div class="word-limit">Maximum 300 words</div>
-        </div>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <main id="main-content" class="container section-padding" style="max-width:720px;">
+    <div class="card" style="padding:32px;border-bottom:5px solid var(--cyan);">
+      <p class="accent-label">CONTENT MANAGEMENT</p>
+      <h1 style="color:var(--navy);">The About page editor has moved</h1>
+      <p style="color:var(--muted);line-height:1.7;">The old editor saved a separate copy that did not appear on the public About page. The About page now uses the shared content editor.</p>
+      <p style="color:var(--muted);line-height:1.7;">Open Content Management, choose the About page and edit its marked text. New page records still need a matching HTML file before they can be published.</p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:24px;">
+        <a class="btn btn-cyan" href="content.html">Open Content Management</a>
+        <a class="btn btn-outline" href="dashboard.html">Back to Dashboard</a>
+      </div>
     </div>
-
-    <div class="form-group">
-        <label>Company values</label>
-        <input type="text" id="heading1">
-    </div>
-
-    <div class="form-group">
-        <label> Company Introduction </label>
-        <div>
-            <textarea id="paragraph1"></textarea>
-            <div class="word-limit">Maximum 3000 words</div>
-        </div>
-    </div>
-
-
-    <div class="form-group">
-        <label> Company Description(right side) </label>
-        <div>
-            <textarea id="paragraph3"></textarea>
-            <div class="word-limit">Maximum 3000 words</div>
-        </div>
-    </div>
-
-    <div class="form-group">
-        <label>Heading 2(left side )</label>
-        <input type="text" id="heading2">
-    </div>
-
-    <div class="form-group">
-        <label>Company Description(right side) </label>
-        <div>
-            <textarea id="paragraph2"></textarea>
-            <div class="word-limit">Maximum 3000 words</div>
-        </div>
-    </div>
-
-
-    <div class="form-group">
-        <label>Specialist 1 Name</label>
-        <input type="text" id="specialist1Name">
-    </div>
-
-    <div class="form-group">
-        <label>Specialist 1 Position</label>
-        <input type="text" id="specialist1Position">
-    </div>
-
-    <div class="form-group">
-        <label>Specialist 1 Biography</label>
-        <div>
-            <textarea id="specialist1Biography"></textarea>
-            <div class="word-limit">Maximum 3000 words</div>
-        </div>
-    </div>
-
-    <div class="form-group">
-        <label>Specialist 2 Name</label>
-        <input type="text" id="specialist2Name">
-    </div>
-
-    <div class="form-group">
-        <label>Specialist 2 Position</label>
-        <input type="text" id="specialist2Position">
-    </div>
-
-    <div class="form-group">
-        <label>Specialist 2 Biography</label>
-        <div>
-            <textarea id="specialist2Biography"></textarea>
-            <div class="word-limit">Maximum 3000 words</div>
-        </div>
-    </div>
-
-    <button id="saveButton">Save Changes</button>
-    <p id="saveStatus" role="status" aria-live="polite"></p>
-
-</div>
-
-<script src="/js/aboutAdmin.js"></script>
-
+  </main>
+  <script>
+    document.addEventListener('DOMContentLoaded', async function () {
+      var token = localStorage.getItem('token');
+      if (!token) {
+        window.location.replace('signin.html?next=aboutPageAdmin.html');
+        return;
+      }
+      try {
+        var response = await fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + token } });
+        if (!response.ok) throw new Error('Sign in again');
+        var data = await response.json();
+        if (!data.user || data.user.role !== 'admin') window.location.replace('portal.html');
+      } catch (_) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.replace('signin.html?next=aboutPageAdmin.html');
+      }
+    });
+  </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -5,6 +5,7 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import com.esaengineering.model.Role;
 import com.esaengineering.model.User;
 
 @Repository
@@ -13,6 +14,7 @@ public interface UserRepository
 
     Optional<User> findByEmail(String email);
     Optional<User> findByPhoneNumber( String phoneNumber);
+    long countByRole(Role role);
 
     
 

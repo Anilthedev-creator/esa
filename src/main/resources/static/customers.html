@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 
   <title>Customer Management | ESA Admin</title>
+<meta name="robots" content="noindex, nofollow">
 
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="stylesheet" href="style.css">
@@ -126,9 +127,14 @@
           <div class="heading-line"></div>
         </div>
 
-        <button class="filter-btn">
-          Filter
-        </button>
+        <div class="admin-table-filters" role="search">
+          <label class="sr-only" for="customersSearch">Search customers</label>
+          <input id="customersSearch" type="search" placeholder="Search customers…" aria-label="Search customers">
+          <label class="sr-only" for="customersStatus">Filter customers by status</label>
+          <select id="customersStatus" aria-label="Filter customers by status">
+            <option value="">All statuses</option><option value="active">Active</option><option value="inactive">Inactive</option>
+          </select>
+        </div>
 
       </div>
 
@@ -144,108 +150,12 @@
               <th>Email</th>
               <th>Phone</th>
               <th>Status</th>
-              <th>Last Updated</th>
               <th>Action</th>
             </tr>
           </thead>
 
           <tbody id="customersBody">
-
-            <tr>
-              <td>John Smith</td>
-              <td>john.smith@email.com</td>
-              <td>0412 345 678</td>
-
-              <td>
-                <span class="status active-status">
-                  Active
-                </span>
-              </td>
-
-              <td>27 Apr 2026</td>
-
-              <td class="action-icons">
-                <i class="fa-solid fa-pen"></i>
-                <i class="fa-regular fa-eye"></i>
-              </td>
-            </tr>
-
-            <tr>
-              <td>Sarah Johnson</td>
-              <td>sarah.j@email.com</td>
-              <td>0423 456 789</td>
-
-              <td>
-                <span class="status active-status">
-                  Active
-                </span>
-              </td>
-
-              <td>27 Apr 2026</td>
-
-              <td class="action-icons">
-                <i class="fa-solid fa-pen"></i>
-                <i class="fa-regular fa-eye"></i>
-              </td>
-            </tr>
-
-            <tr>
-              <td>Michael Brown</td>
-              <td>michael.b@email.com</td>
-              <td>0434 567 890</td>
-
-              <td>
-                <span class="status inactive-status">
-                  Inactive
-                </span>
-              </td>
-
-              <td>27 Apr 2026</td>
-
-              <td class="action-icons">
-                <i class="fa-solid fa-pen"></i>
-                <i class="fa-regular fa-eye"></i>
-              </td>
-            </tr>
-
-            <tr>
-              <td>Emily</td>
-              <td>emily.d@email.com</td>
-              <td>0445 678 901</td>
-
-              <td>
-                <span class="status active-status">
-                  Active
-                </span>
-              </td>
-
-              <td>27 Apr 2026</td>
-
-              <td class="action-icons">
-                <i class="fa-solid fa-pen"></i>
-                <i class="fa-regular fa-eye"></i>
-              </td>
-            </tr>
-
-            <tr>
-              <td>David</td>
-              <td>david.w@email.com</td>
-              <td>0456 789 012</td>
-
-              <td>
-                <span class="status active-status">
-                  Active
-                </span>
-              </td>
-
-              <td>27 Apr 2026</td>
-
-              <td class="action-icons">
-                <i class="fa-solid fa-pen"></i>
-                <i class="fa-regular fa-eye"></i>
-              </td>
-            </tr>
-
+            <tr><td colspan="5">Loading customers…</td></tr>
           </tbody>
 
         </table>

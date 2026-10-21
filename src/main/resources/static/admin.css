@@ -919,3 +919,43 @@ tbody tr:hover { background: #f8fafc; }
   .thumb-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .alert-row { align-items: flex-start; flex-wrap: wrap; }
 }
+
+.admin-table-filters {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.admin-table-filters input,
+.admin-table-filters select {
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid #d5dce5;
+  border-radius: 8px;
+  background: #fff;
+  color: #253247;
+  font: inherit;
+}
+.admin-table-filters input { width: min(270px, 48vw); }
+.admin-table-filters select { min-width: 150px; }
+.admin-table-filters input:focus,
+.admin-table-filters select:focus {
+  outline: 3px solid rgba(0, 127, 168, .2);
+  border-color: #007fa8;
+}
+
+.icon-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 7px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--navy);
+  cursor: pointer;
+}
+.icon-action:hover { border-color: var(--cyan); color: var(--cyan); }
+.icon-action:focus-visible { outline: 3px solid rgba(0, 127, 168, .25); outline-offset: 2px; }

@@ -11,6 +11,7 @@ document.addEventListener("DOMContentLoaded", function () {
   setupForms();
   updateHeaderButtons();
   preselectBookingService();
+  setBookingDateMinimum();
   syncBookingIdentity();
   showBookingAuthNotice();
 });
@@ -215,10 +216,25 @@ function onFormSubmit(e) {
 
   var api = form.getAttribute("data-api");
 
+  // Add the contact-page wizard answers to the request without changing the
+  // message box. That way a retry after a network error does not add them twice.
+  if (api === "/api/enquiries") {
+    var answers = [];
+    form.querySelectorAll(".wizard-extra.show").forEach(function (group) {
+      group.querySelectorAll("input").forEach(function (input) {
+        if (input.value.trim()) {
+          answers.push((input.getAttribute("data-label") || "Detail") + ": " + input.value.trim());
+        }
+      });
+    });
+    if (answers.length) {
+      var message = String(data.message || "").trim();
+      data.message = message + (message ? "\n" : "") + answers.join("\n");
+    }
+  }
+
   if (!api) {
-    // no backend connected, just show a local message
-    showFormNote(form, "Thanks - we've received your request and will be in touch shortly.", false);
-    form.reset();
+    showFormNote(form, "This form is not connected right now. Please call ESA on 0402 464 823.", true);
     if (btn) { btn.disabled = false; btn.textContent = originalText; }
     return;
   }
@@ -401,6 +417,41 @@ function preselectBookingService() {
       return;
     }
   }
+}
+
+function setBookingDateMinimum() {
+  var dateInput = document.getElementById("preferredDate");
+  if (!dateInput) return;
+  dateInput.min = melbourneTodayString();
+  var slotSelect = document.getElementById("preferredSlot");
+  var refreshSlots = function () { updateBookingTimeSlotOptions(dateInput.value, slotSelect); };
+  dateInput.addEventListener("change", refreshSlots);
+  refreshSlots();
+}
+
+function melbourneTodayString() {
+  var parts = new Intl.DateTimeFormat("en-AU", {
+    timeZone: "Australia/Melbourne", year: "numeric", month: "2-digit", day: "2-digit"
+  }).formatToParts(new Date());
+  var date = {};
+  parts.forEach(function (part) { date[part.type] = part.value; });
+  return date.year + "-" + date.month + "-" + date.day;
+}
+
+function updateBookingTimeSlotOptions(dateValue, select) {
+  if (!select) return;
+  var isToday = dateValue === melbourneTodayString();
+  var parts = new Intl.DateTimeFormat("en-AU", {
+    timeZone: "Australia/Melbourne", hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+  }).formatToParts(new Date());
+  var clock = {};
+  parts.forEach(function (part) { clock[part.type] = part.value; });
+  var nowTime = clock.hour + ":" + clock.minute;
+  Array.prototype.forEach.call(select.options, function (option) {
+    if (!option.value) return;
+    option.disabled = !dateValue || (isToday && option.value <= nowTime);
+  });
+  if (select.selectedOptions.length && select.selectedOptions[0].disabled) select.value = "";
 }
 
 function syncBookingIdentity() {

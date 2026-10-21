@@ -13,13 +13,13 @@ class AppConfigTest {
     void productionRefusesTheDemoSigningSecret() {
         AppConfig config = new AppConfig();
         assertThrows(IllegalStateException.class,
-                () -> config.tokenService(DEMO_SECRET, 12, "prod", false));
+                () -> config.tokenService(DEMO_SECRET, 12, "prod", false, false));
     }
 
     @Test
     void productionAcceptsAUniqueSigningSecret() {
         AppConfig config = new AppConfig();
-        TokenService tokens = config.tokenService("different-private-secret", 12, "production", false);
+        TokenService tokens = config.tokenService("different-private-secret", 12, "production", false, false);
         assertNotNull(tokens.issue(1L, "admin@example.com", "ADMIN"));
     }
 
@@ -27,6 +27,13 @@ class AppConfigTest {
     void productionRefusesDemoEmailPreview() {
         AppConfig config = new AppConfig();
         assertThrows(IllegalStateException.class,
-                () -> config.tokenService("different-private-secret", 12, "prod", true));
+                () -> config.tokenService("different-private-secret", 12, "prod", true, false));
+    }
+
+    @Test
+    void productionRefusesDemoCardPayments() {
+        AppConfig config = new AppConfig();
+        assertThrows(IllegalStateException.class,
+                () -> config.tokenService("different-private-secret", 12, "prod", false, true));
     }
 }

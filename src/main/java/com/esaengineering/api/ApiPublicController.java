@@ -19,8 +19,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Locale;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
+import java.time.ZoneId;
+import org.springframework.transaction.annotation.Transactional;
 
 @CrossOrigin(origins = "*")
 @RestController
@@ -34,11 +35,15 @@ public class ApiPublicController {
     private final PortalAccess portalAccess;
     private final BigDecimal consultationFee;
     private final boolean demoEmailPreview;
+    private final boolean demoCardPaymentsEnabled;
+    private final EnquiryEmailService enquiryEmailService;
 
     public ApiPublicController(BookingRepository bookingRepo, ContactRepository contactRepo,
                                 PaymentRepository paymentRepo, AdminAccess adminAccess, PortalAccess portalAccess,
                                 @Value("${app.booking.consultation-fee:50}") BigDecimal consultationFee,
-                                @Value("${app.demo-email-preview:false}") boolean demoEmailPreview) {
+                                @Value("${app.demo-email-preview:false}") boolean demoEmailPreview,
+                                @Value("${app.payment.demo-card-enabled:true}") boolean demoCardPaymentsEnabled,
+                                EnquiryEmailService enquiryEmailService) {
         this.bookingRepo = bookingRepo;
         this.contactRepo = contactRepo;
         this.paymentRepo = paymentRepo;
@@ -46,11 +51,14 @@ public class ApiPublicController {
         this.portalAccess = portalAccess;
         this.consultationFee = consultationFee;
         this.demoEmailPreview = demoEmailPreview;
+        this.demoCardPaymentsEnabled = demoCardPaymentsEnabled;
+        this.enquiryEmailService = enquiryEmailService;
     }
 
     // ---- bookings ----
 
     @PostMapping("/bookings")
+    @Transactional
     public Map<String, Object> createBooking(@RequestBody Map<String, Object> body,
                                              @RequestHeader(value = "Authorization", required = false) String auth) {
         TokenService.TokenPayload identity = portalAccess.requireCustomer(auth);
@@ -63,17 +71,32 @@ public class ApiPublicController {
         String notes = text(body, "notes");
         if (notes == null) notes = text(body, "description");
         if (notes == null) notes = text(body, "message");
+        name = name == null ? null : name.trim();
+        phone = phone == null ? "" : phone.trim();
+        service = service == null ? "General Inquiry" : service.trim();
+        notes = notes == null ? "" : notes.trim();
 
-        if (name == null) throw ApiException.badRequest("Name is required");
+        if (name == null || name.isEmpty()) throw ApiException.badRequest("Name is required");
+        if (name.length() > 100) throw ApiException.badRequest("Name must be 100 characters or fewer");
+        if (phone.length() > 40) throw ApiException.badRequest("Phone must be 40 characters or fewer");
+        if (service.length() > 100) throw ApiException.badRequest("Service must be 100 characters or fewer");
+        if (notes.length() > 1000) throw ApiException.badRequest("Please keep your notes to 1,000 characters or fewer");
         String slot = text(body, "preferredSlot");
-        if (slot == null) slot = "";
-        if (!allowedSlots().contains(slot)) throw ApiException.badRequest("Please choose one of the available time preferences.");
+        if (!BookingSchedule.isAllowedSlot(slot)) {
+            throw ApiException.badRequest("Choose a time between 9:00 am and 4:30 pm.");
+        }
         String preferred = text(body, "preferredDate");
-        LocalDate bookingDate = LocalDate.now();
-        if (preferred != null) {
-            bookingDate = parseDate(preferred.length() >= 10 ? preferred.substring(0, 10) : preferred,
-                    "Please choose a valid preferred date.");
-            if (bookingDate.isBefore(LocalDate.now())) throw ApiException.badRequest("Please choose today or a future preferred date.");
+        if (preferred == null || preferred.isBlank()) {
+            throw ApiException.badRequest("Please choose a booking date.");
+        }
+        LocalDate bookingDate = parseDate(preferred.length() >= 10 ? preferred.substring(0, 10) : preferred,
+                "Please choose a valid booking date.");
+        LocalDate today = LocalDate.now(BookingSchedule.ZONE);
+        if (bookingDate.isBefore(today)) {
+            throw ApiException.badRequest("Please choose today or a future booking date.");
+        }
+        if (!BookingSchedule.slotTime(bookingDate, slot).isAfter(java.time.Instant.now())) {
+            throw ApiException.badRequest("Choose a time that has not passed.");
         }
 
         Booking b = new Booking();
@@ -174,6 +197,7 @@ public class ApiPublicController {
     // ---- enquiries / contact ----
 
     @PostMapping("/enquiries")
+    @Transactional
     public Map<String, Object> createEnquiry(@RequestBody Map<String, Object> body) {
         String name = text(body, "name");
         if (name == null) name = text(body, "fullName");
@@ -187,21 +211,78 @@ public class ApiPublicController {
         if (message == null) message = "";
 
         if (name == null || email == null) throw ApiException.badRequest("Name and email are required");
+        if (message.isBlank()) throw ApiException.badRequest("Please add a short message so we know how to help.");
+        email = email.toLowerCase(Locale.ROOT);
+        if (name.length() > 100) throw ApiException.badRequest("Name must be 100 characters or fewer");
+        if (email.length() > 100 || !email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
+            throw ApiException.badRequest("Enter a valid email address");
+        }
+        if (type.length() > 100) throw ApiException.badRequest("Inquiry type must be 100 characters or fewer");
+        if (message.length() > 2000) throw ApiException.badRequest("Please keep your message to 2,000 characters or fewer");
 
-        // attachment arrives as base64 from the contact form (no multipart,
-        // keeps the json body simple). saved into data/uploads like server.js
+        // attachment arrives as base64 from the contact form. Check the size,
+        // type and file signature before saving it, the same as server.js.
         String attachName = text(body, "attachmentName");
         String attachData = text(body, "attachmentData");
-        if (attachName != null && attachData != null) {
+        String attachType = text(body, "attachmentType");
+        if ((attachName == null) != (attachData == null)) {
+            throw ApiException.badRequest("Please choose the attachment again and try once more.");
+        }
+        if (attachName != null) {
+            if (attachName.length() > 120 || attachType == null
+                    || !("application/pdf".equalsIgnoreCase(attachType)
+                    || "image/jpeg".equalsIgnoreCase(attachType)
+                    || "image/png".equalsIgnoreCase(attachType))) {
+                throw ApiException.badRequest("Attachments must be a PDF, JPG or PNG file under 3MB.");
+            }
+            if (attachData.length() > 4 * 1024 * 1024
+                    || !attachData.matches("^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$")) {
+                throw ApiException.badRequest("That attachment could not be read. Please choose it again.");
+            }
+            byte[] bytes;
+            try {
+                bytes = java.util.Base64.getDecoder().decode(attachData);
+            } catch (IllegalArgumentException e) {
+                throw ApiException.badRequest("That attachment could not be read. Please choose it again.");
+            }
+            if (bytes.length == 0 || bytes.length > 3 * 1024 * 1024) {
+                throw ApiException.badRequest("Attachments must be under 3MB.");
+            }
+            boolean looksLikeFile = "application/pdf".equalsIgnoreCase(attachType)
+                    ? bytes.length >= 5 && bytes[0] == '%' && bytes[1] == 'P' && bytes[2] == 'D' && bytes[3] == 'F' && bytes[4] == '-'
+                    : "image/jpeg".equalsIgnoreCase(attachType)
+                    ? bytes.length > 3 && (bytes[0] & 0xff) == 0xff && (bytes[1] & 0xff) == 0xd8 && (bytes[2] & 0xff) == 0xff
+                    : bytes.length > 8 && (bytes[0] & 0xff) == 137 && bytes[1] == 'P' && bytes[2] == 'N' && bytes[3] == 'G'
+                    && bytes[4] == 13 && bytes[5] == 10 && bytes[6] == 26 && bytes[7] == 10;
+            if (!looksLikeFile) throw ApiException.badRequest("The attachment does not match its file type.");
+
+            String safeName = attachName.replaceAll("[^a-zA-Z0-9._-]", "_");
+            String attachNote = "\n[attachment saved as " + safeName + "]";
+            if (message.length() + attachNote.length() > 2000) {
+                throw ApiException.badRequest("Please shorten the message a little to include the attachment name.");
+            }
             try {
                 java.nio.file.Path dir = java.nio.file.Paths.get("data", "uploads");
                 java.nio.file.Files.createDirectories(dir);
-                String safe = attachName.replaceAll("[^a-zA-Z0-9._-]", "_");
-                java.nio.file.Path file = dir.resolve(System.currentTimeMillis() + "-" + safe);
-                java.nio.file.Files.write(file, java.util.Base64.getDecoder().decode(attachData));
-                message = message + "\n[attachment saved as " + file.getFileName() + "]";
-            } catch (Exception e) {
-                System.out.println("[upload] could not save attachment: " + e.getMessage());
+                try {
+                    java.nio.file.Files.setPosixFilePermissions(dir,
+                            java.nio.file.attribute.PosixFilePermissions.fromString("rwx------"));
+                } catch (UnsupportedOperationException ignored) {
+                    // Some file systems do not support POSIX permissions.
+                }
+                String storedName = System.currentTimeMillis() + "-" + java.util.UUID.randomUUID() + "-" + safeName;
+                java.nio.file.Path storedFile = dir.resolve(storedName);
+                try {
+                    java.nio.file.Files.createFile(storedFile,
+                            java.nio.file.attribute.PosixFilePermissions.asFileAttribute(
+                                    java.nio.file.attribute.PosixFilePermissions.fromString("rw-------")));
+                } catch (UnsupportedOperationException ignored) {
+                    java.nio.file.Files.createFile(storedFile);
+                }
+                java.nio.file.Files.write(storedFile, bytes, java.nio.file.StandardOpenOption.WRITE);
+                message = message + attachNote;
+            } catch (java.io.IOException e) {
+                throw ApiException.unavailable("We could not save that attachment. Please try again or send it by email.");
             }
         }
 
@@ -213,10 +294,12 @@ public class ApiPublicController {
         c.setStatus("new");
         c = contactRepo.save(c);
 
+        Map<String, Object> emailDelivery = enquiryEmailService.notifyEnquiry(c);
         Map<String, Object> resp = new LinkedHashMap<>();
-        resp.put("message", "Thanks — we've received your request and will be in touch shortly.");
+        resp.put("message", emailDelivery.get("message"));
         resp.put("success", true);
         resp.put("enquiry", Map.of("id", c.getContactId()));
+        resp.put("emailDelivery", emailDelivery);
         return resp;
     }
 
@@ -288,6 +371,9 @@ public class ApiPublicController {
     public Map<String, Object> cardPayment(@PathVariable Long id,
                                            @RequestBody Map<String, Object> body,
                                            @RequestHeader(value = "Authorization", required = false) String auth) {
+        if (!demoCardPaymentsEnabled) {
+            throw ApiException.unavailable("Demo card payments are turned off. Please use the bank transfer option or contact ESA.");
+        }
         String email = portalAccess.requireCustomer(auth).getEmail();
         Payment p = paymentRepo.findById(id).orElseThrow(() -> ApiException.notFound("Payment not found"));
         Booking booking = bookingForPayment(p, email);
@@ -382,10 +468,6 @@ public class ApiPublicController {
 
     private static boolean sameEmail(String first, String second) {
         return first != null && second != null && first.trim().equalsIgnoreCase(second.trim());
-    }
-
-    private static Set<String> allowedSlots() {
-        return Set.of("", "08:00", "10:00", "13:00", "15:00");
     }
 
     private static LocalDate parseDate(String value, String message) {

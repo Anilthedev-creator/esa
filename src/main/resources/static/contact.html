@@ -1,9 +1,10 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Contact Us | ESA Engineering</title>
+<meta name="description" content="Contact ESA Engineering in Victoria about plant commissioning, utility appraisals, production optimisation, waste or dangerous goods.">
 <meta property="og:title" content="Contact ESA Engineering">
 <meta property="og:description" content="Start your project — obligation-free discussion with senior engineers.">
 <meta property="og:type" content="website">
@@ -73,15 +74,15 @@
                 <h2>Send a Message</h2>
                 <form action="#" method="POST" data-local-submit data-api="/api/enquiries">
                     <div class="form-group">
-                        <label>Full Name</label>
-                        <input type="text" id="name" name="name" class="form-control" placeholder="Enter your name" required>
+                        <label for="name">Full Name</label>
+                        <input type="text" id="name" name="name" class="form-control" placeholder="Enter your name" maxlength="100" autocomplete="name" required>
                     </div>
                     <div class="form-group">
-                        <label>Email Address</label>
-                        <input type="email" id="email" name="email" class="form-control" placeholder="name@company.com.au" required>
+                        <label for="email">Email Address</label>
+                        <input type="email" id="email" name="email" class="form-control" placeholder="name@company.com.au" maxlength="100" autocomplete="email" required>
                     </div>
                     <div class="form-group">
-                        <label>Inquiry Type</label>
+                        <label for="type">Inquiry Type</label>
                         <select id="type" name="type" class="form-control">
                             <option>Plant Commissioning</option>
                             <option>Utility Appraisal</option>
@@ -96,51 +97,52 @@
                          at the bottom of this page -->
                     <div class="wizard-extra" data-for="Plant Commissioning">
                         <div class="form-group">
-                            <label>Plant / facility type</label>
-                            <input type="text" class="form-control" data-label="Plant type" placeholder="e.g. food processing, minerals, water">
+                            <label for="plantType">Plant / facility type</label>
+                            <input type="text" id="plantType" class="form-control" data-label="Plant type" placeholder="e.g. food processing, minerals, water" maxlength="200">
                         </div>
                         <div class="form-group">
-                            <label>Target start</label>
-                            <input type="text" class="form-control" data-label="Target start" placeholder="e.g. next month, Q3">
+                            <label for="targetStart">Target start</label>
+                            <input type="text" id="targetStart" class="form-control" data-label="Target start" placeholder="e.g. next month, Q3" maxlength="200">
                         </div>
                     </div>
                     <div class="wizard-extra" data-for="Utility Appraisal">
                         <div class="form-group">
-                            <label>Approx. annual utility spend</label>
-                            <input type="text" class="form-control" data-label="Utility spend" placeholder="e.g. $400k">
+                            <label for="utilitySpend">Approx. annual utility spend</label>
+                            <input type="text" id="utilitySpend" class="form-control" data-label="Utility spend" placeholder="e.g. $400k" maxlength="200">
                         </div>
                     </div>
                     <div class="wizard-extra" data-for="Production Optimisation">
                         <div class="form-group">
-                            <label>How many production lines?</label>
-                            <input type="text" class="form-control" data-label="Lines" placeholder="e.g. 3">
+                            <label for="productionLines">How many production lines?</label>
+                            <input type="text" id="productionLines" class="form-control" data-label="Lines" placeholder="e.g. 3" maxlength="100">
                         </div>
                         <div class="form-group">
-                            <label>Main bottleneck today</label>
-                            <input type="text" class="form-control" data-label="Bottleneck" placeholder="e.g. packing station downtime">
+                            <label for="mainBottleneck">Main bottleneck today</label>
+                            <input type="text" id="mainBottleneck" class="form-control" data-label="Bottleneck" placeholder="e.g. packing station downtime" maxlength="200">
                         </div>
                     </div>
                     <div class="wizard-extra" data-for="Waste Management">
                         <div class="form-group">
-                            <label>Waste stream</label>
-                            <input type="text" class="form-control" data-label="Waste stream" placeholder="e.g. liquid trade waste, scrap metal">
+                            <label for="wasteStream">Waste stream</label>
+                            <input type="text" id="wasteStream" class="form-control" data-label="Waste stream" placeholder="e.g. liquid trade waste, scrap metal" maxlength="200">
                         </div>
                     </div>
                     <div class="wizard-extra" data-for="Dangerous Goods">
                         <div class="form-group">
-                            <label>Chemical class &amp; storage volume</label>
-                            <input type="text" class="form-control" data-label="Chemicals" placeholder="e.g. class 3, 40kL">
+                            <label for="chemicalClass">Chemical class &amp; storage volume</label>
+                            <input type="text" id="chemicalClass" class="form-control" data-label="Chemicals" placeholder="e.g. class 3, 40kL" maxlength="200">
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>Message</label>
-                        <textarea id="message" name="message" class="form-control" rows="5" placeholder="How can our engineering team help?"></textarea>
+                        <label for="message">Message</label>
+                        <textarea id="message" name="message" class="form-control" rows="5" maxlength="1400" placeholder="How can our engineering team help?" required></textarea>
                     </div>
                     <div class="form-group">
-                        <label>Attach specs or site plans (optional, max 4MB)</label>
-                        <input type="file" id="attachFile" class="form-control">
+                        <label for="attachFile">Attach specs or site plans (optional, max 3MB)</label>
+                        <input type="file" id="attachFile" class="form-control" accept="application/pdf,image/jpeg,image/png">
                         <input type="hidden" name="attachmentName" id="attachmentName">
                         <input type="hidden" name="attachmentData" id="attachmentData">
+                        <input type="hidden" name="attachmentType" id="attachmentType">
                         <p id="attachNote" class="xs muted mt-2" style="margin-top:6px"></p>
                         <!-- shows what got picked, with a remove button (contact wizard script fills it) -->
                         <p id="attachInfo" class="attach-info">
@@ -148,6 +150,7 @@
                           <button type="button" id="attachRemove">Remove</button>
                         </p>
                     </div>
+                    <p class="xs muted" style="margin-top:12px">We use your details to review and reply to this enquiry. See our <a href="privacy-policy.html">Privacy Policy</a>.</p>
                     <button type="submit" class="btn btn-red" style="width: 100%;">Submit Request</button>
                 </form>
             </div>
@@ -203,11 +206,10 @@
     <div class="info-card card-border-cyan" style="margin-top:var(--s6);display:flex;gap:var(--s4);align-items:flex-start;flex-wrap:wrap">
       <div style="font-size:1.6rem">🕒</div>
       <div>
-        <h4 style="color:var(--navy);margin-bottom:var(--s2)">Our response promise</h4>
+        <h4 style="color:var(--navy);margin-bottom:var(--s2)">What happens next</h4>
         <p style="color:var(--muted);font-size:var(--sm);max-width:760px">
-          Every enquiry gets a reply from a real engineer within <strong>1 business day</strong>
-          (Mon&ndash;Fri, 8am&ndash;5pm AEST/AEDT). Site-based? Call <a href="tel:+61402464823" style="color:var(--cyan-text);font-weight:600">0402 464 823</a>
-          and leave the details &mdash; same-day call back if we are off site.
+          Our team will review your enquiry and get back to you. For urgent requests, call
+          <a href="tel:+61402464823" style="color:var(--cyan-text);font-weight:600">0402 464 823</a>.
         </p>
       </div>
     </div>
@@ -267,26 +269,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
   if (typeSel) { typeSel.addEventListener('change', showExtras); showExtras(); }
 
-  // glue the visible extra answers onto the message on submit.
-  // this listener registers before main.js's one, so it runs first.
-  var form = document.querySelector('form[data-api="/api/enquiries"]');
-  if (form) {
-    form.addEventListener('submit', function () {
-      var bits = [];
-      extras.forEach(function (g) {
-        if (!g.classList.contains('show')) return;
-        g.querySelectorAll('input').forEach(function (inp) {
-          if (inp.value) bits.push((inp.getAttribute('data-label') || 'Detail') + ': ' + inp.value);
-        });
-      });
-      if (bits.length) {
-        var msg = document.getElementById('message');
-        msg.value = msg.value + (msg.value ? '\n' : '') + bits.join('\n');
-      }
-    });
-  }
-
-  // attachment -> base64 into the hidden inputs (kept under ~4MB)
+  // attachment -> base64 into hidden fields. Keep the raw file under 3MB so the JSON stays small.
   var file = document.getElementById('attachFile');
   var removeBtn = document.getElementById('attachRemove');
   if (removeBtn) {
@@ -294,6 +277,7 @@ document.addEventListener('DOMContentLoaded', function () {
       file.value = '';
       document.getElementById('attachmentName').value = '';
       document.getElementById('attachmentData').value = '';
+      document.getElementById('attachmentType').value = '';
       document.getElementById('attachInfo').classList.remove('show');
       document.getElementById('attachNote').textContent = '';
     });
@@ -303,10 +287,17 @@ document.addEventListener('DOMContentLoaded', function () {
       var note = document.getElementById('attachNote');
       document.getElementById('attachmentName').value = '';
       document.getElementById('attachmentData').value = '';
+      document.getElementById('attachmentType').value = '';
       note.textContent = '';
       if (!file.files || !file.files[0]) return;
-      if (file.files[0].size > 4 * 1024 * 1024) {
-        note.textContent = 'That file is over 4MB, please email it to us instead.';
+      var allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+      if (allowedTypes.indexOf(file.files[0].type) === -1) {
+        note.textContent = 'Please choose a PDF, JPG or PNG file.';
+        file.value = '';
+        return;
+      }
+      if (file.files[0].size > 3 * 1024 * 1024) {
+        note.textContent = 'That file is over 3MB, please email it to us instead.';
         file.value = '';
         return;
       }
@@ -314,12 +305,17 @@ document.addEventListener('DOMContentLoaded', function () {
       reader.onload = function () {
         var dataUrl = String(reader.result || '');
         document.getElementById('attachmentName').value = file.files[0].name;
+        document.getElementById('attachmentType').value = file.files[0].type;
         document.getElementById('attachmentData').value = dataUrl.slice(dataUrl.indexOf(',') + 1);
         // show the picked file in the little info bar with its size
         var kb = Math.max(1, Math.round(file.files[0].size / 1024));
         document.getElementById('attachInfoText').textContent = '\u{1F4CE} ' + file.files[0].name + ' (' + kb + ' KB)';
         document.getElementById('attachInfo').classList.add('show');
         note.textContent = '';
+      };
+      reader.onerror = function () {
+        note.textContent = 'We could not read that file. Please choose it again.';
+        file.value = '';
       };
       reader.readAsDataURL(file.files[0]);
     });

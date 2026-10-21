@@ -140,6 +140,7 @@ public class ApiAdminController {
             m.put("slug", p.getSlug());
             m.put("status", p.getStatus());
             m.put("updatedAt", p.getUpdatedAt());
+            m.put("hasStaticFile", cmsService.staticPageExists(p.getSlug()));
             return m;
         }).toList();
         return single("pages", rows, rows.size());
@@ -158,7 +159,8 @@ public class ApiAdminController {
         m.put("title", created.getTitle());
         m.put("slug", created.getSlug());
         m.put("status", created.getStatus());
-        return Map.of("page", m, "message", "Page created");
+        m.put("hasStaticFile", cmsService.staticPageExists(created.getSlug()));
+        return Map.of("page", m, "message", "Page record created as a draft");
     }
 
     @GetMapping("/pages/{id}")
@@ -181,6 +183,7 @@ public class ApiAdminController {
         m.put("title", updated.getTitle());
         m.put("slug", updated.getSlug());
         m.put("status", updated.getStatus());
+        m.put("hasStaticFile", cmsService.staticPageExists(updated.getSlug()));
         return Map.of("page", m, "message", "Page updated");
     }
 

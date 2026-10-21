@@ -15,6 +15,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -87,31 +90,37 @@ public class PortalService {
         return out;
     }
 
-    /** Customer moves their own booking to a new date/slot while it is still open. */
+    /** Customer moves their own booking before the 90-minute cutoff. */
     public Map<String, Object> reschedule(String email, Long bookingId, String date, String slot) {
         Booking b = ownBooking(email, bookingId);
-        String status = b.getStatus() == null ? "pending" : b.getStatus();
+        String status = b.getStatus() == null ? "pending" : b.getStatus().trim().toLowerCase();
         if ("completed".equals(status) || "cancelled".equals(status)) {
-            throw ApiException.badRequest("This booking is " + status + " so it can not be moved, please call us.");
+            throw ApiException.badRequest("This booking is " + status + " and cannot be moved.");
         }
-        if (date != null && !date.isBlank()) {
-            java.time.LocalDate newDate;
-            try {
-                newDate = java.time.LocalDate.parse(date.length() >= 10 ? date.substring(0, 10) : date);
-            } catch (RuntimeException e) {
-                throw ApiException.badRequest("Please choose a valid preferred date.");
-            }
-            if (newDate.isBefore(java.time.LocalDate.now())) {
-                throw ApiException.badRequest("Please choose today or a future date.");
-            }
-            b.setBookingDate(newDate);
+        if (BookingSchedule.cutoffReached(b.getBookingDate(), b.getPreferredSlot(), Instant.now())) {
+            throw ApiException.badRequest("This booking is within 90 minutes of its requested time and can no longer be rescheduled. Please call ESA for help.");
         }
-        if (slot != null) {
-            if (!java.util.Set.of("", "08:00", "10:00", "13:00", "15:00").contains(slot)) {
-                throw ApiException.badRequest("Please choose one of the available time preferences.");
-            }
-            b.setPreferredSlot(slot);
+        if (date == null || date.isBlank()) {
+            throw ApiException.badRequest("Please choose a new booking date.");
         }
+        LocalDate newDate;
+        try {
+            newDate = LocalDate.parse(date.length() >= 10 ? date.substring(0, 10) : date);
+        } catch (RuntimeException e) {
+            throw ApiException.badRequest("Please choose a valid booking date.");
+        }
+        if (newDate.isBefore(LocalDate.now(BookingSchedule.ZONE))) {
+            throw ApiException.badRequest("Please choose today or a future date.");
+        }
+        if (!BookingSchedule.isAllowedSlot(slot)) {
+            throw ApiException.badRequest("Choose a time between 9:00 am and 4:30 pm.");
+        }
+        Instant newTime = BookingSchedule.slotTime(newDate, slot);
+        if (!newTime.isAfter(Instant.now().plus(Duration.ofMinutes(BookingSchedule.RESCHEDULE_CUTOFF_MINUTES)))) {
+            throw ApiException.badRequest("Choose a new time more than 90 minutes from now.");
+        }
+        b.setBookingDate(newDate);
+        b.setPreferredSlot(slot);
         bookingRepository.save(b);
         return summary(b, paymentRepository.findFirstByBookingId(b.getBookingID()).orElse(null));
     }
@@ -237,6 +246,7 @@ public class PortalService {
     /* -------------------------------- helpers ------------------------------ */
 
     private Map<String, Object> summary(Booking b, Payment payment) {
+        Instant rescheduleCutoff = BookingSchedule.cutoff(b.getBookingDate(), b.getPreferredSlot());
         BigDecimal amount = payment != null && payment.getAmount() != null
                 ? payment.getAmount()
                 : BigDecimal.ZERO;
@@ -256,7 +266,9 @@ public class PortalService {
                 "paid", "completed".equals(paymentStatus),
                 "paymentReference", payment == null ? null : payment.getTransactionId(),
                 "canCancel", canCancel(b.getStatus(), paymentStatus),
-                "canPay", canPay(b.getStatus(), paymentStatus));
+                "canPay", canPay(b.getStatus(), paymentStatus),
+                "canReschedule", BookingSchedule.canReschedule(b.getStatus(), b.getBookingDate(), b.getPreferredSlot(), Instant.now()),
+                "rescheduleCutoff", rescheduleCutoff == null ? null : rescheduleCutoff.toString());
     }
 
     private static boolean canCancel(String bookingStatus, String paymentStatus) {

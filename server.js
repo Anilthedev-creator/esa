@@ -27,7 +27,50 @@ const DEMO_JWT_SECRET = 'esa-local-dev-secret-change-me-in-production-32chars';
 const JWT_SECRET = process.env.JWT_SECRET || DEMO_JWT_SECRET;
 const JWT_TTL = '12h';
 const DEMO_EMAIL_PREVIEW_ENABLED = process.env.ESA_DEMO_EMAIL_PREVIEW === 'true';
+const DEMO_CARD_PAYMENTS_ENABLED = String(process.env.ESA_DEMO_CARD_PAYMENTS || 'true').toLowerCase() !== 'false';
 const IS_PRODUCTION = ['production', 'prod'].includes(String(process.env.NODE_ENV || '').toLowerCase());
+const SMTP_HOST = String(process.env.SMTP_HOST || '').trim();
+const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
+const SMTP_USER = String(process.env.SMTP_USER || '').trim();
+const SMTP_PASSWORD = String(process.env.SMTP_PASSWORD || '');
+const MAIL_FROM = String(process.env.MAIL_FROM || SMTP_USER).trim();
+const SMTP_SECURE = String(process.env.SMTP_SECURE || '').toLowerCase() === 'true'
+  || (!process.env.SMTP_SECURE && SMTP_PORT === 465);
+const nodemailer = require('nodemailer');
+const mailTransporter = SMTP_HOST && MAIL_FROM ? nodemailer.createTransport({
+  host: SMTP_HOST,
+  port: Number.isFinite(SMTP_PORT) ? SMTP_PORT : 587,
+  secure: SMTP_SECURE,
+  auth: SMTP_USER && SMTP_PASSWORD ? { user: SMTP_USER, pass: SMTP_PASSWORD } : undefined,
+  connectionTimeout: 5000,
+  greetingTimeout: 5000,
+  socketTimeout: 10000
+}) : null;
+
+function cleanPublicSiteOrigin(value) {
+  if (!value) return '';
+  try {
+    const url = new URL(String(value).trim());
+    if (!['http:', 'https:'].includes(url.protocol) || !url.hostname || url.username || url.password
+        || url.search || url.hash || (url.pathname && url.pathname !== '/')) return '';
+    if (IS_PRODUCTION && url.protocol !== 'https:') return '';
+    return url.origin;
+  } catch (_) {
+    return '';
+  }
+}
+const PUBLIC_SITE_ORIGIN = cleanPublicSiteOrigin(process.env.PUBLIC_SITE_URL);
+const PUBLIC_SITEMAP_PAGES = [
+  'index.html', 'about.html', 'services.html', 'commissioning.html', 'appraisals.html',
+  'optimisation.html', 'waste-management.html', 'dangerous-goods.html', 'projects.html',
+  'contact.html', 'team.html', 'resources.html', 'safety-standards.html', 'privacy-policy.html'
+];
+const PRIVATE_SITE_PAGES = [
+  'dashboard.html', 'customers.html', 'enquiries.html', 'bookings.html', 'payments.html',
+  'settings.html', 'content.html', 'auditLog.html', 'caseStudies.html', 'aboutPageAdmin.html',
+  'accountAdmin.html', 'portal.html', 'signin.html', 'signup.html', 'forgot-password.html',
+  'reset-password.html', 'booking.html', 'payment.html', 'receipt.html'
+];
 
 // the known local key is handy for the project demo, but must never be used on a real deployment
 if (IS_PRODUCTION && (!process.env.JWT_SECRET || process.env.JWT_SECRET === DEMO_JWT_SECRET)) {
@@ -35,6 +78,9 @@ if (IS_PRODUCTION && (!process.env.JWT_SECRET || process.env.JWT_SECRET === DEMO
 }
 if (IS_PRODUCTION && DEMO_EMAIL_PREVIEW_ENABLED) {
   throw new Error('Demo email previews must not be enabled in production.');
+}
+if (IS_PRODUCTION && DEMO_CARD_PAYMENTS_ENABLED) {
+  throw new Error('Demo card payments must not be enabled in production. Set ESA_DEMO_CARD_PAYMENTS=false.');
 }
 
 function makeDemoEmailPreview(email, subject, body, actionUrl, role) {
@@ -63,7 +109,15 @@ function load(name, def) {
   } catch { return def; }
 }
 function save(name, data) {
-  fs.writeFileSync(dbFile(name), JSON.stringify(data, null, 2));
+  const file = dbFile(name);
+  const temp = file + '.' + process.pid + '.' + crypto.randomUUID() + '.tmp';
+  try {
+    fs.writeFileSync(temp, JSON.stringify(data, null, 2), { mode: 0o600, flag: 'wx' });
+    fs.renameSync(temp, file);
+  } catch (error) {
+    try { fs.unlinkSync(temp); } catch (_) { /* temp file may not exist */ }
+    throw error;
+  }
 }
 function auditFields(body) {
   const hidden = ['password', 'currentPassword', 'newPassword', 'cardNumber', 'cardExpiry', 'cardCvv', 'token'];
@@ -71,25 +125,90 @@ function auditFields(body) {
   return fields.length ? fields.join(', ') : 'no fields';
 }
 
-// ---- really basic "email" helper ----
-// there is no mail server hooked up yet (TODO: wire up SMTP one day) so every
-// email the site sends just gets written into data/outbox as a .txt file.
-// while testing, open the newest file in there to read the "email".
-function sendMail(to, subject, body) {
-  try {
-    var dir = path.join(DATA_DIR, 'outbox');
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    var fname = Date.now() + '-' + String(to).replace(/[^a-z0-9]/gi, '_') + '.txt';
-    var txt = 'To: ' + to + '\nSubject: ' + subject + '\nDate: ' + new Date().toString() + '\n\n' + body + '\n';
-    fs.writeFileSync(path.join(dir, fname), txt);
-    console.log('[mail] to ' + to + ' -> ' + subject);
-  } catch (e) {
-    console.log('[mail] could not write the outbox file: ' + e.message);
+// Send mail when SMTP is configured. Otherwise keep a private local outbox copy.
+function saveMailToOutbox(to, subject, body) {
+  const dir = path.join(DATA_DIR, 'outbox');
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+  const safeSubject = String(subject || '').replace(/[\r\n]+/g, ' ').slice(0, 180);
+  const name = Date.now() + '-' + crypto.randomUUID() + '.txt';
+  const text = 'To: ' + to + '\nSubject: ' + safeSubject + '\nDate: ' + new Date().toISOString() + '\n\n' + String(body || '') + '\n';
+  fs.writeFileSync(path.join(dir, name), text, { mode: 0o600, flag: 'wx' });
+}
+
+async function sendMail(to, subject, body) {
+  const recipient = String(to || '').trim();
+  if (!recipient) return { status: 'not-configured' };
+  const safeSubject = String(subject || '').replace(/[\r\n]+/g, ' ').slice(0, 180);
+  if (mailTransporter) {
+    try {
+      await mailTransporter.sendMail({ from: MAIL_FROM, to: recipient, subject: safeSubject, text: String(body || '') });
+      return { status: 'sent' };
+    } catch (_) {
+      console.warn('[mail] SMTP delivery failed; saving a local outbox copy.');
+    }
   }
+  try {
+    saveMailToOutbox(recipient, safeSubject, body);
+    return { status: 'outbox' };
+  } catch (_) {
+    console.error('[mail] Could not send the message or save it to the local outbox.');
+    return { status: 'failed' };
+  }
+}
+
+async function sendEnquiryNotifications(contact) {
+  const customerBody = 'Hi ' + contact.fullName + ',\n\n' +
+    'Thanks for contacting ESA Engineering. Your enquiry reference is #' + contact.id + '.\n' +
+    'This is an automatic acknowledgement, not an appointment confirmation or engineering advice.\n' +
+    'Our team will review your message. For urgent matters, please call 0402 464 823.\n\n- ESA Engineering';
+  const teamAddress = String(process.env.ENQUIRY_NOTIFY_EMAIL || process.env.ADMIN_EMAIL || settings.adminEmail || '').trim();
+  const teamBody = 'New website enquiry #' + contact.id + '\n' +
+    'Name: ' + contact.fullName + '\nEmail: ' + contact.email + '\nService: ' + contact.serviceName +
+    '\n\nMessage:\n' + (contact.description || '-');
+  const results = await Promise.all([
+    sendMail(contact.email, 'Enquiry received - ESA Engineering', customerBody),
+    sendMail(teamAddress, 'New ESA website enquiry #' + contact.id, teamBody)
+  ]);
+  const acknowledgement = results[0];
+  const teamNotification = results[1];
+  const allSent = acknowledgement.status === 'sent' && teamNotification.status === 'sent';
+  let message;
+  if (allSent) {
+    message = 'Thanks — your enquiry is recorded. A confirmation email has been sent and the ESA team has been notified.';
+  } else if (acknowledgement.status === 'sent') {
+    message = 'Thanks — your enquiry is recorded and a confirmation email was sent. ESA team email delivery is not available right now; call us for urgent requests.';
+  } else if (teamNotification.status === 'sent') {
+    message = 'Thanks — your enquiry is recorded and the ESA team has been notified. A confirmation email could not be sent, so please save this page for your reference.';
+  } else if (!mailTransporter) {
+    message = 'Thanks — your enquiry is recorded. Automatic email delivery is not configured, so no email was sent. Call ESA for urgent requests.';
+  } else if (teamNotification.status === 'outbox') {
+    message = 'Thanks — your enquiry is recorded. Email delivery failed, but a copy was saved for the ESA team. Call us for urgent requests.';
+  } else if (acknowledgement.status === 'outbox') {
+    message = 'Thanks — your enquiry is recorded. A confirmation email could not be delivered, but a copy was saved locally. Call ESA for urgent requests.';
+  } else {
+    message = 'Thanks — your enquiry is recorded, but no email could be sent. Call ESA for urgent requests.';
+  }
+  return {
+    customerAcknowledgement: acknowledgement.status,
+    teamNotification: teamNotification.status,
+    smtpConfigured: Boolean(mailTransporter),
+    message
+  };
 }
 
 // ---- initial data ----
 let users = load('users', []);
+// Upgrade any old plain-text password rows as soon as the server starts.
+let migratedPasswords = false;
+if (Array.isArray(users)) {
+  users.forEach(user => {
+    if (user && user.password && !/^\$2[aby]\$/.test(String(user.password))) {
+      user.password = bcrypt.hashSync(String(user.password), 10);
+      migratedPasswords = true;
+    }
+  });
+  if (migratedPasswords) save('users', users);
+}
 let contacts = load('contacts', []);
 let bookings = load('bookings', []);
 let payments = load('payments', []);
@@ -227,8 +346,23 @@ function requireCustomer(req, res, next) {
 function fmtDate(iso) { if (!iso) return '—'; const d = new Date(iso); return isNaN(d) ? '—' : d.toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' }); }
 
 // ---- HEALTH ----
-app.get('/api/health', (req, res) => res.json({ status: 'UP', backend: 'Node fallback', timestamp: new Date().toISOString() }));
-app.get('/api/admin/health', (req, res) => res.json({ status: 'UP', backend: 'Node fallback', timestamp: new Date().toISOString() }));
+app.get('/api/health', (req, res) => res.json({ status: 'UP', backend: 'Node fallback', timestamp: new Date().toISOString(), demoCardPaymentsEnabled: DEMO_CARD_PAYMENTS_ENABLED }));
+app.get('/api/admin/health', (req, res) => res.json({ status: 'UP', backend: 'Node fallback', timestamp: new Date().toISOString(), demoCardPaymentsEnabled: DEMO_CARD_PAYMENTS_ENABLED }));
+
+app.get('/robots.txt', (req, res) => {
+  const lines = ['User-agent: *', 'Allow: /', 'Disallow: /api/', 'Disallow: /data/'];
+  PRIVATE_SITE_PAGES.forEach(page => lines.push('Disallow: /' + page));
+  if (PUBLIC_SITE_ORIGIN) lines.push('', 'Sitemap: ' + PUBLIC_SITE_ORIGIN + '/sitemap.xml');
+  res.type('text/plain').send(lines.join('\n') + '\n');
+});
+app.get('/sitemap.xml', (req, res) => {
+  if (!PUBLIC_SITE_ORIGIN) {
+    return res.status(404).type('text/plain').send('Set PUBLIC_SITE_URL to the official site origin to enable the sitemap.');
+  }
+  const urls = PUBLIC_SITEMAP_PAGES.map(page => '  <url><loc>' + PUBLIC_SITE_ORIGIN + '/' + page + '</loc></url>').join('\n');
+  res.type('application/xml').send('<?xml version="1.0" encoding="UTF-8"?>\n' +
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + urls + '\n</urlset>\n');
+});
 
 // ---- AUTH API (/api/auth) ----
 // ---- simple rate limiter for the auth endpoints ----
@@ -251,21 +385,49 @@ app.use('/api/auth', (req, res, next) => {
   next();
 });
 
+function makeRateLimit(maxHits, windowMs, message) {
+  const windows = new Map();
+  return (req, res, next) => {
+    const ip = req.ip || (req.socket && req.socket.remoteAddress) || 'unknown';
+    const now = Date.now();
+    let window = windows.get(ip);
+    if (!window || now - window.start >= windowMs) window = { start: now, count: 0 };
+    window.count++;
+    windows.set(ip, window);
+    if (windows.size > 2000) {
+      for (const [key, value] of windows) {
+        if (now - value.start >= windowMs) windows.delete(key);
+      }
+    }
+    if (window.count > maxHits) {
+      return res.status(429).json({ message: message, success: false });
+    }
+    next();
+  };
+}
+const limitEnquiries = makeRateLimit(10, 15 * 60 * 1000, 'Too many enquiries from here. Please wait a little before trying again.');
+const limitBookings = makeRateLimit(15, 15 * 60 * 1000, 'Too many booking requests from here. Please wait a little before trying again.');
+
 app.post('/api/auth/signup', (req, res) => {
-  const { firstName, lastName, fullName, companyName, email, password, phone, phoneNumber } = req.body;
-  let name = fullName || ((firstName||'') + ' ' + (lastName||'')).trim();
+  const { firstName, lastName, fullName, companyName, email, password, phone, phoneNumber } = req.body || {};
+  const name = String(fullName || ((firstName || '') + ' ' + (lastName || '')).trim()).trim();
+  const company = String(companyName || '').trim();
+  const contactPhone = String(phone || phoneNumber || '').trim();
   if (!name || !email || !password) return res.status(400).json({ message: 'All fields are required', success: false });
-  const normEmail = email.trim().toLowerCase();
-  if (users.some(u => u.email.toLowerCase() === normEmail)) return res.status(409).json({ message: 'That email already has an account. Try signing in instead.', success: false });
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normEmail)) return res.status(400).json({ message: 'Enter a valid email address', success: false });
-  if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(password)) return res.status(400).json({ message: 'Password must be at least 8 characters and include an uppercase letter, a lowercase letter and a number', success: false });
+  if (name.length > 100) return res.status(400).json({ message: 'Name must be 100 characters or fewer', success: false });
+  if (company.length > 200) return res.status(400).json({ message: 'Company name must be 200 characters or fewer', success: false });
+  if (contactPhone.length > 40) return res.status(400).json({ message: 'Phone must be 40 characters or fewer', success: false });
+  const normEmail = String(email).trim().toLowerCase();
+  if (normEmail.length > 254 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normEmail)) return res.status(400).json({ message: 'Enter a valid email address', success: false });
+  if (users.some(u => String(u.email || '').toLowerCase() === normEmail)) return res.status(409).json({ message: 'That email already has an account. Try signing in instead.', success: false });
+  if (typeof password !== 'string' || password.length > 200 || !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(password)) return res.status(400).json({ message: 'Password must be at least 8 characters and include an uppercase letter, a lowercase letter and a number', success: false });
 
   const id = users.length ? Math.max(...users.map(u=>u.id))+1 : 1;
   const hashed = bcrypt.hashSync(password, 10);
   const user = {
     id, fullName: name, name, firstName: firstName || name.split(' ')[0], lastName: lastName || name.split(' ').slice(1).join(' '),
-    email: normEmail, password: hashed, phone: phone || phoneNumber || '', phoneNumber: phone || phoneNumber || '',
-    company: companyName || '', companyName: companyName || '', role: 'CUSTOMER', active: true
+    email: normEmail, password: hashed, phone: contactPhone, phoneNumber: contactPhone,
+    company: company, companyName: company, role: 'CUSTOMER', active: true
   };
   users.push(user);
   save('users', users);
@@ -278,7 +440,8 @@ app.post('/api/auth/signin', (req, res) => {
   if (!email || !password) return res.status(400).json({ message: 'Email and password are required', success: false });
   const user = users.find(u => u.email.toLowerCase() === email.trim().toLowerCase());
   if (!user) return res.status(401).json({ message: 'Invalid email or password', success: false });
-  const ok = bcrypt.compareSync(password, user.password) || user.password === password; // allow plain for legacy
+  if (user.active === false) return res.status(403).json({ message: 'This account is inactive. Contact ESA for help.', success: false });
+  const ok = bcrypt.compareSync(password, user.password);
   if (!ok) return res.status(401).json({ message: 'Invalid email or password', success: false });
   const token = issueToken(user);
   const msg = user.role === 'ADMIN' ? 'Admin Login Successful' : 'Customer Login Successful';
@@ -336,7 +499,7 @@ app.post('/api/auth/reset-password', (req, res) => {
     save('password-resets', resets);
     return res.status(400).json({ message: 'That reset link has expired, please request a new one.' });
   }
-  if (!password || password.length < 8) return res.status(400).json({ message: 'Password needs at least 8 characters.' });
+  if (password.length > 200 || !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(password)) return res.status(400).json({ message: 'Password must be at least 8 characters and include an uppercase letter, a lowercase letter and a number.' });
   const user = users.find(u => String(u.email).toLowerCase() === rec.email);
   if (!user) return res.status(400).json({ message: 'That account does not exist any more, please contact us.' });
   user.password = bcrypt.hashSync(password, 10);
@@ -380,43 +543,111 @@ app.post('/auth/login', (req, res) => {
   const { email, password } = req.body;
   const user = users.find(u => u.email.toLowerCase() === (email||'').toLowerCase());
   if (!user) return res.send('Invalid Email or Password');
-  const ok = bcrypt.compareSync(password||'', user.password) || user.password === (password||'');
+  if (user.active === false) return res.send('This account is inactive. Contact ESA for help.');
+  const ok = bcrypt.compareSync(password || '', user.password);
   if (!ok) return res.send('Invalid Email or Password');
   return res.send(user.role === 'ADMIN' ? 'Admin Login Successful' : 'Customer Login Successful');
 });
 
 // ---- ADMIN DATA ----
+function melbourneDateKey(value) {
+  if (!value) return null;
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return null;
+  const parts = new Intl.DateTimeFormat('en-AU', {
+    timeZone: 'Australia/Melbourne', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).formatToParts(date);
+  const values = {};
+  parts.forEach(part => { values[part.type] = part.value; });
+  return values.year + '-' + values.month + '-' + values.day;
+}
+function shiftDateKey(value, days) {
+  const date = new Date(value + 'T00:00:00Z');
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+function isOpenBooking(booking) {
+  const status = String(booking.status || 'pending').toLowerCase();
+  return status !== 'cancelled' && status !== 'completed';
+}
+function isUpcomingBooking(booking, nowMs) {
+  if (!booking || !isOpenBooking(booking)) return false;
+  const date = String(booking.bookingDate || '').slice(0, 10);
+  const savedSlot = String(booking.preferredSlot || '');
+  const time = allowedSlots.has(savedSlot) ? savedSlot : '17:00';
+  const start = melbourneSlotTimestamp(date, time);
+  return Number.isFinite(start) && start > (nowMs === undefined ? Date.now() : nowMs);
+}
+function isOpenEnquiry(contact) {
+  const status = String(contact.status || 'new').toLowerCase();
+  return status !== 'resolved' && status !== 'closed';
+}
 function adminStats() {
-  const now = new Date();
-  const activeBookings = bookings.filter(b => {
-    if (!b.bookingDate) return false;
-    return new Date(b.bookingDate) >= new Date(now.toDateString());
+  const today = melbourneDateKey(new Date());
+  const now = Date.now();
+  const activeBookings = bookings.filter(b => isUpcomingBooking(b, now)).length;
+  const allPayments = payments;
+  const revenueCents = allPayments.reduce((sum, p) => {
+    return String(p.status || '').toLowerCase() === 'completed' ? sum + Math.round((Number(p.amount) || 0) * 100) : sum;
+  }, 0);
+  const revenue = revenueCents / 100;
+  const totalCustomers = users.filter(user => String(user.role || '').toUpperCase() === 'CUSTOMER').length;
+  const openEnquiries = contacts.filter(isOpenEnquiry);
+  const recentRequests = bookings.slice().sort((a, b) => Number(b.id) - Number(a.id)).slice(0, 5).map(b => ({
+    id: b.id, customer: b.fullName, service: b.serviceName, date: b.bookingDate,
+    time: b.preferredSlot || '', status: b.status || 'pending'
+  }));
+  const recentEnquiries = contacts.slice().sort((a, b) => Number(b.id) - Number(a.id)).slice(0, 5).map(c => ({
+    id: c.id, name: c.fullName, preview: c.description || '', status: c.status || 'new'
+  }));
+
+  // The chart and trend count requests by the day they were made, not the
+  // preferred appointment date selected by the customer.
+  const start = shiftDateKey(today, -13);
+  const countsByDay = {};
+  bookings.forEach(b => {
+    const created = melbourneDateKey(b.createdAt);
+    if (created && created >= start && created <= today) countsByDay[created] = (countsByDay[created] || 0) + 1;
+  });
+  const bookingsByDay = [];
+  for (let i = 13; i >= 0; i--) {
+    const date = shiftDateKey(today, -i);
+    bookingsByDay.push({ date, bookings: countsByDay[date] || 0 });
+  }
+  const thisWeekStart = shiftDateKey(today, -6);
+  const lastWeekStart = shiftDateKey(today, -13);
+  const requestsCreatedOn = date => {
+    const created = melbourneDateKey(date.createdAt);
+    return created;
+  };
+  const bookingsThisWeek = bookings.filter(b => {
+    const created = requestsCreatedOn(b);
+    return created && created >= thisWeekStart && created <= today;
   }).length;
-  const revenue = payments.reduce((sum, p) => sum + (Number(p.amount)||0), 0);
-  const recentRequests = bookings.slice(-5).reverse().map(b => ({
-    id: b.id, customer: b.fullName, service: b.serviceName, date: b.bookingDate, status: b.status || 'pending'
-  }));
-  const recentEnquiries = contacts.slice(-5).reverse().map(c => ({
-    id: c.id, name: c.fullName, preview: (c.description||'').slice(0,60), status: c.status||'new'
-  }));
-  // work queue: the things that need a human to look at them
-  const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const bookingsLastWeek = bookings.filter(b => {
+    const created = requestsCreatedOn(b);
+    return created && created >= lastWeekStart && created < thisWeekStart;
+  }).length;
+  const nextWeek = shiftDateKey(today, 7);
   const alerts = {
-    newEnquiries: contacts.filter(c => (c.status || 'new') === 'new').length,
-    pendingPayments: payments.filter(p => (p.status || '') === 'pending').length,
+    openEnquiries: openEnquiries.length,
+    pendingPayments: allPayments.filter(p => String(p.status || '').toLowerCase() === 'pending').length,
     bookingsNext7Days: bookings.filter(b => {
-      if (!b.bookingDate) return false;
-      const d = new Date(b.bookingDate);
-      return d >= new Date(now.toDateString()) && d <= nextWeek;
+      const date = melbourneDateKey(b.bookingDate);
+      return date && date <= nextWeek && isUpcomingBooking(b, now);
     }).length
   };
   return {
-    stats: { totalUsers: users.length, activeBookings, pendingEnquiries: contacts.length, revenue },
+    stats: { totalCustomers, upcomingBookings: activeBookings, openEnquiries: openEnquiries.length, paidRevenue: revenue },
     alerts,
-    recentRequests, recentEnquiries
+    recentRequests,
+    recentEnquiries,
+    bookingsByDay,
+    bookingsThisWeek,
+    bookingsLastWeek
   };
 }
-
 app.get('/api/admin/stats', requireAdmin, (req, res) => res.json(adminStats()));
 app.get('/admin/stats', requireAdmin, (req, res) => res.json(adminStats()));
 app.get('/api/admin/bookings', requireAdmin, (req, res) => {
@@ -425,6 +656,7 @@ app.get('/api/admin/bookings', requireAdmin, (req, res) => {
     customer: b.fullName,
     service: b.serviceName,
     date: b.bookingDate,
+    time: b.preferredSlot || '',
     email: b.email,
     phone: b.phone || '',
     abn: b.abnNumber || b.abn || '',
@@ -436,18 +668,18 @@ app.get('/api/admin/bookings', requireAdmin, (req, res) => {
 });
 
 app.get('/api/admin/customers', requireAdmin, (req, res) => {
-  const rows = users.map(u => ({
+  const rows = users.filter(u => String(u.role || '').toUpperCase() === 'CUSTOMER').map(u => ({
     id: u.id, name: u.fullName, email: u.email, phone: u.phone||u.phoneNumber||'', company: u.company||u.companyName||'', status: u.active ? 'active':'inactive', lastUpdated: null, role: (u.role||'customer').toLowerCase()
   }));
   res.json({ customers: rows, total: rows.length });
 });
 app.get('/api/admin/customers/:id', requireAdmin, (req, res) => {
-  const u = users.find(x=>String(x.id)===req.params.id);
+  const u = users.find(x=>String(x.id)===req.params.id && String(x.role || '').toUpperCase() === 'CUSTOMER');
   if (!u) return res.status(404).json({ message: 'Customer not found' });
   res.json({ customer: { id: u.id, name: u.fullName, email: u.email, phone: u.phone||u.phoneNumber, company: u.company||u.companyName, status: u.active?'active':'inactive', role: u.role.toLowerCase() } });
 });
 app.patch('/api/admin/customers/:id', requireAdmin, (req, res) => {
-  const u = users.find(x=>String(x.id)===req.params.id);
+  const u = users.find(x=>String(x.id)===req.params.id && String(x.role || '').toUpperCase() === 'CUSTOMER');
   if (!u) return res.status(404).json({ message: 'Customer not found' });
   const { firstName, lastName, phone, companyName, company, status } = req.body || {};
   if (firstName !== undefined || lastName !== undefined) {
@@ -475,7 +707,7 @@ app.patch('/api/admin/customers/:id', requireAdmin, (req, res) => {
 });
 
 app.get('/api/admin/enquiries', requireAdmin, (req, res) => {
-  const rows = [...contacts].reverse().map(c => ({
+  const rows = contacts.slice().sort((a, b) => Number(b.id) - Number(a.id)).map(c => ({
     id: c.id, name: c.fullName, email: c.email, subject: c.serviceName, message: c.description, status: c.status||'new', reply: c.reply||null, date: c.createdAt||null
   }));
   res.json({ enquiries: rows, total: rows.length });
@@ -594,7 +826,11 @@ app.get('/api/admin/audit', requireAdmin, (req, res) => {
 });
 
 // ---- PAGES CMS ----
+function isSafePageSlug(slug) {
+  return typeof slug === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*\.html$/.test(slug);
+}
 function discoverBlocksFromFile(slug) {
+  if (!isSafePageSlug(slug)) return {};
   const filePath = path.join(STATIC_DIR, slug);
   if (!fs.existsSync(filePath)) return {};
   const html = fs.readFileSync(filePath, 'utf8');
@@ -615,6 +851,7 @@ function discoverBlocksFromFile(slug) {
   return out;
 }
 function isHtmlBlock(slug, key) {
+  if (!isSafePageSlug(slug)) return false;
   const filePath = path.join(STATIC_DIR, slug);
   if (!fs.existsSync(filePath)) return false;
   const html = fs.readFileSync(filePath, 'utf8');
@@ -625,19 +862,28 @@ function isHtmlBlock(slug, key) {
 }
 
 app.get('/api/admin/pages', requireAdmin, (req, res) => {
-  res.json({ pages: pages.map(p=>({ id: p.id, title: p.title, slug: p.slug, status: p.status, updatedAt: p.updatedAt })), total: pages.length });
+  res.json({ pages: pages.map(p=>({
+    id: p.id, title: p.title, slug: p.slug, status: p.status, updatedAt: p.updatedAt,
+    hasStaticFile: isSafePageSlug(p.slug) && fs.existsSync(path.join(STATIC_DIR, p.slug))
+  })), total: pages.length });
 });
 app.post('/api/admin/pages', requireAdmin, (req, res) => {
-  const { title, slug } = req.body;
-  if (!title) return res.status(400).json({ message: 'Title is required' });
-  let finalSlug = slug && slug.trim() ? slug.trim() : title.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') + '.html';
+  const { title, slug } = req.body || {};
+  if (typeof title !== 'string' || !title.trim()) return res.status(400).json({ message: 'Title is required' });
+  if (title.trim().length > 100) return res.status(400).json({ message: 'Title must be 100 characters or fewer' });
+  let finalSlug = slug && String(slug).trim() ? String(slug).trim().toLowerCase() : title.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') + '.html';
+  if (!finalSlug.endsWith('.html')) finalSlug += '.html';
+  if (!isSafePageSlug(finalSlug)) return res.status(400).json({ message: 'Use a simple page name such as case-studies.html' });
   if (pages.some(p=>p.slug===finalSlug)) return res.status(409).json({ message: 'A page with that slug already exists' });
   const id = pages.length ? Math.max(...pages.map(p=>p.id))+1 : 1;
-  const page = { id, title: title.trim(), slug: finalSlug, status: 'published', updatedAt: new Date().toISOString() };
+  const page = {
+    id, title: title.trim(), slug: finalSlug, status: 'draft', updatedAt: new Date().toISOString(),
+    hasStaticFile: fs.existsSync(path.join(STATIC_DIR, finalSlug))
+  };
   pages.push(page);
   save('pages', pages);
   logAudit(req, 'page created', page.title || page.slug || String(page.id));
-  res.json({ page, message: 'Page created' });
+  res.json({ page, message: 'Page record created as a draft' });
 });
 app.get('/api/admin/pages/:id', requireAdmin, (req, res) => {
   const page = pages.find(p=>String(p.id)===req.params.id);
@@ -662,7 +908,10 @@ app.get('/api/admin/pages/:id', requireAdmin, (req, res) => {
       resultBlocks.push({ key: b.key, label: b.label||b.key, value: b.value, defaultValue: b.defaultValue||'', html: !!b.html, overridden: true });
     }
   }
-  res.json({ page: { id: page.id, title: page.title, slug: page.slug, status: page.status, updatedAt: page.updatedAt }, blocks: resultBlocks });
+  res.json({ page: {
+    id: page.id, title: page.title, slug: page.slug, status: page.status, updatedAt: page.updatedAt,
+    hasStaticFile: isSafePageSlug(page.slug) && fs.existsSync(path.join(STATIC_DIR, page.slug))
+  }, blocks: resultBlocks });
 });
 app.patch('/api/admin/pages/:id', requireAdmin, (req, res) => {
   const page = pages.find(p=>String(p.id)===req.params.id);
@@ -670,6 +919,9 @@ app.patch('/api/admin/pages/:id', requireAdmin, (req, res) => {
   if (req.body.status) {
     const s = req.body.status.toLowerCase();
     if (!['published','draft'].includes(s)) return res.status(400).json({ message: 'Status must be published or draft' });
+    if (s === 'published' && (!isSafePageSlug(page.slug) || !fs.existsSync(path.join(STATIC_DIR, page.slug)))) {
+      return res.status(400).json({ message: 'Add a matching page file in the static folder before publishing this page record.' });
+    }
     page.status = s;
     page.updatedAt = new Date().toISOString();
     save('pages', pages);
@@ -713,9 +965,10 @@ app.delete('/api/admin/pages/:id/blocks/:key', requireAdmin, (req, res) => {
 // ---- PUBLIC CONTENT ----
 app.get('/api/content', (req, res) => {
   const slug = req.query.slug || 'index.html';
+  if (!isSafePageSlug(String(slug))) return res.status(400).json({ message: 'Page name is not valid' });
   const page = pages.find(p=>p.slug===slug);
   const defaults = discoverBlocksFromFile(slug);
-  const persisted = page ? blocks.filter(b=>String(b.pageId)===String(page.id)) : [];
+  const persisted = page && page.status === 'published' ? blocks.filter(b=>String(b.pageId)===String(page.id)) : [];
   const map = {};
   for (const [k, v] of Object.entries(defaults)) map[k]=v;
   for (const b of persisted) map[b.key]=b.value;
@@ -745,7 +998,43 @@ function isDateOnly(value) {
   const d = new Date(String(value) + 'T00:00:00Z');
   return !isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
 }
-const allowedSlots = ['', '08:00', '10:00', '13:00', '15:00'];
+const BUSINESS_TIME_ZONE = 'Australia/Melbourne';
+const RESCHEDULE_CUTOFF_MINUTES = 90;
+const allowedSlots = new Set(Array.from({ length: 16 }, (_, index) => {
+  const minutes = 9 * 60 + index * 30;
+  return String(Math.floor(minutes / 60)).padStart(2, '0') + ':' + String(minutes % 60).padStart(2, '0');
+}));
+function melbourneSlotTimestamp(dateValue, timeValue) {
+  const date = String(dateValue || '').slice(0, 10);
+  const time = String(timeValue || '');
+  if (!isDateOnly(date) || !/^\d{2}:\d{2}$/.test(time)) return NaN;
+  const dateParts = date.split('-').map(Number);
+  const timeParts = time.split(':').map(Number);
+  const wallClockAsUtc = Date.UTC(dateParts[0], dateParts[1] - 1, dateParts[2], timeParts[0], timeParts[1]);
+  const localParts = new Intl.DateTimeFormat('en-AU', {
+    timeZone: BUSINESS_TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23'
+  }).formatToParts(new Date(wallClockAsUtc));
+  const values = {};
+  localParts.forEach(part => { values[part.type] = Number(part.value); });
+  const localAsUtc = Date.UTC(values.year, values.month - 1, values.day, values.hour, values.minute, values.second);
+  const offset = localAsUtc - wallClockAsUtc;
+  return wallClockAsUtc - offset;
+}
+function rescheduleCutoffTimestamp(booking) {
+  if (!booking || !isDateOnly(String(booking.bookingDate || '').slice(0, 10))) return NaN;
+  // Older bookings without a selected time use the 5pm close as their reference.
+  const time = allowedSlots.has(String(booking.preferredSlot || '')) ? String(booking.preferredSlot) : '17:00';
+  return melbourneSlotTimestamp(booking.bookingDate, time) - RESCHEDULE_CUTOFF_MINUTES * 60 * 1000;
+}
+function isRescheduleCutoffReached(booking, nowMs) {
+  const cutoff = rescheduleCutoffTimestamp(booking);
+  return !Number.isFinite(cutoff) || (nowMs === undefined ? Date.now() : nowMs) >= cutoff;
+}
+function canRescheduleBooking(booking) {
+  const status = String((booking && booking.status) || 'pending').toLowerCase();
+  return (status === 'pending' || status === 'confirmed') && !isRescheduleCutoffReached(booking);
+}
 const bookingSummary = (b) => {
   const p = payments.find(x => String(x.bookingId) === String(b.id)) || null;
   const payStatus = !p ? 'unpaid' : (p.status || 'incomplete');
@@ -757,7 +1046,11 @@ const bookingSummary = (b) => {
     paymentReference: p ? p.transactionId : null,
     // once a transfer is logged, customers must contact the office before changing the payment
     canCancel: (b.status === 'pending' || b.status === 'confirmed') && payStatus !== 'completed' && payStatus !== 'pending',
-    canPay: (b.status === 'pending' || b.status === 'confirmed') && payStatus !== 'completed' && payStatus !== 'cancelled' && payStatus !== 'pending'
+    canPay: (b.status === 'pending' || b.status === 'confirmed') && payStatus !== 'completed' && payStatus !== 'cancelled' && payStatus !== 'pending',
+    canReschedule: canRescheduleBooking(b),
+    rescheduleCutoff: Number.isFinite(rescheduleCutoffTimestamp(b))
+      ? new Date(rescheduleCutoffTimestamp(b)).toISOString()
+      : null
   };
 };
 const paymentSummary = (p) => ({
@@ -820,21 +1113,25 @@ app.get('/api/portal/bookings/:id', requireCustomer, (req, res) => {
 app.post('/api/portal/bookings/:id/reschedule', requireCustomer, (req, res) => {
   const b = ownBookings(req.customerEmail).find(x => String(x.id) === req.params.id);
   if (!b) return res.status(404).json({ message: 'Booking not found', success: false });
-  const status = b.status || 'pending';
+  const status = String(b.status || 'pending').toLowerCase();
   if (status === 'completed' || status === 'cancelled') {
-    return res.status(400).json({ message: 'This booking is ' + status + ' so it can not be moved, please call us.', success: false });
+    return res.status(400).json({ message: 'This booking is ' + status + ' and cannot be moved.', success: false });
   }
-  if (req.body.preferredDate) {
-    const date = String(req.body.preferredDate).slice(0, 10);
-    const today = new Date().toISOString().slice(0, 10);
-    if (!isDateOnly(date) || date < today) return res.status(400).json({ message: 'Please choose today or a future date.' });
-    b.bookingDate = date;
+  if (isRescheduleCutoffReached(b)) {
+    return res.status(400).json({ message: 'This booking is within 90 minutes of its requested time and can no longer be rescheduled. Please call ESA for help.', success: false });
   }
-  if (req.body.preferredSlot !== undefined && req.body.preferredSlot !== null) {
-    const slot = String(req.body.preferredSlot);
-    if (!allowedSlots.includes(slot)) return res.status(400).json({ message: 'Please choose one of the available time preferences.' });
-    b.preferredSlot = slot;
+  const date = String((req.body || {}).preferredDate || '').slice(0, 10);
+  const slot = String((req.body || {}).preferredSlot || '');
+  const today = melbourneDateKey(new Date());
+  if (!date || !isDateOnly(date) || date < today) {
+    return res.status(400).json({ message: 'Please choose today or a future date.' });
   }
+  if (!allowedSlots.has(slot)) return res.status(400).json({ message: 'Choose a time between 9:00 am and 4:30 pm.' });
+  if (melbourneSlotTimestamp(date, slot) <= Date.now() + RESCHEDULE_CUTOFF_MINUTES * 60 * 1000) {
+    return res.status(400).json({ message: 'Choose a new time more than 90 minutes from now.' });
+  }
+  b.bookingDate = date;
+  b.preferredSlot = slot;
   save('bookings', bookings);
   sendMail(req.customerEmail, 'Your booking #' + b.id + ' was moved',
     'Hi ' + b.fullName + ',\n\nYour ' + b.serviceName + ' booking is now set for ' + b.bookingDate +
@@ -895,22 +1192,32 @@ app.put('/api/admin/settings', requireAdmin, (req, res) => {
 });
 
 // ---- BOOKINGS & ENQUIRIES ----
-app.post('/api/bookings', requireCustomer, (req, res) => {
+app.post('/api/bookings', limitBookings, requireCustomer, (req, res) => {
   const { name, fullName, phone, service, serviceName, notes, description, message } = req.body || {};
   const finalName = String(name || fullName || '').trim();
+  const finalPhone = String(phone || '').trim();
+  const finalService = String(service || serviceName || 'General Inquiry').trim();
+  const finalNotes = String(notes || description || message || '').trim();
   const finalEmail = req.customerEmail;
   if (!finalName) return res.status(400).json({ message: 'Name is required', success: false });
+  if (finalName.length > 100) return res.status(400).json({ message: 'Name must be 100 characters or fewer', success: false });
+  if (finalPhone.length > 40) return res.status(400).json({ message: 'Phone must be 40 characters or fewer', success: false });
+  if (finalService.length > 100) return res.status(400).json({ message: 'Service must be 100 characters or fewer', success: false });
+  if (finalNotes.length > 1000) return res.status(400).json({ message: 'Please keep your notes to 1,000 characters or fewer', success: false });
   const preferredDate = String(req.body.preferredDate || '').slice(0, 10);
-  const today = new Date().toISOString().slice(0, 10);
-  if (preferredDate && (!isDateOnly(preferredDate) || preferredDate < today)) {
-    return res.status(400).json({ message: 'Please choose today or a future preferred date.' });
+  const today = melbourneDateKey(new Date());
+  if (!preferredDate || !isDateOnly(preferredDate) || preferredDate < today) {
+    return res.status(400).json({ message: 'Please choose today or a future booking date.' });
   }
   const preferredSlot = String(req.body.preferredSlot || '');
-  if (!allowedSlots.includes(preferredSlot)) return res.status(400).json({ message: 'Please choose one of the available time preferences.' });
+  if (!allowedSlots.has(preferredSlot)) return res.status(400).json({ message: 'Choose a time between 9:00 am and 4:30 pm.' });
+  if (melbourneSlotTimestamp(preferredDate, preferredSlot) <= Date.now()) {
+    return res.status(400).json({ message: 'Choose a time that has not passed.' });
+  }
   const id = bookings.length ? Math.max(...bookings.map(b=>b.id))+1 : 1;
   const booking = {
-    id, fullName: finalName, name: finalName, email: finalEmail, phone: phone||'', service: service||serviceName||'General Inquiry', serviceName: service||serviceName||'General Inquiry',
-    notes: notes||description||message||'', description: notes||description||message||'',
+    id, fullName: finalName, name: finalName, email: finalEmail, phone: finalPhone, service: finalService, serviceName: finalService,
+    notes: finalNotes, description: finalNotes,
     // if they picked a preferred date on the form use that, otherwise today
     preferredSlot: preferredSlot,
     bookingDate: preferredDate || today,
@@ -927,7 +1234,7 @@ app.post('/api/bookings', requireCustomer, (req, res) => {
     'The next step is the payment page (payment.html?booking=' + id + ') where you can pay by card or log a bank transfer.\n\n- ESA Engineering';
   sendMail(finalEmail, bookingEmailSubject, bookingEmailBody);
   sendMail(settings.adminEmail, 'New booking #' + id + ' - ' + booking.serviceName,
-    finalName + ' (' + finalEmail + ', ' + (phone || 'no phone') + ') booked ' + booking.serviceName + '.\nNotes: ' + (notes || '-'));
+    finalName + ' (' + finalEmail + ', ' + (finalPhone || 'no phone') + ') booked ' + booking.serviceName + '.\nNotes: ' + (finalNotes || '-'));
   const payId = payments.length ? Math.max(...payments.map(p=>p.id))+1 : 1;
   const payment = { id: payId, transactionId: `ESA-${id}-${Math.random().toString(36).substring(2,8).toUpperCase()}`, customerName: finalName, amount: CONSULTATION_FEE, status: 'incomplete', paymentDate: null, bookingId: id };
   payments.push(payment);
@@ -959,34 +1266,91 @@ app.get('/api/enquiries/:id', requireCustomer, (req, res) => {
   res.json({ enquiry: { id: c.id, name: c.fullName, email: c.email, service: c.serviceName, message: c.description, status: c.status, createdAt: c.createdAt, reply: c.reply } });
 });
 
-app.post('/api/enquiries', (req, res) => {
-  const { name, fullName, email, type, serviceName, subject, message, description } = req.body;
-  const finalName = name || fullName;
-  const finalEmail = email;
+app.post('/api/enquiries', limitEnquiries, async (req, res) => {
+  const body = req.body || {};
+  const finalName = String(body.name || body.fullName || '').trim();
+  const finalEmail = String(body.email || '').trim().toLowerCase();
+  const service = String(body.type || body.serviceName || body.subject || 'General Inquiry').trim();
+  const message = String(body.message || body.description || '').trim();
   if (!finalName || !finalEmail) return res.status(400).json({ message: 'Name and email are required', success: false });
-  const id = contacts.length ? Math.max(...contacts.map(c=>c.id))+1 : 1;
-  // attachment comes in as base64 from the contact form (no multipart needed)
+  if (!message) return res.status(400).json({ message: 'Please add a short message so we know how to help.', success: false });
+  if (finalName.length > 100) return res.status(400).json({ message: 'Name must be 100 characters or fewer', success: false });
+  if (finalEmail.length > 100 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(finalEmail)) {
+    return res.status(400).json({ message: 'Enter a valid email address', success: false });
+  }
+  if (service.length > 100) return res.status(400).json({ message: 'Inquiry type must be 100 characters or fewer', success: false });
+  if (message.length > 2000) return res.status(400).json({ message: 'Please keep your message to 2,000 characters or fewer', success: false });
+
+  const hasAttachmentName = Boolean(body.attachmentName);
+  const hasAttachmentData = Boolean(body.attachmentData);
   let attachNote = '';
-  if (req.body.attachmentName && req.body.attachmentData) {
+  let attachment = null;
+  if (hasAttachmentName !== hasAttachmentData) {
+    return res.status(400).json({ message: 'Please choose the attachment again and try once more.', success: false });
+  }
+  if (hasAttachmentName) {
+    const type = String(body.attachmentType || '').toLowerCase();
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+    const data = String(body.attachmentData || '');
+    const name = String(body.attachmentName || 'attachment');
+    if (name.length > 120 || allowedTypes.indexOf(type) === -1) {
+      return res.status(400).json({ message: 'Attachments must be a PDF, JPG or PNG file under 3MB.', success: false });
+    }
+    if (data.length > 4 * 1024 * 1024 || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(data)) {
+      return res.status(400).json({ message: 'That attachment could not be read. Please choose it again.', success: false });
+    }
+    const bytes = Buffer.from(data, 'base64');
+    if (!bytes.length || bytes.length > 3 * 1024 * 1024) {
+      return res.status(400).json({ message: 'Attachments must be under 3MB.', success: false });
+    }
+    const looksLikeFile = type === 'application/pdf'
+      ? bytes.subarray(0, 5).toString() === '%PDF-'
+      : type === 'image/jpeg'
+        ? bytes.length > 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
+        : bytes.length > 8 && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+    if (!looksLikeFile) return res.status(400).json({ message: 'The attachment does not match its file type.', success: false });
+
+    const safeName = path.basename(name).replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120) || 'attachment';
+    attachNote = '\n[attachment saved as ' + safeName + ']';
+    if (message.length + attachNote.length > 2000) {
+      return res.status(400).json({ message: 'Please shorten the message a little to include the attachment name.', success: false });
+    }
+    attachment = { bytes, safeName };
+  }
+
+  if (attachment) {
     try {
       const upDir = path.join(DATA_DIR, 'uploads');
-      if (!fs.existsSync(upDir)) fs.mkdirSync(upDir, { recursive: true });
-      const safe = String(req.body.attachmentName).replace(/[^a-zA-Z0-9._-]/g, '_');
-      const fname = Date.now() + '-' + safe;
-      fs.writeFileSync(path.join(upDir, fname), Buffer.from(String(req.body.attachmentData), 'base64'));
-      attachNote = '\n[attachment saved as ' + fname + ']';
+      if (!fs.existsSync(upDir)) fs.mkdirSync(upDir, { recursive: true, mode: 0o700 });
+      const fileName = Date.now() + '-' + crypto.randomUUID() + '-' + attachment.safeName;
+      fs.writeFileSync(path.join(upDir, fileName), attachment.bytes, { mode: 0o600, flag: 'wx' });
     } catch (e) {
       console.log('[upload] could not save attachment: ' + e.message);
+      return res.status(500).json({ message: 'We could not save that attachment. Please try again or send it by email.', success: false });
     }
   }
-  const contact = { id, fullName: finalName, name: finalName, email: finalEmail, serviceName: type||serviceName||subject||'General Inquiry', description: (message||description||'') + attachNote, status: 'new', reply: null, createdAt: new Date().toISOString() };
+
+  const id = contacts.length ? Math.max(...contacts.map(c => Number(c.id) || 0)) + 1 : 1;
+  const contact = {
+    id,
+    fullName: finalName,
+    name: finalName,
+    email: finalEmail,
+    serviceName: service || 'General Inquiry',
+    description: message + attachNote,
+    status: 'new',
+    reply: null,
+    createdAt: new Date().toISOString()
+  };
   contacts.push(contact);
   save('contacts', contacts);
-  sendMail(finalEmail, 'We got your enquiry - ' + contact.serviceName,
-    'Hi ' + finalName + ',\n\nThanks for getting in touch about ' + contact.serviceName + '.\nOne of our engineers will reply within 1 business day.\n\n- ESA Engineering');
-  sendMail(settings.adminEmail, 'New enquiry #' + id + ' - ' + contact.serviceName,
-    finalName + ' (' + finalEmail + ') wrote: ' + (contact.description || '-'));
-  res.json({ message: "Thanks - we've received your request and will be in touch shortly.", success: true, enquiry: { id } });
+  const emailDelivery = await sendEnquiryNotifications(contact);
+  res.json({
+    message: emailDelivery.message,
+    success: true,
+    enquiry: { id },
+    emailDelivery
+  });
 });
 
 // ---- BANK TRANSFER PAYMENTS ----
@@ -1035,6 +1399,9 @@ function luhnOk(raw) {
 }
 
 app.post('/api/payments/:id/card', requireCustomer, (req, res) => {
+  if (!DEMO_CARD_PAYMENTS_ENABLED) {
+    return res.status(503).json({ message: 'Demo card payments are turned off. Please use the bank transfer option or contact ESA.', success: false });
+  }
   const p = payments.find(x => String(x.id) === req.params.id);
   if (!p || !paymentBelongsTo(req.customerEmail, p)) return res.status(404).json({ message: 'Payment not found', success: false });
   const booking = paymentBooking(p);
@@ -1112,6 +1479,19 @@ app.put('/about/:field', requireAdmin, (req, res) => {
   save('aboutContent', aboutContent);
   logAudit(req, 'about content updated', req.params.field);
   res.json({ message: 'Updated', success: true });
+});
+
+// Return clear JSON for large or malformed API bodies without exposing a stack trace.
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  if (err && err.type === 'entity.too.large') {
+    return res.status(413).json({ message: 'Request is too large. Please reduce the file or message size.', success: false });
+  }
+  if (err && err.type === 'entity.parse.failed') {
+    return res.status(400).json({ message: 'Request body must be valid JSON.', success: false });
+  }
+  console.error('[request] ' + (err && err.message ? err.message : 'Unknown error'));
+  return res.status(500).json({ message: 'The request could not be completed.', success: false });
 });
 
 // ---- STATIC FILES (must be after API) ----

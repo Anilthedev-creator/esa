@@ -6,6 +6,17 @@ const path = require('node:path');
 const net = require('node:net');
 const { test } = require('node:test');
 
+function melbourneDate(offsetDays) {
+  const parts = new Intl.DateTimeFormat('en-AU', {
+    timeZone: 'Australia/Melbourne', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).formatToParts(new Date());
+  const values = {};
+  parts.forEach((part) => { values[part.type] = Number(part.value); });
+  const date = new Date(Date.UTC(values.year, values.month - 1, values.day));
+  date.setUTCDate(date.getUTCDate() + (offsetDays || 0));
+  return date.toISOString().slice(0, 10);
+}
+
 function freePort() {
   return new Promise((resolve, reject) => {
     const probe = net.createServer();
@@ -24,6 +35,11 @@ function startServer(port, dataDir, demoEmailPreview) {
       PORT: String(port),
       ESA_DATA_DIR: dataDir,
       NODE_ENV: 'test',
+      SMTP_HOST: '',
+      SMTP_USER: '',
+      SMTP_PASSWORD: '',
+      MAIL_FROM: '',
+      ENQUIRY_NOTIFY_EMAIL: '',
       ESA_DEMO_EMAIL_PREVIEW: demoEmailPreview === false ? 'false' : 'true'
     }),
     stdio: ['ignore', 'pipe', 'pipe']
@@ -86,9 +102,9 @@ async function api(base, route, options) {
 
 test('Node API scopes booking and payment data and protects the sandbox card flow', async (t) => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'esa-node-api-test-'));
-  const port = await freePort();
-  const base = 'http://127.0.0.1:' + port;
-  const { child, ready } = startServer(port, dataDir);
+  let port = await freePort();
+  let base = 'http://127.0.0.1:' + port;
+  let { child, ready } = startServer(port, dataDir);
 
   try {
     await ready;
@@ -151,7 +167,7 @@ test('Node API scopes booking and payment data and protects the sandbox card flo
       token: aliceToken,
       body: {
         name: 'Alice Customer', email: 'bob@example.com', phone: '0400000000',
-        service: 'Plant Commissioning', preferredDate: new Date().toISOString().slice(0, 10),
+        service: 'Plant Commissioning', preferredDate: melbourneDate(1),
         preferredSlot: '10:00'
       }
     });
@@ -173,23 +189,52 @@ test('Node API scopes booking and payment data and protects the sandbox card flo
       body: { name: 'Alice', preferredDate: '2026-02-31', preferredSlot: '10:00' }
     });
     assert.equal(badBookingDate.status, 400);
+    const offGridSlot = await api(base, '/api/bookings', {
+      method: 'POST', token: aliceToken,
+      body: { name: 'Alice Customer', preferredDate: melbourneDate(1), preferredSlot: '09:15' }
+    });
+    assert.equal(offGridSlot.status, 400);
+    const missingBookingTime = await api(base, '/api/bookings', {
+      method: 'POST', token: aliceToken,
+      body: { name: 'Alice Customer', preferredDate: melbourneDate(1), preferredSlot: '' }
+    });
+    assert.equal(missingBookingTime.status, 400);
 
     const slotBooking = await api(base, '/api/bookings', {
       method: 'POST', token: aliceToken,
-      body: { name: 'Alice Customer', service: 'Waste Management', preferredSlot: '10:00' }
+      body: { name: 'Alice Customer', service: 'Waste Management', preferredDate: melbourneDate(1), preferredSlot: '10:00' }
     });
-    const todayForReschedule = new Date().toISOString().slice(0, 10);
-    const clearedSlot = await api(base, '/api/portal/bookings/' + slotBooking.data.booking.id + '/reschedule', {
+    const movedSlot = await api(base, '/api/portal/bookings/' + slotBooking.data.booking.id + '/reschedule', {
       method: 'POST', token: aliceToken,
-      body: { preferredDate: todayForReschedule, preferredSlot: '' }
+      body: { preferredDate: melbourneDate(2), preferredSlot: '10:30' }
     });
-    assert.equal(clearedSlot.status, 200);
-    assert.equal(clearedSlot.data.booking.preferredSlot, null);
+    assert.equal(movedSlot.status, 200, JSON.stringify(movedSlot.data));
+    assert.equal(movedSlot.data.booking.preferredSlot, '10:30');
     const invalidSlot = await api(base, '/api/portal/bookings/' + slotBooking.data.booking.id + '/reschedule', {
       method: 'POST', token: aliceToken,
-      body: { preferredSlot: '25:00' }
+      body: { preferredDate: melbourneDate(3), preferredSlot: '25:00' }
     });
     assert.equal(invalidSlot.status, 400);
+
+    await stopServer(child);
+    const persistedBookings = JSON.parse(fs.readFileSync(path.join(dataDir, 'bookings.json'), 'utf8'));
+    const lockedBooking = persistedBookings.find((booking) => String(booking.id) === String(slotBooking.data.booking.id));
+    lockedBooking.bookingDate = melbourneDate(-1);
+    lockedBooking.preferredSlot = '10:00';
+    fs.writeFileSync(path.join(dataDir, 'bookings.json'), JSON.stringify(persistedBookings, null, 2));
+    port = await freePort();
+    base = 'http://127.0.0.1:' + port;
+    const restarted = startServer(port, dataDir);
+    child = restarted.child;
+    await restarted.ready;
+    const lockedReschedule = await api(base, '/api/portal/bookings/' + slotBooking.data.booking.id + '/reschedule', {
+      method: 'POST', token: aliceToken,
+      body: { preferredDate: melbourneDate(2), preferredSlot: '11:00' }
+    });
+    assert.equal(lockedReschedule.status, 400);
+    const lockedPortal = await api(base, '/api/portal/summary', { token: aliceToken });
+    const lockedSummary = lockedPortal.data.bookings.find((booking) => String(booking.bookingId) === String(slotBooking.data.booking.id));
+    assert.equal(lockedSummary.canReschedule, false);
 
     assert.equal((await api(base, '/api/payments/' + paymentId, { token: bobToken })).status, 404);
     assert.equal((await api(base, '/api/payments/' + paymentId + '/confirm', {
@@ -233,7 +278,7 @@ test('Node API scopes booking and payment data and protects the sandbox card flo
 
     const cardBooking = await api(base, '/api/bookings', {
       method: 'POST', token: aliceToken,
-      body: { name: 'Alice Customer', email: 'somebody-else@example.com', service: 'Utility Appraisals' }
+      body: { name: 'Alice Customer', email: 'somebody-else@example.com', service: 'Utility Appraisals', preferredDate: melbourneDate(1), preferredSlot: '11:00' }
     });
     const cardPaymentId = cardBooking.data.payment.id;
     const cardResponse = await api(base, '/api/payments/' + cardPaymentId + '/card', {
@@ -279,9 +324,14 @@ test('Node API scopes booking and payment data and protects the sandbox card flo
     assert.equal(Object.hasOwn(adminReset.data, 'demoEmailPreview'), false);
     const adminBooking = await api(base, '/api/bookings', {
       method: 'POST', token: newAdminSignin.data.token,
-      body: { name: 'Demo Admin', service: 'Waste Management' }
+      body: { name: 'Demo Admin', service: 'Waste Management', preferredDate: melbourneDate(1), preferredSlot: '09:30' }
     });
     assert.equal(Object.hasOwn(adminBooking.data, 'demoEmailPreview'), false);
+    const adminDashboard = await api(base, '/api/admin/stats', { token: adminSignin.data.token });
+    assert.equal(adminDashboard.data.stats.upcomingBookings, 3);
+    const adminBookingRows = await api(base, '/api/admin/bookings', { token: adminSignin.data.token });
+    const requestedBooking = adminBookingRows.data.bookings.find((booking) => String(booking.bookingId) === String(adminBooking.data.booking.id));
+    assert.equal(requestedBooking.time, '09:30');
     const adminBookings = await api(base, '/api/bookings', { token: adminSignin.data.token });
     assert.equal(adminBookings.status, 200);
     const adminPayments = await api(base, '/api/admin/payments', { token: adminSignin.data.token });
@@ -293,13 +343,23 @@ test('Node API scopes booking and payment data and protects the sandbox card flo
       method: 'POST', body: { name: 'Alice', email: 'alice@example.com', message: 'private detail' }
     });
     const enquiryId = enquiry.data.enquiry.id;
+    assert.deepEqual(enquiry.data.emailDelivery, {
+      customerAcknowledgement: 'outbox',
+      teamNotification: 'outbox',
+      smtpConfigured: false,
+      message: 'Thanks — your enquiry is recorded. Automatic email delivery is not configured, so no email was sent. Call ESA for urgent requests.'
+    });
+    const outboxFiles = fs.readdirSync(path.join(dataDir, 'outbox')).map((name) => fs.readFileSync(path.join(dataDir, 'outbox', name), 'utf8'));
+    assert.ok(outboxFiles.some((content) => content.includes('Subject: Enquiry received - ESA Engineering') && content.includes('#' + enquiryId)));
+    assert.ok(outboxFiles.some((content) => content.includes('Subject: New ESA website enquiry #' + enquiryId) && content.includes('private detail')));
     assert.equal((await api(base, '/api/enquiries/' + enquiryId, { token: aliceToken })).status, 200);
     assert.equal((await api(base, '/api/enquiries/' + enquiryId, { token: bobToken })).status, 404);
     assert.equal((await api(base, '/api/enquiries/' + enquiryId)).status, 401);
 
     await t.test('sandbox card route rejects malformed card data without storing it', async () => {
       const invalidBooking = await api(base, '/api/bookings', {
-        method: 'POST', token: aliceToken, body: { name: 'Alice Customer', service: 'Waste Management' }
+        method: 'POST', token: aliceToken,
+        body: { name: 'Alice Customer', service: 'Waste Management', preferredDate: melbourneDate(1), preferredSlot: '13:30' }
       });
       const invalid = await api(base, '/api/payments/' + invalidBooking.data.payment.id + '/card', {
         method: 'POST', token: aliceToken,
@@ -375,7 +435,7 @@ test('admin edits are audited and data can be read again after a Node restart', 
       method: 'POST', token: customerToken,
       body: {
         name: 'Saved Customer', phone: '0412345678', service: 'Waste Management',
-        notes: 'saved booking notes', preferredDate: new Date().toISOString().slice(0, 10), preferredSlot: '10:00'
+        notes: 'saved booking notes', preferredDate: melbourneDate(1), preferredSlot: '10:00'
       }
     });
     assert.equal(booking.status, 200);
@@ -521,7 +581,8 @@ test('admin edits are audited and data can be read again after a Node restart', 
     assert.equal(savedPage.data.blocks.find((block) => block.key === 'audit-test').value, 'saved page content');
     assert.equal(savedPage.data.blocks.some((block) => block.key === 'reset-test'), false);
     const publicContent = await api(base, '/api/content?slug=persistence-test.html');
-    assert.equal(publicContent.data.blocks['audit-test'], 'saved page content');
+    assert.equal(publicContent.data.page.status, 'draft');
+    assert.equal(publicContent.data.blocks['audit-test'], undefined);
 
     const settings = await api(base, '/api/admin/settings', { token: adminToken });
     assert.equal(settings.data.settings.siteName, 'Saved ESA name');
@@ -567,7 +628,7 @@ test('Node keeps email previews off unless the demo flag is enabled', async () =
 
     const booking = await api(base, '/api/bookings', {
       method: 'POST', token: customer.data.token,
-      body: { name: 'Demo Customer', service: 'Plant Commissioning' }
+      body: { name: 'Demo Customer', service: 'Plant Commissioning', preferredDate: melbourneDate(1), preferredSlot: '15:00' }
     });
     assert.equal(Object.hasOwn(booking.data, 'demoEmailPreview'), false);
   } finally {
@@ -584,6 +645,7 @@ test('Node production startup refuses demo secrets, missing admin credentials, a
       cwd: path.join(__dirname, '..'),
       env: Object.assign({}, process.env, {
         NODE_ENV: 'production', PORT: '0', ESA_DATA_DIR: dataDir,
+        ESA_DEMO_CARD_PAYMENTS: 'false',
         JWT_SECRET: '', ADMIN_EMAIL: '', ADMIN_PASSWORD: '', ESA_DEMO_EMAIL_PREVIEW: 'false'
       }),
       encoding: 'utf8', timeout: 5000
@@ -595,6 +657,7 @@ test('Node production startup refuses demo secrets, missing admin credentials, a
       cwd: path.join(__dirname, '..'),
       env: Object.assign({}, process.env, {
         NODE_ENV: 'production', PORT: '0', ESA_DATA_DIR: dataDir,
+        ESA_DEMO_CARD_PAYMENTS: 'false',
         JWT_SECRET: 'a-unique-production-secret-for-node-tests',
         ADMIN_EMAIL: '', ADMIN_PASSWORD: '', ESA_DEMO_EMAIL_PREVIEW: 'false'
       }),
@@ -607,6 +670,7 @@ test('Node production startup refuses demo secrets, missing admin credentials, a
       cwd: path.join(__dirname, '..'),
       env: Object.assign({}, process.env, {
         NODE_ENV: 'production', PORT: '0', ESA_DATA_DIR: dataDir,
+        ESA_DEMO_CARD_PAYMENTS: 'false',
         JWT_SECRET: 'another-unique-production-secret-for-tests',
         ADMIN_EMAIL: 'admin@example.com', ADMIN_PASSWORD: 'StrongAdminPass9',
         ESA_DEMO_EMAIL_PREVIEW: 'true'

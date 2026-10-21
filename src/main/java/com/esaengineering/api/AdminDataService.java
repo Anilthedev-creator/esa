@@ -7,6 +7,8 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
+import java.time.ZoneId;
 
 import com.esaengineering.model.Booking;
 import com.esaengineering.model.Contact;
@@ -49,38 +51,47 @@ public class AdminDataService {
     public Map<String, Object> stats() {
         List<Booking> bookings = newestFirst(bookingRepository.findAll());
         List<Contact> enquiries = contactRepository.findAll();
+        List<Payment> payments = paymentRepository.findAll();
+        LocalDate today = LocalDate.now(ZoneId.of("Australia/Melbourne"));
+        java.time.Instant now = java.time.Instant.now();
 
-        LocalDate today = LocalDate.now();
-
-        long activeBookings = 0;
-        for (Booking booking : bookings) {
-            if (booking.getBookingDate() != null && !booking.getBookingDate().isBefore(today)) {
-                activeBookings++;
-            }
-        }
+        long upcomingBookings = bookings.stream().filter(booking -> {
+            String status = booking.getStatus() == null ? "pending" : booking.getStatus().trim().toLowerCase(Locale.ROOT);
+            return BookingSchedule.isUpcoming(booking.getBookingDate(), booking.getPreferredSlot(), now)
+                    && !"cancelled".equals(status)
+                    && !"completed".equals(status);
+        }).count();
 
         BigDecimal revenue = BigDecimal.ZERO;
-        for (Payment payment : paymentRepository.findAll()) {
-            if (payment.getAmount() != null) {
+        long pendingPayments = 0;
+        for (Payment payment : payments) {
+            String status = payment.getStatus() == null ? "incomplete" : payment.getStatus().trim().toLowerCase(Locale.ROOT);
+            if ("completed".equals(status) && payment.getAmount() != null) {
                 revenue = revenue.add(payment.getAmount());
             }
+            if ("pending".equals(status)) pendingPayments++;
         }
+
+        long openEnquiries = enquiries.stream().filter(contact -> {
+            String status = contact.getStatus() == null ? "new" : contact.getStatus().trim().toLowerCase(Locale.ROOT);
+            return !"resolved".equals(status) && !"closed".equals(status);
+        }).count();
 
         List<Map<String, Object>> recentRequests = new ArrayList<>();
         for (Booking booking : bookings.subList(0, Math.min(RECENT_LIMIT, bookings.size()))) {
-            boolean upcoming = booking.getBookingDate() != null && !booking.getBookingDate().isBefore(today);
-            String status = booking.getStatus() != null ? booking.getStatus() : (upcoming ? "confirmed" : "completed");
+            String status = booking.getStatus() != null ? booking.getStatus() : "pending";
             recentRequests.add(row(
                     "id", booking.getBookingID(),
                     "customer", booking.getFullName(),
                     "service", booking.getServiceName(),
                     "date", booking.getBookingDate(),
+                    "time", booking.getPreferredSlot() == null ? "" : booking.getPreferredSlot(),
                     "status", status));
         }
 
         List<Map<String, Object>> recentEnquiries = new ArrayList<>();
         List<Contact> reversed = new ArrayList<>(enquiries);
-        java.util.Collections.reverse(reversed);
+        reversed.sort((a, b) -> Long.compare(b.getContactId(), a.getContactId()));
         for (Contact contact : reversed.subList(0, Math.min(RECENT_LIMIT, reversed.size()))) {
             recentEnquiries.add(row(
                     "id", contact.getContactId(),
@@ -89,28 +100,43 @@ public class AdminDataService {
                     "status", contact.getStatus() != null ? contact.getStatus() : "new"));
         }
 
-        // Replaces the old /analytics/activity feed, which only ever counted
-        // hits on one page. Bookings are real rows, so this series and the
-        // week-on-week trend are honest numbers.
+        // The chart counts the day a booking was made, not the requested service date.
         List<Map<String, Object>> bookingsByDay = bookingsPerDay(bookings, 14, today);
-
-        LocalDate weekStart = today.minusDays(6);
-        LocalDate prevWeekStart = today.minusDays(13);
+        LocalDate thisWeekStart = today.minusDays(6);
+        LocalDate lastWeekStart = today.minusDays(13);
         long thisWeek = bookings.stream()
-                .filter(b -> b.getBookingDate() != null && !b.getBookingDate().isBefore(weekStart))
+                .filter(b -> b.getCreatedAt() != null
+                        && !b.getCreatedAt().toLocalDate().isBefore(thisWeekStart)
+                        && !b.getCreatedAt().toLocalDate().isAfter(today))
                 .count();
         long lastWeek = bookings.stream()
-                .filter(b -> b.getBookingDate() != null
-                        && !b.getBookingDate().isBefore(prevWeekStart)
-                        && b.getBookingDate().isBefore(weekStart))
+                .filter(b -> b.getCreatedAt() != null
+                        && !b.getCreatedAt().toLocalDate().isBefore(lastWeekStart)
+                        && b.getCreatedAt().toLocalDate().isBefore(thisWeekStart))
                 .count();
+
+        long bookingsNext7Days = bookings.stream()
+                .filter(b -> {
+                    String status = b.getStatus() == null ? "pending" : b.getStatus().trim().toLowerCase(Locale.ROOT);
+                    return b.getBookingDate() != null
+                            && !b.getBookingDate().isAfter(today.plusDays(7))
+                            && BookingSchedule.isUpcoming(b.getBookingDate(), b.getPreferredSlot(), now)
+                            && !"cancelled".equals(status)
+                            && !"completed".equals(status);
+                })
+                .count();
+        Map<String, Object> alerts = row(
+                "openEnquiries", openEnquiries,
+                "pendingPayments", pendingPayments,
+                "bookingsNext7Days", bookingsNext7Days);
 
         return row(
                 "stats", row(
-                        "totalUsers", userRepository.count(),
-                        "activeBookings", activeBookings,
-                        "pendingEnquiries", (long) enquiries.size(),
-                        "revenue", revenue),
+                        "totalCustomers", userRepository.countByRole(Role.CUSTOMER),
+                        "upcomingBookings", upcomingBookings,
+                        "openEnquiries", openEnquiries,
+                        "paidRevenue", revenue),
+                "alerts", alerts,
                 "recentRequests", recentRequests,
                 "recentEnquiries", recentEnquiries,
                 "bookingsByDay", bookingsByDay,
@@ -122,8 +148,8 @@ public class AdminDataService {
     private List<Map<String, Object>> bookingsPerDay(List<Booking> bookings, int days, LocalDate today) {
         Map<LocalDate, Long> counts = new HashMap<>();
         for (Booking b : bookings) {
-            if (b.getBookingDate() == null) continue;
-            LocalDate d = b.getBookingDate();
+            if (b.getCreatedAt() == null) continue;
+            LocalDate d = b.getCreatedAt().toLocalDate();
             if (d.isBefore(today.minusDays(days - 1)) || d.isAfter(today)) continue;
             counts.merge(d, 1L, Long::sum);
         }
@@ -139,6 +165,7 @@ public class AdminDataService {
     public List<Map<String, Object>> customers() {
         List<Map<String, Object>> rows = new ArrayList<>();
         for (User user : userRepository.findAll()) {
+            if (user.getRole() != Role.CUSTOMER) continue;
             rows.add(row(
                     "id", user.getUserId(),
                     "name", user.getFullName(),
@@ -154,7 +181,8 @@ public class AdminDataService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> customerById(Long id) {
-        User user = userRepository.findById(id).orElseThrow(() -> ApiException.notFound("Customer not found"));
+        User user = userRepository.findById(id).filter(row -> row.getRole() == Role.CUSTOMER)
+                .orElseThrow(() -> ApiException.notFound("Customer not found"));
         return row(
                 "id", user.getUserId(),
                 "name", user.getFullName(),
@@ -167,7 +195,8 @@ public class AdminDataService {
 
     @Transactional
     public Map<String, Object> updateCustomer(Long id, Map<String, Object> body) {
-        User user = userRepository.findById(id).orElseThrow(() -> ApiException.notFound("Customer not found"));
+        User user = userRepository.findById(id).filter(row -> row.getRole() == Role.CUSTOMER)
+                .orElseThrow(() -> ApiException.notFound("Customer not found"));
         if (body.containsKey("firstName") || body.containsKey("lastName")) {
             String first = body.get("firstName") != null ? body.get("firstName").toString().trim() : "";
             String last = body.get("lastName") != null ? body.get("lastName").toString().trim() : "";
@@ -189,7 +218,7 @@ public class AdminDataService {
     public List<Map<String, Object>> enquiries() {
         List<Map<String, Object>> rows = new ArrayList<>();
         List<Contact> reversed = new ArrayList<>(contactRepository.findAll());
-        java.util.Collections.reverse(reversed);
+        reversed.sort((a, b) -> Long.compare(b.getContactId(), a.getContactId()));
         for (Contact contact : reversed) {
             rows.add(row(
                     "id", contact.getContactId(),
@@ -247,6 +276,7 @@ public class AdminDataService {
                     "customer", b.getFullName(),
                     "service", b.getServiceName(),
                     "date", b.getBookingDate(),
+                    "time", b.getPreferredSlot() == null ? "" : b.getPreferredSlot(),
                     "email", b.getEmail(),
                     "phone", b.getPhone(),
                     "abn", b.getAbnNumber(),

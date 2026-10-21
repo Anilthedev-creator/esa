@@ -39,6 +39,17 @@ document.addEventListener("DOMContentLoaded", function () {
       });
     })
     .then(function (data) {
+      // The demo card form is hidden if the server says card simulation is off.
+      // If the config request fails, leave only bank transfer available.
+      return fetch("/api/health")
+        .then(function (res) { return res.ok ? res.json() : {}; })
+        .catch(function () { return {}; })
+        .then(function (config) {
+          data.demoCardPaymentsEnabled = config.demoCardPaymentsEnabled === true;
+          return data;
+        });
+    })
+    .then(function (data) {
       renderSummary(data.booking);
       showBookingEmailPreview(bookingId);
       if (data.payment && data.payment.reference) {
@@ -69,6 +80,24 @@ document.addEventListener("DOMContentLoaded", function () {
         if (document.getElementById("transferPane").style.display !== "none") pay(data.payment);
       });
 
+      var cardTab = document.getElementById("tabCard");
+      var transferTab = document.getElementById("tabTransfer");
+      if (data.demoCardPaymentsEnabled) {
+        cardTab.hidden = false;
+        cardTab.classList.add("active");
+        cardTab.setAttribute("aria-selected", "true");
+        transferTab.classList.remove("active");
+        transferTab.setAttribute("aria-selected", "false");
+        document.getElementById("cardPane").style.display = "";
+        document.getElementById("transferPane").style.display = "none";
+      } else {
+        cardTab.hidden = true;
+        cardTab.setAttribute("aria-selected", "false");
+        transferTab.classList.add("active");
+        transferTab.setAttribute("aria-selected", "true");
+        document.getElementById("cardPane").style.display = "none";
+        document.getElementById("transferPane").style.display = "";
+      }
       setupMethodTabs();
       setupCardInputs();
       document.getElementById("cardPayBtn").addEventListener("click", function () {

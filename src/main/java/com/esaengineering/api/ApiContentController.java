@@ -18,8 +18,11 @@ public class ApiContentController {
     }
 
     @GetMapping("/content")
-    public Map<String, Object> content(@RequestParam("slug") String slug) {
+    public Map<String, Object> content(@RequestParam(value = "slug", required = false) String slug) {
         if (slug == null || slug.isBlank()) slug = "index.html";
+        if (!slug.matches("^[a-z0-9]+(?:-[a-z0-9]+)*\\.html$")) {
+            throw com.esaengineering.web.ApiException.badRequest("Page name is not valid");
+        }
         return cmsService.getPublicContent(slug);
     }
 

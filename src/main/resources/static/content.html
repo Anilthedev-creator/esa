@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 
   <title>Content Management | ESA Admin</title>
+<meta name="robots" content="noindex, nofollow">
 
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="stylesheet" href="style.css">
@@ -122,10 +123,11 @@
           </h3>
 
           <div class="heading-line"></div>
+          <p class="admin-muted" style="max-width:620px;margin-top:10px">This editor changes text on existing site pages. A new page record starts as a draft; it needs a matching HTML page file before it can be published.</p>
         </div>
 
-        <button class="add-page-btn">
-          + Add New Page
+        <button class="add-page-btn" type="button">
+          + Add Page Record
         </button>
 
       </div>
@@ -146,90 +148,7 @@
           </thead>
 
           <tbody id="pagesBody">
-
-            <tr>
-              <td>Home</td>
-              <td>
-                <span class="status published">
-                  Published
-                </span>
-              </td>
-              <td>27 Apr 2026</td>
-
-              <td class="action-icons">
-                <i class="fa-solid fa-pen"></i>
-                <i class="fa-regular fa-eye"></i>
-              </td>
-            </tr>
-
-            <tr>
-              <td>About Us</td>
-
-              <td>
-                <span class="status published">
-                  Published
-                </span>
-              </td>
-
-              <td>27 Apr 2026</td>
-
-              <td class="action-icons">
-                <i class="fa-solid fa-pen"></i>
-                <i class="fa-regular fa-eye"></i>
-              </td>
-            </tr>
-
-            <tr>
-              <td>Services</td>
-
-              <td>
-                <span class="status published">
-                  Published
-                </span>
-              </td>
-
-              <td>27 Apr 2026</td>
-
-              <td class="action-icons">
-                <i class="fa-solid fa-pen"></i>
-                <i class="fa-regular fa-eye"></i>
-              </td>
-            </tr>
-
-            <tr>
-              <td>Projects</td>
-
-              <td>
-                <span class="status published">
-                  Published
-                </span>
-              </td>
-
-              <td>27 Apr 2026</td>
-
-              <td class="action-icons">
-                <i class="fa-solid fa-pen"></i>
-                <i class="fa-regular fa-eye"></i>
-              </td>
-            </tr>
-
-            <tr>
-              <td>Contact Us</td>
-
-              <td>
-                <span class="status published">
-                  Published
-                </span>
-              </td>
-
-              <td>27 Apr 2026</td>
-
-              <td class="action-icons">
-                <i class="fa-solid fa-pen"></i>
-                <i class="fa-regular fa-eye"></i>
-              </td>
-            </tr>
-
+            <tr><td colspan="4">Loading pages…</td></tr>
           </tbody>
 
         </table>
