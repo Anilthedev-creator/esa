@@ -14,6 +14,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -62,6 +64,37 @@ class PortalServicePaymentTest {
     }
 
     @Test
+    void rescheduleCutoffStartsAtNinetyMinutesBeforeTheBookedTime() {
+        Booking booking = new Booking();
+        booking.setBookingDate(LocalDate.of(2026, 6, 11));
+        booking.setPreferredSlot("11:30");
+        ZoneId zone = ZoneId.of("Australia/Melbourne");
+        ZonedDateTime now = ZonedDateTime.of(2026, 6, 11, 10, 0, 0, 0, zone);
+
+        assertTrue(PortalService.rescheduleCutoffPassed(booking, now));
+        booking.setPreferredSlot("12:00");
+        assertFalse(PortalService.rescheduleCutoffPassed(booking, now));
+    }
+
+    @Test
+    void customerCannotRescheduleOnceTheCutoffHasPassed() {
+        PortalService service = new PortalService(userRepository, bookingRepository, contactRepository, paymentRepository);
+        Booking booking = new Booking();
+        booking.setBookingID(11L);
+        booking.setEmail("alice@example.com");
+        booking.setBookingDate(LocalDate.now(ZoneId.of("Australia/Melbourne")).minusDays(1));
+        booking.setPreferredSlot("10:00");
+        booking.setStatus("pending");
+        when(bookingRepository.findByBookingId(11L)).thenReturn(Optional.of(booking));
+
+        ApiException error = assertThrows(ApiException.class,
+                () -> service.reschedule("alice@example.com", 11L, LocalDate.now().plusDays(1).toString(), "09:30"));
+
+        assertEquals(400, error.getStatus().value());
+        verify(bookingRepository, never()).save(any(Booking.class));
+    }
+
+    @Test
     void rescheduleCanClearASlotButRejectsAnInvalidSlot() {
         PortalService service = new PortalService(userRepository, bookingRepository, contactRepository, paymentRepository);
         Booking booking = new Booking();
@@ -69,17 +102,20 @@ class PortalServicePaymentTest {
         booking.setEmail("alice@example.com");
         booking.setFullName("Alice");
         booking.setServiceName("Plant Commissioning");
-        booking.setBookingDate(LocalDate.now());
+        LocalDate tomorrow = LocalDate.now(ZoneId.of("Australia/Melbourne")).plusDays(1);
+        booking.setBookingDate(tomorrow.plusDays(1));
         booking.setPreferredSlot("10:00");
         booking.setStatus("pending");
         when(bookingRepository.findByBookingId(10L)).thenReturn(Optional.of(booking));
         when(bookingRepository.save(any(Booking.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(paymentRepository.findFirstByBookingId(10L)).thenReturn(Optional.empty());
 
-        service.reschedule("alice@example.com", 10L, LocalDate.now().plusDays(1).toString(), "");
+        service.reschedule("alice@example.com", 10L, tomorrow.toString(), "09:30");
+        assertEquals("09:30", booking.getPreferredSlot());
+        service.reschedule("alice@example.com", 10L, tomorrow.toString(), "");
         assertEquals("", booking.getPreferredSlot());
         ApiException error = assertThrows(ApiException.class,
-                () -> service.reschedule("alice@example.com", 10L, null, "25:00"));
+                () -> service.reschedule("alice@example.com", 10L, null, "09:15"));
         assertEquals(400, error.getStatus().value());
     }
 }

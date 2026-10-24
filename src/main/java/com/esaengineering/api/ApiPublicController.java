@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Locale;
@@ -26,6 +27,8 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api")
 public class ApiPublicController {
+
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("Australia/Melbourne");
 
     private final BookingRepository bookingRepo;
     private final ContactRepository contactRepo;
@@ -69,11 +72,11 @@ public class ApiPublicController {
         if (slot == null) slot = "";
         if (!allowedSlots().contains(slot)) throw ApiException.badRequest("Please choose one of the available time preferences.");
         String preferred = text(body, "preferredDate");
-        LocalDate bookingDate = LocalDate.now();
+        LocalDate bookingDate = LocalDate.now(BUSINESS_ZONE);
         if (preferred != null) {
             bookingDate = parseDate(preferred.length() >= 10 ? preferred.substring(0, 10) : preferred,
                     "Please choose a valid preferred date.");
-            if (bookingDate.isBefore(LocalDate.now())) throw ApiException.badRequest("Please choose today or a future preferred date.");
+            if (bookingDate.isBefore(LocalDate.now(BUSINESS_ZONE))) throw ApiException.badRequest("Please choose today or a future preferred date.");
         }
 
         Booking b = new Booking();
@@ -436,7 +439,9 @@ public class ApiPublicController {
     }
 
     private static Set<String> allowedSlots() {
-        return Set.of("", "08:00", "10:00", "13:00", "15:00");
+        return Set.of("", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
+                "12:00", "12:30", "13:00", "13:30", "14:00", "14:30",
+                "15:00", "15:30", "16:00", "16:30", "17:00");
     }
 
     private static LocalDate parseDate(String value, String message) {

@@ -17,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -70,16 +71,26 @@ class ApiPublicControllerTest {
         body.put("name", "Alice Customer");
         body.put("email", "bob@example.com"); // must not override the signed-in account
         body.put("service", "Plant Commissioning");
-        body.put("preferredSlot", "10:00");
-        body.put("preferredDate", LocalDate.now().plusDays(1).toString());
+        body.put("preferredSlot", "09:30");
+        LocalDate preferredDate = LocalDate.now(ZoneId.of("Australia/Melbourne")).plusDays(1);
+        body.put("preferredDate", preferredDate.toString());
         Map<String, Object> response = controller.createBooking(body, aliceToken);
 
         ArgumentCaptor<Booking> saved = ArgumentCaptor.forClass(Booking.class);
         verify(bookingRepo).save(saved.capture());
         assertEquals("alice@example.com", saved.getValue().getEmail());
-        assertEquals("10:00", saved.getValue().getPreferredSlot());
-        assertEquals(LocalDate.now().plusDays(1), saved.getValue().getBookingDate());
+        assertEquals("09:30", saved.getValue().getPreferredSlot());
+        assertEquals(preferredDate, saved.getValue().getBookingDate());
         assertEquals(7L, ((Map<?, ?>) response.get("booking")).get("id"));
+    }
+
+    @Test
+    void bookingRejectsSlotsThatAreNotEveryHalfHour() {
+        ApiException error = assertThrows(ApiException.class,
+                () -> controller.createBooking(Map.of("name", "Alice Customer", "preferredSlot", "09:15"), aliceToken));
+
+        assertEquals(400, error.getStatus().value());
+        verifyNoInteractions(bookingRepo, paymentRepo);
     }
 
     @Test

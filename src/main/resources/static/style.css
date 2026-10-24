@@ -971,6 +971,16 @@ body.booking-auth-open {
   font-size: 0.9rem;
 }
 
+/* booking date and slots */
+.booking-date-slot {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s4);
+}
+@media (max-width: 640px) {
+  .booking-date-slot { grid-template-columns: 1fr; }
+}
+
 /* booking time slot chips (the select is hidden but still posts the value) */
 .slot-chips {
   display: flex;

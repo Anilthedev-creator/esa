@@ -17,6 +17,7 @@ const path = require('path');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto'); // for the password reset tokens
+const { ALLOWED_SLOTS, melbourneToday, isRescheduleCutoffPassed } = require('./booking-time');
 
 const PORT = process.env.PORT || 8080;
 // Consultation fee, mirrors app.booking.consultation-fee in the Spring app.
@@ -764,7 +765,7 @@ function isDateOnly(value) {
   const d = new Date(String(value) + 'T00:00:00Z');
   return !isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
 }
-const allowedSlots = ['', '08:00', '10:00', '13:00', '15:00'];
+const allowedSlots = ALLOWED_SLOTS;
 const bookingSummary = (b) => {
   const p = payments.find(x => String(x.bookingId) === String(b.id)) || null;
   const payStatus = !p ? 'unpaid' : (p.status || 'incomplete');
@@ -776,7 +777,8 @@ const bookingSummary = (b) => {
     paymentReference: p ? p.transactionId : null,
     // once a transfer is logged, customers must contact the office before changing the payment
     canCancel: (b.status === 'pending' || b.status === 'confirmed') && payStatus !== 'completed' && payStatus !== 'pending',
-    canPay: (b.status === 'pending' || b.status === 'confirmed') && payStatus !== 'completed' && payStatus !== 'cancelled' && payStatus !== 'pending'
+    canPay: (b.status === 'pending' || b.status === 'confirmed') && payStatus !== 'completed' && payStatus !== 'cancelled' && payStatus !== 'pending',
+    canReschedule: (b.status === 'pending' || b.status === 'confirmed') && !isRescheduleCutoffPassed(b)
   };
 };
 const paymentSummary = (p) => ({
@@ -843,9 +845,12 @@ app.post('/api/portal/bookings/:id/reschedule', requireCustomer, (req, res) => {
   if (status === 'completed' || status === 'cancelled') {
     return res.status(400).json({ message: 'This booking is ' + status + ' so it can not be moved, please call us.', success: false });
   }
+  if (isRescheduleCutoffPassed(b)) {
+    return res.status(400).json({ message: 'Rescheduling closes 90 minutes before your booked time. Please call us to make a change.', success: false });
+  }
   if (req.body.preferredDate) {
     const date = String(req.body.preferredDate).slice(0, 10);
-    const today = new Date().toISOString().slice(0, 10);
+    const today = melbourneToday();
     if (!isDateOnly(date) || date < today) return res.status(400).json({ message: 'Please choose today or a future date.' });
     b.bookingDate = date;
   }
@@ -920,7 +925,7 @@ app.post('/api/bookings', requireCustomer, (req, res) => {
   const finalEmail = req.customerEmail;
   if (!finalName) return res.status(400).json({ message: 'Name is required', success: false });
   const preferredDate = String(req.body.preferredDate || '').slice(0, 10);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = melbourneToday();
   if (preferredDate && (!isDateOnly(preferredDate) || preferredDate < today)) {
     return res.status(400).json({ message: 'Please choose today or a future preferred date.' });
   }

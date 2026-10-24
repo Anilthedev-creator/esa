@@ -5,6 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const net = require('node:net');
 const { test } = require('node:test');
+const { melbourneToday } = require('../booking-time');
 
 function freePort() {
   return new Promise((resolve, reject) => {
@@ -151,8 +152,8 @@ test('Node API scopes booking and payment data and protects the sandbox card flo
       token: aliceToken,
       body: {
         name: 'Alice Customer', email: 'bob@example.com', phone: '0400000000',
-        service: 'Plant Commissioning', preferredDate: new Date().toISOString().slice(0, 10),
-        preferredSlot: '10:00'
+        service: 'Plant Commissioning', preferredDate: melbourneToday(),
+        preferredSlot: '09:30'
       }
     });
     assert.equal(transferBooking.status, 200);
@@ -174,20 +175,26 @@ test('Node API scopes booking and payment data and protects the sandbox card flo
     });
     assert.equal(badBookingDate.status, 400);
 
+    const futureBookingDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
     const slotBooking = await api(base, '/api/bookings', {
       method: 'POST', token: aliceToken,
-      body: { name: 'Alice Customer', service: 'Waste Management', preferredSlot: '10:00' }
+      body: { name: 'Alice Customer', service: 'Waste Management', preferredDate: futureBookingDate, preferredSlot: '10:00' }
     });
-    const todayForReschedule = new Date().toISOString().slice(0, 10);
+    const halfHourSlot = await api(base, '/api/portal/bookings/' + slotBooking.data.booking.id + '/reschedule', {
+      method: 'POST', token: aliceToken,
+      body: { preferredDate: futureBookingDate, preferredSlot: '09:30' }
+    });
+    assert.equal(halfHourSlot.status, 200);
+    assert.equal(halfHourSlot.data.booking.preferredSlot, '09:30');
     const clearedSlot = await api(base, '/api/portal/bookings/' + slotBooking.data.booking.id + '/reschedule', {
       method: 'POST', token: aliceToken,
-      body: { preferredDate: todayForReschedule, preferredSlot: '' }
+      body: { preferredDate: futureBookingDate, preferredSlot: '' }
     });
     assert.equal(clearedSlot.status, 200);
     assert.equal(clearedSlot.data.booking.preferredSlot, null);
     const invalidSlot = await api(base, '/api/portal/bookings/' + slotBooking.data.booking.id + '/reschedule', {
       method: 'POST', token: aliceToken,
-      body: { preferredSlot: '25:00' }
+      body: { preferredSlot: '09:15' }
     });
     assert.equal(invalidSlot.status, 400);
 

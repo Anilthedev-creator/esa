@@ -15,12 +15,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Everything the customer portal needs, scoped to a single email address.
@@ -35,6 +39,10 @@ import java.util.Objects;
 public class PortalService {
 
     private static final Logger log = LoggerFactory.getLogger(PortalService.class);
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("Australia/Melbourne");
+    private static final Set<String> ALLOWED_SLOTS = Set.of("", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
+            "12:00", "12:30", "13:00", "13:30", "14:00", "14:30",
+            "15:00", "15:30", "16:00", "16:30", "17:00");
 
     private final UserRepository userRepository;
     private final BookingRepository bookingRepository;
@@ -94,6 +102,9 @@ public class PortalService {
         if ("completed".equals(status) || "cancelled".equals(status)) {
             throw ApiException.badRequest("This booking is " + status + " so it can not be moved, please call us.");
         }
+        if (rescheduleCutoffPassed(b, ZonedDateTime.now(BUSINESS_ZONE))) {
+            throw ApiException.badRequest("Rescheduling closes 90 minutes before your booked time. Please call us to make a change.");
+        }
         if (date != null && !date.isBlank()) {
             java.time.LocalDate newDate;
             try {
@@ -101,19 +112,38 @@ public class PortalService {
             } catch (RuntimeException e) {
                 throw ApiException.badRequest("Please choose a valid preferred date.");
             }
-            if (newDate.isBefore(java.time.LocalDate.now())) {
+            if (newDate.isBefore(java.time.LocalDate.now(BUSINESS_ZONE))) {
                 throw ApiException.badRequest("Please choose today or a future date.");
             }
             b.setBookingDate(newDate);
         }
         if (slot != null) {
-            if (!java.util.Set.of("", "08:00", "10:00", "13:00", "15:00").contains(slot)) {
+            if (!ALLOWED_SLOTS.contains(slot)) {
                 throw ApiException.badRequest("Please choose one of the available time preferences.");
             }
             b.setPreferredSlot(slot);
         }
         bookingRepository.save(b);
         return summary(b, paymentRepository.findFirstByBookingId(b.getBookingID()).orElse(null));
+    }
+
+    static boolean rescheduleCutoffPassed(Booking booking, ZonedDateTime now) {
+        if (booking.getBookingDate() == null) return false;
+        LocalTime bookedTime = LocalTime.of(9, 0);
+        String slot = booking.getPreferredSlot();
+        if (slot != null && !slot.isBlank()) {
+            try {
+                bookedTime = LocalTime.parse(slot);
+            } catch (RuntimeException ignored) {}
+        }
+        ZonedDateTime bookedStart = booking.getBookingDate().atTime(bookedTime).atZone(BUSINESS_ZONE);
+        return !now.plusMinutes(90).isBefore(bookedStart);
+    }
+
+    private static boolean canReschedule(Booking booking) {
+        String status = booking.getStatus() == null ? "pending" : booking.getStatus();
+        return ("pending".equals(status) || "confirmed".equals(status))
+                && !rescheduleCutoffPassed(booking, ZonedDateTime.now(BUSINESS_ZONE));
     }
 
     /** One of this customer's own bookings, with its payment state. */
@@ -256,7 +286,8 @@ public class PortalService {
                 "paid", "completed".equals(paymentStatus),
                 "paymentReference", payment == null ? null : payment.getTransactionId(),
                 "canCancel", canCancel(b.getStatus(), paymentStatus),
-                "canPay", canPay(b.getStatus(), paymentStatus));
+                "canPay", canPay(b.getStatus(), paymentStatus),
+                "canReschedule", canReschedule(b));
     }
 
     private static boolean canCancel(String bookingStatus, String paymentStatus) {

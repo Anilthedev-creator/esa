@@ -166,9 +166,13 @@
     if (b.canCancel) {
       out += '<button class="btn-mini danger" data-cancel="' + esc(b.bookingId) + '">Cancel</button>';
     }
-    // can move it themselves while its still open
+    // can move it themselves while its still open and outside the cutoff
     if (b.status === "pending" || b.status === "confirmed") {
-      out += '<button class="btn-mini" data-reschedule="' + esc(b.bookingId) + '">Reschedule</button>';
+      if (b.canReschedule === false) {
+        out += '<span style="color:var(--muted);font-size:.8rem" title="Rescheduling closes 90 minutes before your booked time">Reschedule closed</span>';
+      } else {
+        out += '<button class="btn-mini" data-reschedule="' + esc(b.bookingId) + '">Reschedule</button>';
+      }
     }
     return out || '<span style="color:var(--muted);font-size:.8rem">—</span>';
   }
@@ -181,11 +185,24 @@
 
   var reschedOpener = null; // button that opened the dialog, so focus can go back
 
+  function todayInMelbourne() {
+    var parts = new Intl.DateTimeFormat("en-AU", {
+      timeZone: "Australia/Melbourne", year: "numeric", month: "2-digit", day: "2-digit"
+    }).formatToParts(new Date());
+    var values = {};
+    parts.forEach(function (part) { if (part.type !== "literal") values[part.type] = part.value; });
+    return values.year + "-" + values.month + "-" + values.day;
+  }
+
   function openReschedule(id) {
+    var b = state.bookings.filter(function (x) { return String(x.bookingId) === String(id); })[0];
+    if (b && b.canReschedule === false) {
+      if (window.showToast) window.showToast("This booking can no longer be moved within 90 minutes of its booked time.");
+      return;
+    }
     rescheduleId = id;
     reschedOpener = document.activeElement;
-    var b = state.bookings.filter(function (x) { return String(x.bookingId) === String(id); })[0];
-    var today = new Date().toISOString().slice(0, 10);
+    var today = todayInMelbourne();
     $("reschedDate").min = today;
     $("reschedDate").value = b && b.bookingDate ? b.bookingDate : today;
     $("reschedSlot").value = b && b.preferredSlot ? b.preferredSlot : "";
