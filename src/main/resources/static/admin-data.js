@@ -248,11 +248,13 @@
     if (p.status !== 'completed') {
       actions += ' <button class="admin-btn-secondary" data-mark-paid="' + p.id + '" style="margin-left:6px">Mark paid</button>';
     }
-    // how it was paid: card shows the last 4, transfers say so
+    // card shows only its last 4; wallet methods are marked as demos
     var howPaid = '';
-    if (p.method === 'card' && p.cardLast4) howPaid = '<br><span class="admin-muted">card \u2022\u2022\u2022\u2022 ' + esc(p.cardLast4) + '</span>';
+    if (p.method === 'card' && p.cardLast4) howPaid = '<br><span class="admin-muted">card \u2022\u2022\u2022\u2022 ' + esc(p.cardLast4) + ' (demo)</span>';
     else if (p.method === 'transfer' && p.transferReference) howPaid = '<br><span class="admin-muted">bank transfer ref: ' + esc(p.transferReference) + '</span>';
     else if (p.method === 'transfer') howPaid = '<br><span class="admin-muted">bank transfer</span>';
+    else if (p.method === 'paypal') howPaid = '<br><span class="admin-muted">PayPal (demo)</span>';
+    else if (p.method === 'zip_pay' || p.method === 'zip') howPaid = '<br><span class="admin-muted">Zip Pay (demo)</span>';
     return '<tr>' +
       '<td>' + esc(p.invoiceId) + howPaid + '</td>' +
       '<td>' + esc(p.customerName) + '</td>' +

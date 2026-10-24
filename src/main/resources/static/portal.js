@@ -246,9 +246,9 @@
       if (window.showToast) window.showToast("No payments to export yet.");
       return;
     }
-    var lines = ["Reference,Booking,Name,Amount,Status,Date"];
+    var lines = ["Reference,Booking,Name,Amount,Method,Status,Date"];
     state.payments.forEach(function (p) {
-      lines.push([p.reference, p.bookingId || "", p.customerName, p.amount, p.status, (p.paymentDate || "").slice(0, 10)]
+      lines.push([p.reference, p.bookingId || "", p.customerName, p.amount, paymentMethodLabel(p), p.status, (p.paymentDate || "").slice(0, 10)]
         .map(function (v) { return '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"'; })
         .join(","));
     });
@@ -283,6 +283,14 @@
 
   /* ------------------------------ payments ------------------------------ */
 
+  function paymentMethodLabel(p) {
+    if (p.method === "card" && p.cardLast4) return "Card ending " + esc(p.cardLast4) + " (demo)";
+    if (p.method === "transfer" || p.status === "pending") return "Bank transfer";
+    if (p.method === "paypal") return "PayPal (demo)";
+    if (p.method === "zip_pay" || p.method === "zip") return "Zip Pay (demo)";
+    return "—";
+  }
+
   function renderPayments() {
     var rows = state.payments.map(function (p) {
       return "<tr>" +
@@ -290,6 +298,7 @@
         cell(p.bookingId ? "#" + esc(p.bookingId) : "—") +
         cell(esc(p.customerName)) +
         cell(fmt(money(p.amount))) +
+        cell(paymentMethodLabel(p)) +
         cell(badge(p.status)) +
         cell(p.paymentDate ? esc(p.paymentDate.slice(0, 10)) : "—") +
         cell('<div class="portal-actions">' +
@@ -301,7 +310,7 @@
     }).join("");
 
     $("paymentsBody").innerHTML = state.payments.length
-      ? tableWrap(head(["Reference", "Booking", "Name", "Amount", "Status", "Date", ""]), rows)
+      ? tableWrap(head(["Reference", "Booking", "Name", "Amount", "Method", "Status", "Date", ""]), rows)
       : empty("No payments yet. A payment appears here once you pay a consultation fee.");
   }
 

@@ -1,8 +1,8 @@
 /*
  * payment.js
  * the payment page (step 2 of the booking).
- * shows the booking summary and takes the fee either by card (sandbox mode,
- * settles instantly) or by bank transfer (logged, confirmed when it clears).
+ * shows the booking summary and takes the fee by sandbox card, simulated
+ * PayPal/Zip Pay, or bank transfer (logged until it clears).
  */
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -47,7 +47,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       // if it is already paid just show the success card
       if (data.payment && data.payment.status === "completed") {
-        showPaid(data.payment.reference, methodText(data.payment));
+        showPaid(data.payment.reference, methodText(data.payment), data.payment.method);
         return;
       }
       if (data.payment && data.payment.status === "pending") {
@@ -63,6 +63,8 @@ document.addEventListener("DOMContentLoaded", function () {
       document.getElementById("feeAmount").textContent = "$" + data.booking.fee;
       document.getElementById("payBtn").textContent = "I've banked the $" + data.booking.fee + " fee";
       document.getElementById("cardPayBtn").textContent = "Pay $" + data.booking.fee + " by card";
+      document.getElementById("paypalPayBtn").textContent = "Pay $" + data.booking.fee + " with PayPal (demo)";
+      document.getElementById("zipPayBtn").textContent = "Pay $" + data.booking.fee + " with Zip Pay (demo)";
 
       form.addEventListener("submit", function (e) {
         e.preventDefault();
@@ -73,6 +75,12 @@ document.addEventListener("DOMContentLoaded", function () {
       setupCardInputs();
       document.getElementById("cardPayBtn").addEventListener("click", function () {
         payByCard(data.payment);
+      });
+      document.getElementById("paypalPayBtn").addEventListener("click", function () {
+        payByWallet(data.payment, "paypal");
+      });
+      document.getElementById("zipPayBtn").addEventListener("click", function () {
+        payByWallet(data.payment, "zip_pay");
       });
     })
     .catch(function (error) {
@@ -150,15 +158,22 @@ function row(label, value) {
 /** "Card ending 4242" / "Bank transfer" / "" - for the success + receipt bits */
 function methodText(payment) {
   if (!payment) return "";
-  if (payment.method === "card" && payment.cardLast4) return "Card ending " + payment.cardLast4;
+  if (payment.method === "card" && payment.cardLast4) return "Card ending " + payment.cardLast4 + " (demo)";
   if (payment.method === "transfer") return "Bank transfer";
+  if (payment.method === "paypal") return "PayPal (demo)";
+  if (payment.method === "zip_pay" || payment.method === "zip") return "Zip Pay (demo)";
   return "";
 }
 
-function showPaid(reference, paidBy) {
+function showPaid(reference, paidBy, method) {
   document.getElementById("paymentCard").style.display = "none";
   var paid = document.getElementById("paidCard");
   paid.style.display = "block";
+  var demoPayment = method === "card" || method === "paypal" || method === "zip_pay" || method === "zip";
+  var heading = paid.querySelector("h1");
+  if (heading) heading.textContent = demoPayment ? "Demo payment recorded" : "Payment successful";
+  var demoNotice = document.getElementById("paidDemoNotice");
+  if (demoNotice) demoNotice.style.display = demoPayment ? "block" : "none";
   if (reference) {
     document.getElementById("paidRef").textContent =
       "Payment reference: " + reference + (paidBy ? "  ·  Paid by " + paidBy : "");
@@ -219,7 +234,7 @@ function pay(payment) {
       if (result.data.status === "pending") {
         showPending(result.data.reference);
       } else {
-        showPaid(result.data.reference);
+        showPaid(result.data.reference, "Bank transfer", "transfer");
       }
     })
     .catch(function () {
@@ -232,24 +247,32 @@ function pay(payment) {
 
 /* ------------------------- card payments (sandbox) ------------------------- */
 
-// tabs: card pane vs transfer pane, only one visible at a time
+// only show the fields for the selected payment method
 function setupMethodTabs() {
-  var tabCard = document.getElementById("tabCard");
-  var tabTransfer = document.getElementById("tabTransfer");
-  var cardPane = document.getElementById("cardPane");
-  var transferPane = document.getElementById("transferPane");
+  var methods = [
+    { name: "card", tab: "tabCard", pane: "cardPane" },
+    { name: "transfer", tab: "tabTransfer", pane: "transferPane" },
+    { name: "paypal", tab: "tabPaypal", pane: "paypalPane" },
+    { name: "zip_pay", tab: "tabZip", pane: "zipPane" }
+  ];
+
   function select(which) {
-    var card = which === "card";
-    tabCard.classList.toggle("active", card);
-    tabTransfer.classList.toggle("active", !card);
-    tabCard.setAttribute("aria-selected", card ? "true" : "false");
-    tabTransfer.setAttribute("aria-selected", card ? "false" : "true");
-    cardPane.style.display = card ? "" : "none";
-    transferPane.style.display = card ? "none" : "";
+    methods.forEach(function (method) {
+      var active = method.name === which;
+      var tab = document.getElementById(method.tab);
+      var pane = document.getElementById(method.pane);
+      tab.classList.toggle("active", active);
+      tab.setAttribute("aria-selected", active ? "true" : "false");
+      pane.style.display = active ? "" : "none";
+    });
     clearError();
   }
-  tabCard.addEventListener("click", function () { select("card"); });
-  tabTransfer.addEventListener("click", function () { select("transfer"); });
+
+  methods.forEach(function (method) {
+    document.getElementById(method.tab).addEventListener("click", function () {
+      select(method.name);
+    });
+  });
 }
 
 // nice-to-type inputs: spaces in the card number, auto slash in the expiry,
@@ -327,7 +350,7 @@ function payByCard(payment) {
           btn.textContent = "Pay by card";
           return;
         }
-        showPaid(result.data.reference, result.data.cardLast4 ? "Card ending " + result.data.cardLast4 : "");
+        showPaid(result.data.reference, result.data.cardLast4 ? "Card ending " + result.data.cardLast4 + " (demo)" : "", "card");
       })
       .catch(function () {
         showError("Could not reach the server. Please try again.");
@@ -335,4 +358,43 @@ function payByCard(payment) {
         btn.textContent = "Pay by card";
       });
   }, 700);
+}
+
+// the PayPal and Zip Pay buttons use this fake approval endpoint in demo mode
+function payByWallet(payment, method) {
+  if (!payment) return;
+  clearError();
+
+  var buttonId = method === "paypal" ? "paypalPayBtn" : "zipPayBtn";
+  var button = document.getElementById(buttonId);
+  var oldText = button.textContent;
+  button.disabled = true;
+  button.textContent = "Processing demo payment...";
+
+  fetch("/api/payments/" + encodeURIComponent(payment.id) + "/wallet", {
+    method: "POST",
+    headers: paymentHeaders(),
+    body: JSON.stringify({ method: method })
+  })
+    .then(function (res) {
+      return res.json().then(function (data) { return { ok: res.ok, data: data }; });
+    })
+    .then(function (result) {
+      if (!result.ok) {
+        showError(result.data.message || "The payment could not be processed. Please try again.");
+        button.disabled = false;
+        button.textContent = oldText;
+        return;
+      }
+      var paidMethod = result.data.method || method;
+      showPaid(result.data.reference, methodText({
+        method: paidMethod,
+        cardLast4: result.data.cardLast4
+      }), paidMethod);
+    })
+    .catch(function () {
+      showError("Could not reach the server. Please try again.");
+      button.disabled = false;
+      button.textContent = oldText;
+    });
 }

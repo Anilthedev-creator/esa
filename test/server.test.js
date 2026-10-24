@@ -314,6 +314,111 @@ test('Node API scopes booking and payment data and protects the sandbox card flo
 });
 
 
+test('Node demo wallet payments support PayPal and Zip Pay without storing payment details', async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'esa-node-wallet-test-'));
+  const port = await freePort();
+  const base = 'http://127.0.0.1:' + port;
+  const { child, ready } = startServer(port, dataDir, false);
+
+  try {
+    await ready;
+    const alice = await api(base, '/api/auth/signup', {
+      method: 'POST', body: {
+        firstName: 'Alice', lastName: 'Customer', email: 'alice@example.com', password: 'StrongPass9'
+      }
+    });
+    const bob = await api(base, '/api/auth/signup', {
+      method: 'POST', body: {
+        firstName: 'Bob', lastName: 'Customer', email: 'bob@example.com', password: 'StrongPass9'
+      }
+    });
+    assert.equal(alice.status, 201);
+    assert.equal(bob.status, 201);
+
+    const walletPaymentIds = [];
+    for (const method of ['paypal', 'zip_pay']) {
+      const booking = await api(base, '/api/bookings', {
+        method: 'POST', token: alice.data.token,
+        body: { name: 'Alice Customer', service: 'Plant Commissioning' }
+      });
+      assert.equal(booking.status, 200);
+      const paymentId = booking.data.payment.id;
+      walletPaymentIds.push(paymentId);
+
+      const otherCustomer = await api(base, '/api/payments/' + paymentId + '/wallet', {
+        method: 'POST', token: bob.data.token, body: { method: method }
+      });
+      assert.equal(otherCustomer.status, 404);
+
+      const unsupported = await api(base, '/api/payments/' + paymentId + '/wallet', {
+        method: 'POST', token: alice.data.token, body: { method: 'card' }
+      });
+      assert.equal(unsupported.status, 400);
+
+      const paid = await api(base, '/api/payments/' + paymentId + '/wallet', {
+        method: 'POST', token: alice.data.token, body: { method: method }
+      });
+      assert.equal(paid.status, 200);
+      assert.equal(paid.data.status, 'completed');
+      assert.equal(paid.data.method, method);
+      assert.equal(paid.data.demo, true);
+      assert.match(paid.data.message, /no real charge/i);
+
+      const details = await api(base, '/api/payments/' + paymentId, { token: alice.data.token });
+      assert.equal(details.data.payment.method, method);
+      assert.equal(details.data.payment.status, 'completed');
+      assert.equal(JSON.stringify(details.data).includes('cardNumber'), false);
+      assert.equal(JSON.stringify(details.data).includes('cardCvv'), false);
+
+      const savedPayments = JSON.parse(fs.readFileSync(path.join(dataDir, 'payments.json'), 'utf8'));
+      const saved = savedPayments.find((payment) => String(payment.id) === String(paymentId));
+      assert.equal(saved.method, method);
+      assert.equal(saved.status, 'completed');
+      assert.equal(saved.cardLast4, null);
+      assert.equal(Object.hasOwn(saved, 'cardNumber'), false);
+      assert.equal(Object.hasOwn(saved, 'cardCvv'), false);
+
+      const bookingDetails = await api(base, '/api/bookings/' + booking.data.booking.id, { token: alice.data.token });
+      assert.equal(bookingDetails.data.booking.status, 'confirmed');
+    }
+
+    const portalPayments = await api(base, '/api/portal/payments', { token: alice.data.token });
+    for (let i = 0; i < walletPaymentIds.length; i++) {
+      const method = i === 0 ? 'paypal' : 'zip_pay';
+      const row = portalPayments.data.payments.find((payment) => String(payment.id) === String(walletPaymentIds[i]));
+      assert.equal(row.method, method);
+    }
+    const adminSignin = await api(base, '/api/auth/signin', {
+      method: 'POST', body: { email: 'admin@esaengineering.com.au', password: 'Admin123' }
+    });
+    const adminPayments = await api(base, '/api/admin/payments', { token: adminSignin.data.token });
+    for (let i = 0; i < walletPaymentIds.length; i++) {
+      const method = i === 0 ? 'paypal' : 'zip_pay';
+      const row = adminPayments.data.payments.find((payment) => String(payment.id) === String(walletPaymentIds[i]));
+      assert.equal(row.method, method);
+    }
+
+    const transferBooking = await api(base, '/api/bookings', {
+      method: 'POST', token: alice.data.token,
+      body: { name: 'Alice Customer', service: 'Waste Management' }
+    });
+    const transferPaymentId = transferBooking.data.payment.id;
+    const transfer = await api(base, '/api/payments/' + transferPaymentId + '/confirm', {
+      method: 'POST', token: alice.data.token,
+      body: { transferReference: 'BANK-123', paidDate: new Date().toISOString().slice(0, 10) }
+    });
+    assert.equal(transfer.status, 200);
+    const walletAfterTransfer = await api(base, '/api/payments/' + transferPaymentId + '/wallet', {
+      method: 'POST', token: alice.data.token, body: { method: 'paypal' }
+    });
+    assert.equal(walletAfterTransfer.status, 409);
+  } finally {
+    await stopServer(child);
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+
 test('admin edits are audited and data can be read again after a Node restart', async () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'esa-node-audit-test-'));
   let port = await freePort();

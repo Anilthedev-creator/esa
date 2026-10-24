@@ -135,7 +135,55 @@ class ApiPublicControllerTest {
         assertEquals(409, card.getStatus().value());
         assertEquals("pending", payment.getStatus());
         assertNull(payment.getCardLast4());
+        ApiException wallet = assertThrows(ApiException.class,
+                () -> controller.walletPayment(11L, Map.of("method", "paypal"), aliceToken));
+        assertEquals(409, wallet.getStatus().value());
         verify(paymentRepo, times(1)).save(payment);
+    }
+
+    @Test
+    void demoPaypalAndZipPayConfirmBookingsWithoutSavingPaymentDetails() {
+        Payment paypalPayment = payment("incomplete");
+        Booking paypalBooking = booking("alice@example.com", 7L);
+        Payment zipPayment = payment("incomplete");
+        zipPayment.setPaymentId(12L);
+        zipPayment.setBookingId(8L);
+        Booking zipBooking = booking("alice@example.com", 8L);
+        when(paymentRepo.findById(11L)).thenReturn(Optional.of(paypalPayment));
+        when(paymentRepo.findById(12L)).thenReturn(Optional.of(zipPayment));
+        when(bookingRepo.findByBookingId(7L)).thenReturn(Optional.of(paypalBooking));
+        when(bookingRepo.findByBookingId(8L)).thenReturn(Optional.of(zipBooking));
+        when(paymentRepo.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(bookingRepo.save(any(Booking.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Map<String, Object> paypal = controller.walletPayment(11L, Map.of("method", "paypal"), aliceToken);
+        assertEquals("completed", paypal.get("status"));
+        assertEquals("paypal", paypal.get("method"));
+        assertEquals(true, paypal.get("demo"));
+        assertEquals("completed", paypalPayment.getStatus());
+        assertEquals("paypal", paypalPayment.getMethod());
+        assertEquals("confirmed", paypalBooking.getStatus());
+
+        Map<String, Object> zip = controller.walletPayment(12L, Map.of("method", "zip_pay"), aliceToken);
+        assertEquals("completed", zip.get("status"));
+        assertEquals("zip_pay", zip.get("method"));
+        assertEquals("completed", zipPayment.getStatus());
+        assertEquals("zip_pay", zipPayment.getMethod());
+        assertEquals("confirmed", zipBooking.getStatus());
+        assertNull(zipPayment.getCardLast4());
+        assertNull(zipPayment.getTransferReference());
+
+        Map<?, ?> safeDetails = (Map<?, ?>) controller.getPayment(12L, aliceToken).get("payment");
+        assertEquals("zip_pay", safeDetails.get("method"));
+        assertFalse(safeDetails.containsKey("cardNumber"));
+        assertFalse(safeDetails.containsKey("cardCvv"));
+
+        ApiException otherOwner = assertThrows(ApiException.class,
+                () -> controller.walletPayment(11L, Map.of("method", "paypal"), bobToken));
+        assertEquals(404, otherOwner.getStatus().value());
+        ApiException unsupported = assertThrows(ApiException.class,
+                () -> controller.walletPayment(11L, Map.of("method", "card"), aliceToken));
+        assertEquals(400, unsupported.getStatus().value());
     }
 
     @Test

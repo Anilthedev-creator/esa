@@ -101,7 +101,7 @@ public class ApiPublicController {
         String emailSubject = "We got your booking - " + b.getServiceName();
         String emailBody = "Hi " + name + ",\n\nThanks for booking " + b.getServiceName() + " with ESA Engineering.\n"
                 + "Your booking reference is #" + b.getBookingID() + " and the consultation fee is $" + p.getAmount() + ".\n"
-                + "The next step is the payment page (payment.html?booking=" + b.getBookingID() + ") where you can pay by card or log a bank transfer.\n\n- ESA Engineering";
+                + "The next step is the payment page (payment.html?booking=" + b.getBookingID() + ") where you can use the card, PayPal or Zip Pay demo, or log a bank transfer. Demo methods do not make real charges.\n\n- ESA Engineering";
         boolean includeDemoEmail = demoEmailPreview && "CUSTOMER".equalsIgnoreCase(identity.getRole())
                 && email.endsWith("@example.com");
         if (includeDemoEmail) writeOutbox(email, emailSubject, emailBody);
@@ -340,6 +340,57 @@ public class ApiPublicController {
                 "cardLast4", p.getCardLast4(),
                 "success", true
         );
+    }
+
+    /**
+     * PayPal and Zip Pay demo flows. They simulate an approval for the signed-in
+     * customer's booking; no provider is contacted and no real charge is made.
+     */
+    @PostMapping("/payments/{id}/wallet")
+    public Map<String, Object> walletPayment(@PathVariable Long id,
+                                             @RequestBody(required = false) Map<String, Object> body,
+                                             @RequestHeader(value = "Authorization", required = false) String auth) {
+        String email = portalAccess.requireCustomer(auth).getEmail();
+        Payment p = paymentRepo.findById(id).orElseThrow(() -> ApiException.notFound("Payment not found"));
+        Booking booking = bookingForPayment(p, email);
+
+        String method = text(body, "method");
+        if (method == null) throw ApiException.badRequest("Choose PayPal or Zip Pay.");
+        method = method.toLowerCase(Locale.ROOT);
+        if (!"paypal".equals(method) && !"zip_pay".equals(method)) {
+            throw ApiException.badRequest("Choose PayPal or Zip Pay.");
+        }
+        if ("cancelled".equals(booking.getStatus()) || "cancelled".equals(p.getStatus())) {
+            throw ApiException.badRequest("This booking was cancelled and can no longer be paid.");
+        }
+        if ("completed".equals(p.getStatus())) {
+            Map<String, Object> out = paymentResult("This fee is already paid, thanks!", p, "completed");
+            out.put("method", p.getMethod());
+            out.put("demo", true);
+            return out;
+        }
+        if ("pending".equals(p.getStatus())) {
+            throw ApiException.conflict("A bank transfer is already logged. Please contact us before paying another way.");
+        }
+
+        p.setStatus("completed");
+        p.setMethod(method);
+        p.setCardLast4(null);
+        p.setTransferReference(null);
+        p.setPaidDate(LocalDate.now());
+        p.setPaymentDate(LocalDateTime.now());
+        paymentRepo.save(p);
+
+        booking.setStatus("confirmed");
+        bookingRepo.save(booking);
+        String label = "paypal".equals(method) ? "PayPal" : "Zip Pay";
+        return Map.of(
+                "message", "Demo " + label + " payment recorded - no real charge was made.",
+                "reference", p.getTransactionId(),
+                "status", "completed",
+                "method", method,
+                "demo", true,
+                "success", true);
     }
 
     /** the checksum every real card number passes, same as server.js */

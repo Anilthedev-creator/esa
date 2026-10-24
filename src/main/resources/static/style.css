@@ -1132,7 +1132,7 @@ body.booking-auth-open {
 .muted-sm { color: var(--muted); font-size: var(--sm); }
 .footer-contact { margin-top: var(--s3); font-size: var(--sm); color: #9ca3af; }
 
-/* payment method tabs (card / bank transfer) on payment.html */
+/* payment method tabs (card / transfer / PayPal / Zip Pay) on payment.html */
 .pay-methods {
   display: grid;
   grid-template-columns: 1fr 1fr;

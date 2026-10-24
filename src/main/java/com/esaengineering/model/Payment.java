@@ -47,7 +47,7 @@ public class Payment {
     public Long getBookingId() { return bookingId; }
     public void setBookingId(Long bookingId) { this.bookingId = bookingId; }
 
-    /** how it was paid: "card" or "transfer" (null until its paid) */
+    /** how it was paid: card, transfer, paypal, or zip_pay */
     @Column(length = 20)
     private String method;
 

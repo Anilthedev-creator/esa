@@ -430,7 +430,9 @@ The pages label these as demo previews; reset links still expire after one hour.
 | POST | `/api/bookings` | Create booking (public) |
 | GET | `/api/bookings/{id}` | Get booking + payment |
 | POST | `/api/enquiries` | Submit contact form |
-| POST | `/api/payments/{id}/confirm` | Confirm payment |
+| POST | `/api/payments/{id}/confirm` | Log a bank transfer for office verification |
+| POST | `/api/payments/{id}/card` | Demo card payment (stores last four digits only) |
+| POST | `/api/payments/{id}/wallet` | Simulated PayPal or Zip Pay demo payment |
 | GET | `/api/content?slug=contact.html` | Public CMS blocks |
 | GET | `/api/admin/stats` | Dashboard stats |
 | GET | `/api/admin/customers` | List customers |
@@ -469,7 +471,7 @@ The pages label these as demo previews; reset links still expire after one hour.
 - **Auth**: `auth.js` stores `token` in `localStorage`, sends `Authorization: Bearer <token>` to admin APIs. `ApiAdminController` verifies via `TokenService`.
 - **Content**: `content.js` fetches `/api/content?slug=...` and injects into `[data-cms]` elements. Admin edits via `PUT /api/admin/pages/{id}/blocks`.
 - **Forms**: `main.js` handles `data-local-submit` + `data-api` forms (`/api/bookings`, `/api/enquiries`) with JSON.
-- **Payments**: `main.js` redirects to `payment.html?booking=<id>` after a successful `POST /api/bookings`; `payment.js` loads the booking from `/api/bookings/{id}` and posts the card to `/api/payments/{id}/confirm`.
+- **Payments**: `main.js` redirects to `payment.html?booking=<id>` after a successful `POST /api/bookings`; `payment.js` loads the booking from `/api/bookings/{id}` and uses `/api/payments/{id}/card`, `/wallet`, or `/confirm` for card, demo PayPal/Zip Pay, and bank-transfer logging. PayPal and Zip Pay are simulated options only; no provider is connected and no real payment is processed.
 - **Portal**: `portal.js` attaches the bearer token from `auth.js` to every `/api/portal/*` call. The server scopes each response to the email inside that token; the client never sends a customer identity.
 
 ## Troubleshooting "Backend offline"

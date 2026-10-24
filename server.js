@@ -924,7 +924,7 @@ app.post('/api/bookings', requireCustomer, (req, res) => {
   const bookingEmailSubject = 'We got your booking - ' + booking.serviceName;
   const bookingEmailBody = 'Hi ' + finalName + ',\n\nThanks for booking ' + booking.serviceName + ' with ESA Engineering.\n' +
     'Your booking reference is #' + id + ' and the consultation fee is $' + booking.fee + '.\n' +
-    'The next step is the payment page (payment.html?booking=' + id + ') where you can pay by card or log a bank transfer.\n\n- ESA Engineering';
+    'The next step is the payment page (payment.html?booking=' + id + ') where you can use the card, PayPal or Zip Pay demo, or log a bank transfer. Demo methods do not make real charges.\n\n- ESA Engineering';
   sendMail(finalEmail, bookingEmailSubject, bookingEmailBody);
   sendMail(settings.adminEmail, 'New booking #' + id + ' - ' + booking.serviceName,
     finalName + ' (' + finalEmail + ', ' + (phone || 'no phone') + ') booked ' + booking.serviceName + '.\nNotes: ' + (notes || '-'));
@@ -1078,6 +1078,50 @@ app.post('/api/payments/:id/card', requireCustomer, (req, res) => {
     (p.customerName || 'A customer') + ' paid $' + p.amount + ' by card (ending ' + p.cardLast4 + '). Booking marked confirmed.');
   res.json({ message: 'Payment approved - your booking is confirmed.', reference: p.transactionId, status: 'completed', cardLast4: p.cardLast4, success: true });
 });
+
+// Zip Pay and PayPal are simulated too; this does not call an external provider.
+app.post('/api/payments/:id/wallet', requireCustomer, (req, res) => {
+  const p = payments.find(x => String(x.id) === req.params.id);
+  if (!p || !paymentBelongsTo(req.customerEmail, p)) {
+    return res.status(404).json({ message: 'Payment not found', success: false });
+  }
+
+  const method = String((req.body || {}).method || '').trim().toLowerCase();
+  if (method !== 'paypal' && method !== 'zip_pay') {
+    return res.status(400).json({ message: 'Choose PayPal or Zip Pay.' });
+  }
+
+  const booking = paymentBooking(p);
+  if (booking.status === 'cancelled' || p.status === 'cancelled') {
+    return res.status(400).json({ message: 'This booking was cancelled and can no longer be paid.' });
+  }
+  if (p.status === 'completed') {
+    return res.json({
+      message: 'This fee is already paid, thanks!', reference: p.transactionId,
+      status: 'completed', method: p.method || null, cardLast4: p.cardLast4 || null, success: true
+    });
+  }
+  if (p.status === 'pending') {
+    return res.status(409).json({ message: 'A bank transfer is already logged. Please contact us before paying another way.' });
+  }
+
+  p.status = 'completed';
+  p.method = method;
+  p.cardLast4 = null;
+  p.transferReference = null;
+  p.paidDate = new Date().toISOString().slice(0, 10);
+  p.paymentDate = new Date().toISOString();
+  save('payments', payments);
+
+  booking.status = 'confirmed';
+  save('bookings', bookings);
+  const label = method === 'paypal' ? 'PayPal' : 'Zip Pay';
+  res.json({
+    message: 'Demo ' + label + ' payment recorded - no real charge was made.',
+    reference: p.transactionId, status: 'completed', method: method, demo: true, success: true
+  });
+});
+
 app.get('/api/payments/:id', requireCustomer, (req, res) => {
   const p = payments.find(x => String(x.id) === req.params.id);
   if (!p || !paymentBelongsTo(req.customerEmail, p)) return res.status(404).json({ message: 'Payment not found', success: false });

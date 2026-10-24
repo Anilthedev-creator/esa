@@ -103,8 +103,11 @@ document.addEventListener('DOMContentLoaded', function () {
       var note = document.getElementById('receiptNote');
       var statusText = p.status === 'completed' ? 'PAID' : (p.status === 'pending' ? 'Transfer logged, waiting to clear' : 'Not paid yet');
       if (p.status === 'completed') {
-        title.textContent = 'Payment receipt';
-        note.textContent = 'This receipt confirms the consultation fee for the booking shown above. Questions: engsa@live.com.au quoting the reference.';
+        var isDemoPayment = p.method === 'card' || p.method === 'paypal' || p.method === 'zip_pay' || p.method === 'zip';
+        title.textContent = isDemoPayment ? 'Demo payment record' : 'Payment receipt';
+        note.textContent = isDemoPayment
+          ? 'This records a simulated payment only. No real charge was made. Questions: engsa@live.com.au quoting the reference.'
+          : 'This receipt confirms the consultation fee for the booking shown above. Questions: engsa@live.com.au quoting the reference.';
       } else if (p.status === 'pending') {
         title.textContent = 'Transfer acknowledgement';
         note.textContent = 'This confirms that you logged a bank transfer. It is not confirmation that the funds have cleared. Please do not pay again by card while the transfer is being checked.';
@@ -113,8 +116,10 @@ document.addEventListener('DOMContentLoaded', function () {
         note.textContent = 'The consultation fee has not been paid or logged yet. This page is not a payment receipt.';
       }
       // how it was paid, when we know (card payments keep the last 4 digits)
-      var paidBy = (p.method === 'card' && p.cardLast4) ? 'Card ending ' + p.cardLast4
-        : (p.method === 'transfer' || p.status === 'pending') ? 'Bank transfer' : '-';
+      var paidBy = (p.method === 'card' && p.cardLast4) ? 'Card ending ' + p.cardLast4 + ' (demo)'
+        : (p.method === 'transfer' || p.status === 'pending') ? 'Bank transfer'
+        : p.method === 'paypal' ? 'PayPal (demo)'
+        : (p.method === 'zip_pay' || p.method === 'zip') ? 'Zip Pay (demo)' : '-';
       box.innerHTML =
         row('Reference', p.reference) +
         row('Booking', p.bookingId ? '#' + p.bookingId : '-') +
