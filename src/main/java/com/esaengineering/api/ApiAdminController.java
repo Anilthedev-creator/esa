@@ -85,6 +85,17 @@ public class ApiAdminController {
         return Map.of("enquiry", adminService.enquiryById(id));
     }
 
+    @PostMapping("/enquiries/{id}/start")
+    public Map<String, Object> startEnquiry(@PathVariable Long id,
+                                            @RequestHeader(value = "Authorization", required = false) String auth) {
+        adminAccess.requireAdmin(auth);
+        Map<String, Object> before = adminService.enquiryById(id);
+        boolean changed = !"in-progress".equals(before.get("status"));
+        Map<String, Object> updated = adminService.startEnquiry(id);
+        if (changed) auditLog.record(auth, "enquiry started", "#" + id + " status: in-progress");
+        return Map.of("enquiry", updated, "statusChanged", changed, "message", "Enquiry in progress");
+    }
+
     @PatchMapping("/enquiries/{id}")
     public Map<String, Object> patchEnquiry(@PathVariable Long id,
                                             @RequestBody Map<String, Object> body,

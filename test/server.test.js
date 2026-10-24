@@ -293,9 +293,24 @@ test('Node API scopes booking and payment data and protects the sandbox card flo
       method: 'POST', body: { name: 'Alice', email: 'alice@example.com', message: 'private detail' }
     });
     const enquiryId = enquiry.data.enquiry.id;
-    assert.equal((await api(base, '/api/enquiries/' + enquiryId, { token: aliceToken })).status, 200);
+    const aliceEnquiry = await api(base, '/api/enquiries/' + enquiryId, { token: aliceToken });
+    assert.equal(aliceEnquiry.status, 200);
+    assert.equal(aliceEnquiry.data.enquiry.status, 'new');
     assert.equal((await api(base, '/api/enquiries/' + enquiryId, { token: bobToken })).status, 404);
     assert.equal((await api(base, '/api/enquiries/' + enquiryId)).status, 401);
+    const startedEnquiry = await api(base, '/api/admin/enquiries/' + enquiryId + '/start', {
+      method: 'POST', token: adminSignin.data.token
+    });
+    assert.equal(startedEnquiry.data.enquiry.status, 'in-progress');
+    const repliedEnquiry = await api(base, '/api/admin/enquiries/' + enquiryId, {
+      method: 'PATCH', token: adminSignin.data.token, body: { reply: 'Thanks, we will follow up.' }
+    });
+    assert.equal(repliedEnquiry.data.enquiry.status, 'resolved');
+    const reopenedEnquiry = await api(base, '/api/portal/enquiries/' + enquiryId + '/reopen', {
+      method: 'POST', token: aliceToken
+    });
+    assert.equal(reopenedEnquiry.status, 200);
+    assert.equal(reopenedEnquiry.data.enquiry.status, 'in-progress');
 
     await t.test('sandbox card route rejects malformed card data without storing it', async () => {
       const invalidBooking = await api(base, '/api/bookings', {
@@ -489,11 +504,41 @@ test('admin edits are audited and data can be read again after a Node restart', 
       method: 'POST', body: { name: 'Saved Customer', email: 'persist@example.com', message: 'saved enquiry text' }
     });
     assert.equal(enquiry.status, 200);
-    const enquiryEdit = await api(base, '/api/admin/enquiries/' + enquiry.data.enquiry.id, {
+    const enquiryId = enquiry.data.enquiry.id;
+    const initialEnquiry = await api(base, '/api/admin/enquiries/' + enquiryId, { token: adminToken });
+    assert.equal(initialEnquiry.data.enquiry.status, 'new');
+
+    const manualStatus = await api(base, '/api/admin/enquiries/' + enquiryId, {
       method: 'PATCH', token: adminToken,
-      body: { status: 'resolved', reply: 'we have replied' }
+      body: { status: 'resolved', reply: 'manual status should not be accepted' }
+    });
+    assert.equal(manualStatus.status, 400);
+
+    const startEnquiry = await api(base, '/api/admin/enquiries/' + enquiryId + '/start', {
+      method: 'POST', token: adminToken
+    });
+    assert.equal(startEnquiry.status, 200);
+    assert.equal(startEnquiry.data.enquiry.status, 'in-progress');
+    assert.equal(startEnquiry.data.statusChanged, true);
+
+    const startAgain = await api(base, '/api/admin/enquiries/' + enquiryId + '/start', {
+      method: 'POST', token: adminToken
+    });
+    assert.equal(startAgain.status, 200);
+    assert.equal(startAgain.data.statusChanged, false);
+
+    const blankReply = await api(base, '/api/admin/enquiries/' + enquiryId, {
+      method: 'PATCH', token: adminToken, body: { reply: '' }
+    });
+    assert.equal(blankReply.status, 200);
+    assert.equal(blankReply.data.enquiry.status, 'in-progress');
+    assert.equal(blankReply.data.enquiry.reply, null);
+
+    const enquiryEdit = await api(base, '/api/admin/enquiries/' + enquiryId, {
+      method: 'PATCH', token: adminToken, body: { reply: 'we have replied' }
     });
     assert.equal(enquiryEdit.status, 200);
+    assert.equal(enquiryEdit.data.enquiry.status, 'resolved');
 
     const paymentEdit = await api(base, '/api/admin/payments/' + booking.data.payment.id, {
       method: 'PATCH', token: adminToken,
@@ -567,10 +612,11 @@ test('admin edits are audited and data can be read again after a Node restart', 
     assert.equal(auditBeforeRestart.status, 200);
     const actions = auditBeforeRestart.data.entries.map((entry) => entry.action);
     for (const action of [
-      'customer updated', 'enquiry updated', 'payment updated', 'page created', 'page updated',
+      'customer updated', 'enquiry started', 'enquiry updated', 'payment updated', 'page created', 'page updated',
       'page content updated', 'page content reset', 'site settings updated', 'about content updated',
       'case study created', 'case study updated', 'case study deleted', 'administrator created'
     ]) assert.ok(actions.includes(action), 'missing audit entry: ' + action);
+    assert.equal(actions.filter((action) => action === 'enquiry started').length, 1);
     const auditText = JSON.stringify(auditBeforeRestart.data.entries);
     assert.equal(auditText.includes('StrongAdmin9'), false);
     assert.equal(auditText.includes('saved about vision'), false);

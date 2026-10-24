@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -33,6 +34,31 @@ class ApiAdminControllerAuditTest {
         verify(adminAccess).requireAdmin("Bearer admin-token");
         verify(adminService).updateCustomer(4L, body);
         verify(auditLog).record("Bearer admin-token", "customer updated", "#4 fields: phone");
+    }
+
+    @Test
+    void startingAnEnquiryChangesItsStatusAndCreatesAnAuditEntry() {
+        when(adminService.enquiryById(5L)).thenReturn(Map.of("id", 5L, "status", "new"));
+        when(adminService.startEnquiry(5L)).thenReturn(Map.of("id", 5L, "status", "in-progress"));
+
+        Map<String, Object> result = controller.startEnquiry(5L, "Bearer admin-token");
+
+        assertEquals("in-progress", ((Map<?, ?>) result.get("enquiry")).get("status"));
+        assertEquals(true, result.get("statusChanged"));
+        verify(adminAccess).requireAdmin("Bearer admin-token");
+        verify(adminService).startEnquiry(5L);
+        verify(auditLog).record("Bearer admin-token", "enquiry started", "#5 status: in-progress");
+    }
+
+    @Test
+    void startingAnEnquiryAgainDoesNotCreateAnotherAuditEntry() {
+        when(adminService.enquiryById(5L)).thenReturn(Map.of("id", 5L, "status", "in-progress"));
+        when(adminService.startEnquiry(5L)).thenReturn(Map.of("id", 5L, "status", "in-progress"));
+
+        Map<String, Object> result = controller.startEnquiry(5L, "Bearer admin-token");
+
+        assertEquals(false, result.get("statusChanged"));
+        verify(auditLog, never()).record("Bearer admin-token", "enquiry started", "#5 status: in-progress");
     }
 
     @Test

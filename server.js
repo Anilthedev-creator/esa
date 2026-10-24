@@ -485,13 +485,32 @@ app.get('/api/admin/enquiries/:id', requireAdmin, (req, res) => {
   if (!c) return res.status(404).json({ message: 'Enquiry not found' });
   res.json({ enquiry: { id: c.id, name: c.fullName, email: c.email, subject: c.serviceName, message: c.description, status: c.status, reply: c.reply, date: c.createdAt } });
 });
+app.post('/api/admin/enquiries/:id/start', requireAdmin, (req, res) => {
+  const c = contacts.find(x=>String(x.id)===req.params.id);
+  if (!c) return res.status(404).json({ message: 'Enquiry not found' });
+  const changed = c.status !== 'in-progress';
+  if (changed) {
+    c.status = 'in-progress';
+    save('contacts', contacts);
+    logAudit(req, 'enquiry started', '#' + c.id + ' status: in-progress');
+  }
+  res.json({ enquiry: c, statusChanged: changed, message: 'Enquiry in progress' });
+});
 app.patch('/api/admin/enquiries/:id', requireAdmin, (req, res) => {
   const c = contacts.find(x=>String(x.id)===req.params.id);
   if (!c) return res.status(404).json({ message: 'Enquiry not found' });
-  if (req.body.status) c.status = req.body.status;
-  if (req.body.reply !== undefined) c.reply = req.body.reply;
+  const body = req.body || {};
+  if (Object.prototype.hasOwnProperty.call(body, 'status')) {
+    return res.status(400).json({ message: 'Enquiry status is updated automatically when work starts or a reply is saved.' });
+  }
+  if (!Object.prototype.hasOwnProperty.call(body, 'reply')) {
+    return res.status(400).json({ message: 'A reply field is required.' });
+  }
+  const reply = String(body.reply == null ? '' : body.reply).trim();
+  c.reply = reply || null;
+  c.status = reply ? 'resolved' : 'in-progress';
   save('contacts', contacts);
-  logAudit(req, 'enquiry updated', '#' + c.id + ' fields: ' + auditFields(req.body));
+  logAudit(req, 'enquiry updated', '#' + c.id + ' fields: ' + auditFields(body));
   res.json({ enquiry: c, message: 'Enquiry updated' });
 });
 

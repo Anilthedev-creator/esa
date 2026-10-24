@@ -508,6 +508,11 @@
       var data = await api('/' + (kind === 'enquiry' ? 'enquiries' : kind + 's') + '/' + id);
       var item = data[kind] || data.enquiry;
       if (!item) return;
+      if (kind === 'enquiry') {
+        var started = await api('/enquiries/' + id + '/start', { method: 'POST' });
+        item = started.enquiry || item;
+        if (started.statusChanged) refresh();
+      }
       STORE[kind] = item;
 
       var body = '';
@@ -527,10 +532,8 @@
         body =
           '<label>Message</label><p class="admin-muted">' + esc(item.message || '') + '</p>' +
           '<label>Reply</label><textarea id="edit-reply" class="admin-input" rows="4" placeholder="Type a reply…">' + esc(item.reply || '') + '</textarea>' +
-          '<label>Status</label><select id="edit-status" class="admin-input">' +
-          '<option value="new"' + (item.status === 'new' ? ' selected' : '') + '>New</option>' +
-          '<option value="in-progress"' + (item.status === 'in-progress' ? ' selected' : '') + '>In Progress</option>' +
-          '<option value="resolved"' + (item.status === 'resolved' ? ' selected' : '') + '>Resolved</option></select>';
+          '<label>Status</label><p class="admin-muted">' + badge('enquiry', item.status) + '</p>' +
+          '<p class="admin-muted">Status updates automatically. Saving a reply resolves the enquiry; a blank reply keeps it in progress.</p>';
       } else if (kind === 'payment') {
         body =
           '<label>Invoice ID</label><input class="admin-input" value="' + esc(item.invoiceId) + '" disabled>' +
@@ -569,7 +572,7 @@
         status: $('edit-status').value
       };
     } else if (kind === 'enquiry') {
-      payload = { status: $('edit-status').value, reply: $('edit-reply').value.trim() };
+      payload = { reply: $('edit-reply').value.trim() };
     } else if (kind === 'payment') {
       payload = { status: $('edit-status').value, amount: Number($('edit-amount').value) };
     } else if (kind === 'page') {

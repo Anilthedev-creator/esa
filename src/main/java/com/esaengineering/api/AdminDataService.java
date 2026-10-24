@@ -219,10 +219,26 @@ public class AdminDataService {
     }
 
     @Transactional
+    public Map<String, Object> startEnquiry(Long id) {
+        Contact c = contactRepository.findById(id).orElseThrow(() -> ApiException.notFound("Enquiry not found"));
+        if (!"in-progress".equals(c.getStatus())) {
+            c.setStatus("in-progress");
+            contactRepository.save(c);
+        }
+        return enquiryById(id);
+    }
+
+    @Transactional
     public Map<String, Object> updateEnquiry(Long id, Map<String, Object> body) {
         Contact c = contactRepository.findById(id).orElseThrow(() -> ApiException.notFound("Enquiry not found"));
-        if (body.containsKey("status")) c.setStatus(body.get("status").toString());
-        if (body.containsKey("reply")) c.setReply(body.get("reply") != null ? body.get("reply").toString() : null);
+        if (body == null || body.containsKey("status")) {
+            throw ApiException.badRequest("Enquiry status is updated automatically when work starts or a reply is saved.");
+        }
+        if (!body.containsKey("reply")) throw ApiException.badRequest("A reply field is required.");
+
+        String reply = body.get("reply") == null ? "" : body.get("reply").toString().trim();
+        c.setReply(reply.isEmpty() ? null : reply);
+        c.setStatus(reply.isEmpty() ? "in-progress" : "resolved");
         contactRepository.save(c);
         return enquiryById(id);
     }
