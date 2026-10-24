@@ -137,8 +137,8 @@
                         <textarea id="message" name="message" class="form-control" rows="5" placeholder="How can our engineering team help?"></textarea>
                     </div>
                     <div class="form-group">
-                        <label>Attach specs or site plans (optional, max 4MB)</label>
-                        <input type="file" id="attachFile" class="form-control">
+                        <label>Attach specs or site plans (optional: PDF, JPG/JPEG or PNG; max 4MB)</label>
+                        <input type="file" id="attachFile" class="form-control" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png">
                         <input type="hidden" name="attachmentName" id="attachmentName">
                         <input type="hidden" name="attachmentData" id="attachmentData">
                         <p id="attachNote" class="xs muted mt-2" style="margin-top:6px"></p>
@@ -305,6 +305,11 @@ document.addEventListener('DOMContentLoaded', function () {
       document.getElementById('attachmentData').value = '';
       note.textContent = '';
       if (!file.files || !file.files[0]) return;
+      if (!/\.(pdf|jpe?g|png)$/i.test(file.files[0].name || '')) {
+        note.textContent = 'Please choose a PDF, JPG/JPEG or PNG file.';
+        file.value = '';
+        return;
+      }
       if (file.files[0].size > 4 * 1024 * 1024) {
         note.textContent = 'That file is over 4MB, please email it to us instead.';
         file.value = '';

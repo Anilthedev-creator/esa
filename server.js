@@ -50,7 +50,7 @@ if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 const app = express();
 app.use(cors({ origin: '*', methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'], allowedHeaders: ['Content-Type','Authorization'] }));
-app.use(bodyParser.json({ limit: '5mb' }));
+app.use(bodyParser.json({ limit: '6mb' }));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.text({ type: ['text/plain','application/octet-stream'], limit: '5mb' }));
 
